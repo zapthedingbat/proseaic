@@ -1,0 +1,2 @@
+# Sample Document
+This is a simple text editor component. You can select text, and the selection will be highlighted when the editor is focused. It also supports basic markdown formatting like headings, **bold**, and *italics*. Try typing some markdown syntax and see how it formats!
