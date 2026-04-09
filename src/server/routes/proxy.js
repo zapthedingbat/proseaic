@@ -1,3 +1,5 @@
+import fs from "fs";
+
 function resolveUpstreamUrl(req, upstreamBaseUrl, targetPath) {
   if (typeof targetPath === "string" && targetPath.length > 0) {
     const query = req.originalUrl.includes("?")
@@ -45,6 +47,17 @@ export function proxy(upstreamBaseUrl, options = {}) {
         body: req.body,
       }, { depth: null, colors: true });
 
+      // log request to file for debugging
+    
+      await fs.promises.mkdir("./logs", { recursive: true });
+      const logFileName = `./logs/proxy-${Date.now()}.log`;
+      await fs.promises.writeFile(logFileName, JSON.stringify({
+        method: req.method,
+        url: url.toString(),
+        headers: req.headers,
+        body: req.body,
+      }, null, 2));
+      
       // Prepare body for forwarding
       let body;
       if (req.method !== "GET" && req.method !== "HEAD") {

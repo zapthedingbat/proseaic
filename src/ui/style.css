@@ -19,6 +19,7 @@
   --editor-selection-radius: 2px;
   --editor-bg-color: #fff;
   --editor-text-color: #000;
+  --editor-box-shadow: 0 0 8px -4px rgba(0,0,0,0.5);
 
   --chat-request-bubble-bg: rgba(200, 255, 255, 0.07);
   --chat-text-color: #bfbfbf;

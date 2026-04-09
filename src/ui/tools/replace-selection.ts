@@ -1,47 +1,45 @@
-type ToolCallArgs = {
-  text?: string;
-  explanation?: string;
+import { TextEditor } from "../components/text-editor.js";
+import { ToolSchema } from "../lib/tools/tool-schema.js";
+
+const schema: ToolSchema = {
+  type: "function",
+  function: {
+    name: "replace_selection",
+    description: "Replace the current selection.",
+    parameters: {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "The full replacement text for the selected region."
+        },
+        explanation: {
+          type: "string",
+          description: "A short explanation of the change."
+        }
+      },
+      required: ["text"]
+    }
+  }
 };
 
-type ApplyDocumentEdit = (edit: {
-  kind: "replace-selection";
-  text: string;
-  explanation?: string;
-  toolName: string;
-}) => { ok: boolean; explanation?: string; error?: string };
-
-type ToolContext = {
-  editor?: ({ replaceSelection: (text: string) => void } & HTMLElement) | null;
-  applyDocumentEdit?: ApplyDocumentEdit;
-};
-
-export async function replaceSelectionWithText(
-  toolCallArgs: ToolCallArgs,
-  context: ToolContext
-): Promise<{ ok: boolean; error?: string; explanation?: string }> {
-  const { editor, applyDocumentEdit } = context;
-  if (typeof applyDocumentEdit === "function") {
-    return applyDocumentEdit({
-      kind: "replace-selection",
-      text: toolCallArgs.text || "",
-      explanation: toolCallArgs.explanation,
-      toolName: "replace_selection"
-    });
+export class ReplaceSelectionTool {
+  schema = schema;
+  private _editor: TextEditor;
+  constructor(editor: TextEditor) {
+    this._editor = editor;
   }
+  execute = async (args: Record<string, unknown>): Promise<unknown> => {
+    const text = args.text as string;
+    this._editor.setSelectionMarkdown(text);
+    this._editor.dispatchEvent(new CustomEvent("change", {
+      detail: { content: this._editor.getDocumentMarkdown() },
+      bubbles: true,
+      composed: true
+    }));
 
-  if (!editor) {
-    return { ok: false, error: "Editor context is not available." };
-  }
-
-  editor.replaceSelection(toolCallArgs.text || "");
-  editor.dispatchEvent(new CustomEvent("change", {
-    detail: { content: (editor as HTMLElement & { value?: string }).value || "" },
-    bubbles: true,
-    composed: true
-  }));
-
-  return {
-    ok: true,
-    explanation: toolCallArgs.explanation || "Replaced the selected text."
+    return {
+      explanation: args.explanation || "Replaced the selected text."
+    };
   };
 }

@@ -1,6 +1,12 @@
-type OffsetRange = { start: number; end: number };
-type TextNodeRange = { node: Text; start: number; end: number };
-type DomPosition = { node: Text; offset: number };
+import { BaseHtmlElement } from "./base-html-element.js";
+
+export interface EditorSelection {
+  text: string;
+  start: number;
+  end: number;
+}
+
+type OutlineEntryList = Array<{ id: string; title: string; level: number }>;
 
 /**
  * <text-editor> WebComponent
@@ -8,17 +14,13 @@ type DomPosition = { node: Text; offset: number };
  * A lightweight contenteditable text editor with offset-based selections.
  * Selection markers provide visual feedback when the editor is not focused.
  */
-export class TextEditor extends HTMLElement {
+export class TextEditor extends BaseHtmlElement {
   // Public DOM reference
-  editor: HTMLDivElement;
+  private _editor: HTMLDivElement;
 
-  // Internal text index + selection state
-  private _textNodeRanges: TextNodeRange[];
-  private _indexedText: string;
-  private _selectionRange: OffsetRange | null;
-  
-  // Private state
-  private _value: string;
+  // Internal state
+  private _selectionRange: { start: number; end: number };
+  private _markdown: string;
 
   constructor() {
     super();
@@ -31,6 +33,10 @@ export class TextEditor extends HTMLElement {
           flex: 1;
           display: flex;
           flex-direction: column;
+          max-width: 1024px;
+          justify-self: center;
+          margin: 0 auto;
+          overflow-y: auto;
         }
         .selection {
           background-color: var(--editor-selection-bg, rgba(100, 150, 250, 0.3));
@@ -38,18 +44,21 @@ export class TextEditor extends HTMLElement {
           outline: 1px solid #FF0;
         }
         #editor {
+          flex: 1 0 auto;
+          margin: 16px;
           font-family: var(--editor-font-family);
           font-size: var(--editor-font-size);
           line-height: var(--editor-line-height, 1.5);
           padding: var(--editor-padding, 8px);
           white-space: pre-wrap;
           word-wrap: break-word;
+          /*
           border-radius: var(--input-radius);
           border: var(--input-border);
+          */
           color: var(--editor-text-color, #000);
           background-color: var(--editor-bg-color, #fff);
-          height: 100%;
-          overflow-y: auto;
+          box-shadow: var(--editor-box-shadow, 0 0 8px -4px rgba(0,0,0,0.5));
         }
         #editor:focus {
           outline: none;
@@ -60,261 +69,28 @@ export class TextEditor extends HTMLElement {
     `;
     
     // Cache editor element and initialize state
-    this.editor = this.shadowRoot!.getElementById("editor") as HTMLDivElement;
-    this._textNodeRanges = [];
-    this._indexedText = "";
-    this._selectionRange = null;
-    this._value = "";
+    this._editor = this.shadowRoot!.getElementById("editor") as HTMLDivElement;
+    this._selectionRange = { start: 0, end: 0 };
+    this._markdown = "";
   }
 
   connectedCallback(): void {
     // Attach event listeners for selection tracking and focus management
     document.addEventListener("selectionchange", this._handleDocSelectionChange);
-    this.editor.addEventListener("focus", this._handleEditorFocus);
-    this.editor.addEventListener("blur", this._handleEditorBlur);
-    this.editor.addEventListener("input", this._handleEditorInput);
+    this._editor.addEventListener("focus", this._handleEditorFocus);
+    this._editor.addEventListener("blur", this._handleEditorBlur);
+    this._editor.addEventListener("input", this._handleEditorInput);
   }
 
   /** Remove event listeners when component is removed from DOM */
   disconnectedCallback(): void {
     document.removeEventListener("selectionchange", this._handleDocSelectionChange);
-    this.editor.removeEventListener("focus", this._handleEditorFocus);
-    this.editor.removeEventListener("blur", this._handleEditorBlur);
-    this.editor.removeEventListener("input", this._handleEditorInput);
+    this._editor.removeEventListener("focus", this._handleEditorFocus);
+    this._editor.removeEventListener("blur", this._handleEditorBlur);
+    this._editor.removeEventListener("input", this._handleEditorInput);
   }
 
-  /**
-   * EVENT HANDLERS
-   */
-
-  /**
-   * Called when document selection changes.
-   * Saves selection offsets and applies highlight when markers are enabled.
-   */
   private _handleDocSelectionChange = (_event: Event): void => {
-    this._rebuildTextIndex();
-    this._captureSelectionFromDom();
-
-    // if (this._showSelectionMarkers) {
-    //   this._renderSelectionMarkers();
-    // }
-
-    this.dispatchEvent(new CustomEvent("selection-change", {
-      detail: this.getSelection(),
-      bubbles: true,
-      composed: true
-    }));
-  };
-
-  /** When editor gains focus: hide selection markers */
-  private _handleEditorFocus = (_event: FocusEvent): void => {
-    this._clearSelectionMarkers();
-  };
-
-  /** When editor loses focus: show selection markers for visual feedback */
-  private _handleEditorBlur = (_event: FocusEvent): void => {
-    this._renderSelectionMarkers();
-  };
-
-  /** When editor content changes: update value and emit change event */
-  private _handleEditorInput = (_event: Event): void => {
-    // Normalize DOM to merge adjacent text nodes and remove empty ones
-    this.editor.normalize();
-    console.log("Editor input detected, normalizing content and updating value...");
-
-    // Keep the text buffer in sync with the current editable content.
-    this._value = this.editor.textContent || "";
-
-    // Capture current selection
-    this._rebuildTextIndex();
-    this._captureSelectionFromDom();
-
-    this.dispatchEvent(new CustomEvent("change", {
-      detail: { content: this._value },
-      bubbles: true,
-      composed: true
-    }));
-  };
-
-  /**
-   * PUBLIC API - Content & Selection Management
-   */
-
-  /** Get current editor value as plain text */
-  get value(): string {
-    return this._value;
-  }
-
-  /** Set editor value */
-  set value(val: string) {
-    this._value = val ?? "";
-    this.editor.textContent = this._value;
-    this._rebuildTextIndex();
-    this._selectionRange = { start: 0, end: 0 };
-  }
-
-  public setMarkdown(markdown: string): void {
-    // For simplicity, we just set the text content directly.
-    // A real implementation would parse markdown and create corresponding DOM structure.
-    this._value = markdown;
-    this.editor.textContent = this._value;
-    this._rebuildTextIndex();
-    this._selectionRange = { start: 0, end: 0 };
-  }
-
-  /**
-   * Get current selection as line/column and text offsets.
-   */
-  getSelection(): {
-    text: string;
-    start: number;
-    end: number;
-  } {
-    const range = this._selectionRange;
-    const text = this._value || "";
-
-    return {
-      text: range ? text.slice(range.start, range.end) : "",
-      start: range ? range.start : 0,
-      end: range ? range.end : 0,
-    }
-  }
-
-  /** Replace currently selected text with new markdown */
-  replaceSelection(text: string): void {
-  
-    // The DOM structure to used represent markdown text is controlled by the browser's implementation of contenteditable, so we treat the editor content as opaque and rely on innerText for serialization.
-    // This means that replacing text is a two-step process: we update our internal value and then re-render the effected content to the DOM.
-
-    const fragment = document.createDocumentFragment();
-    const template = document.createElement("template");
-    fragment.appendChild(template);
-    const rangeToReplace = document.createRange();
-    const startPos = this._domPositionFromOffset(this._selectionRange!.start);
-    const endPos = this._domPositionFromOffset(this._selectionRange!.end);
-    if (startPos && endPos) {
-      rangeToReplace.setStart(startPos.node, startPos.offset);
-      rangeToReplace.setEnd(endPos.node, endPos.offset);
-      rangeToReplace.deleteContents();
-      
-      rangeToReplace.insertNode(fragment);
-
-    }
-
-    this._value = this.editor.textContent || "";
-    this._rebuildTextIndex();
-
-    const nextStart = Math.max(0, Math.min(this._selectionRange!.start, this._value.length));
-    this._selectionRange = { start: nextStart, end: nextStart };
-
-    // TODO: if we don't have focus then re-rendering the selection markers is necessary to update their positions.
-    // this._renderSelectionMarkers();
-
-    // if (this.editor.matches(":focus")) {
-    //   //this._removeSelectionMarkers();
-    //   // this._rebuildTextIndex();
-    //   // this._restoreSelectionToDom();
-    //   return;
-    // }
-
-    //this._applySelectionMarkers();
-  }
-
-  /** Show visual selection markers */
-  _applySelectionMarkers(): void {
-    this._renderSelectionMarkers();
-  }
-
-  /**
-   * INTERNAL HELPERS
-   */
-
-  /** Normalize all line endings to \n for stable offsets and snapshots */
-  // private _normalizeValue(value: string): string {
-  //   return (value ?? "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  // }
-
-  /** Single write path for editor content changes */
-  // private _commitValue(value: string): void {
-  //   this._value = this._normalizeValue(value);
-  //   this.editor.textContent = this._value;
-  //   this._rebuildTextIndex();
-  // }
-
-  /** Convert rendered editor DOM back to plain text */
-  // private _serializeEditorValue(): string {
-  //   return this.editor.textContent || "";
-  // }
-
-  /** Convert absolute text offset into 1-based line and column numbers */
-  _getLineAndColumnFromOffset(offset: number): { line: number; column: number } {
-    let line = 1;
-    let column = 1;
-    const max = Math.min(Math.max(offset, 0), this._indexedText.length);
-    for (let i = 0; i < max; i += 1) {
-      if (this._indexedText[i] === "\n") {
-        line += 1;
-        column = 1;
-      } else {
-        column += 1;
-      }
-    }
-    return { line, column };
-  }
-
-  /** Rebuild text-node index for DOM <-> offset conversions */
-  private _rebuildTextIndex(): void {
-    this._textNodeRanges = [];
-    this._indexedText = this.editor.textContent || "";
-
-    const walker = document.createTreeWalker(this.editor, NodeFilter.SHOW_TEXT);
-    let node: Text | null;
-    let index = 0;
-
-    while ((node = walker.nextNode() as Text | null)) {
-      const text = node.nodeValue || "";
-      const start = index;
-      const end = start + text.length;
-      this._textNodeRanges.push({ node, start, end });
-      index = end;
-    }
-  }
-
-  private _offsetFromDomPosition(node: Node, offset: number): number {
-    if (!this.editor.contains(node)) {
-      return 0;
-    }
-
-    const range = document.createRange();
-    range.setStart(this.editor, 0);
-    range.setEnd(node, offset);
-    return range.toString().length;
-  }
-
-  private _domPositionFromOffset(offset: number): DomPosition | null {
-    const clamped = Math.max(0, Math.min(offset, this._indexedText.length));
-    let lastEntry: TextNodeRange | null = null;
-
-    for (const entry of this._textNodeRanges) {
-      if (clamped >= entry.start && clamped <= entry.end) {
-        return { node: entry.node, offset: clamped - entry.start };
-      }
-
-      if (clamped < entry.start) {
-        return { node: entry.node, offset: 0 };
-      }
-
-      lastEntry = entry;
-    }
-
-    if (lastEntry) {
-      return { node: lastEntry.node, offset: lastEntry.end - lastEntry.start };
-    }
-
-    return null;
-  }
-
-  private _captureSelectionFromDom(): void {
     const sel = window.getSelection();
     if (!sel) {
       return;
@@ -325,54 +101,150 @@ export class TextEditor extends HTMLElement {
       return;
     }
 
-    // Ignore non-editor selections so switching focus to chat does not clear editor selection context.
-    if (!this.editor.contains(range.startContainer) || !this.editor.contains(range.endContainer)) {
+    // Ignore non-editor selections so switching focus does not clear editor selection.
+    if (!this._editor.contains(range.startContainer) || !this._editor.contains(range.endContainer)) {
       return;
     }
-
-    console.log("Capturing selection from DOM:", range);
 
     const start = this._offsetFromDomPosition(range.startContainer, range.startOffset);
     const end = this._offsetFromDomPosition(range.endContainer, range.endOffset);
 
-    this._selectionRange = {
-      start: Math.min(start, end),
-      end: Math.max(start, end)
-    };
+    const newStart = Math.min(start, end),
+      newEnd = Math.max(start, end);
+
+    if (newStart === this._selectionRange.start && newEnd === this._selectionRange.end) {
+      return;
+    }
+    
+    this._selectionRange.start = newStart;
+    this._selectionRange.end = newEnd;
+
+    this.dispatchEvent(new CustomEvent("selection-change", {
+      detail: this.getSelection(),
+      bubbles: true,
+      composed: true
+    }));
+  };
+
+  private _handleEditorFocus = (_event: FocusEvent): void => {
+    this._clearSelectionMarkers();
+  };
+
+  private _handleEditorBlur = (_event: FocusEvent): void => {
+    this._renderSelectionMarkers();
+  };
+
+  private _handleEditorInput = (_event: Event): void => {
+    // Normalize DOM to merge adjacent text nodes and remove empty ones
+    this._editor.normalize();
+
+    // TODO: Rebuild the document model (markdown) from the DOM. For now we just serialize the text content, but this is where markdown parsing and rendering would be integrated.
+    const nextState = this._editor.textContent || "";
+
+    if (this._markdown !== nextState) {
+      this._markdown = nextState;
+      this.dispatchEvent(new CustomEvent("change", {
+        detail: { content: this._markdown },
+        bubbles: true,
+        composed: true
+      }));
+    }
+  };
+
+  getDocumentMarkdown(): string {
+    return this._markdown;
   }
 
-  // private _restoreSelectionToDom(): void {
-  //   if (!this._selectionRange) {
-  //     return;
-  //   }
+  get value(): string {
+    return this.getDocumentMarkdown();
+  }
 
-  //   const start = this._domPositionFromOffset(this._selectionRange.start);
-  //   const end = this._domPositionFromOffset(this._selectionRange.end);
-  //   if (!start || !end) {
-  //     return;
-  //   }
+  set value(text: string) {
+    this.setDocumentMarkdown(text);
+  }
 
-  //   const range = document.createRange();
-  //   range.setStart(start.node, start.offset);
-  //   range.setEnd(end.node, end.offset);
+  setDocumentMarkdown(text: string): void {
+    this._markdown = text;
+    this._editor.textContent = text;
+    this._selectionRange = { start: 0, end: 0 };
+    this._clearSelectionMarkers();
+  }
 
-  //   const sel = window.getSelection();
-  //   if (!sel) {
-  //     return;
-  //   }
+  getSelection(): EditorSelection {
+    const range = this._selectionRange;
+    return {
+      text: this._markdown.slice(range.start, range.end),
+      start: range.start,
+      end: range.end,
+    }
+  }
 
-  //   sel.removeAllRanges();
-  //   sel.addRange(range);
-  // }
+  setSelectionMarkdown(text: string): void {
+    const domRange = this._domRangeFromSelection();
+    domRange.deleteContents();
+    domRange.insertNode(document.createTextNode(text));
+    this._markdown = this._editor.textContent || "";
+    this._selectionRange.end = this._selectionRange.start + text.length;
+    this._renderSelectionMarkers();
+  }
+
+  replaceSelection(text: string): void {
+    this.setSelectionMarkdown(text);
+  }
+
+  getDocumentOutline(): OutlineEntryList {
+    const headingsPattern = /^(#{1,6})\s+(.*)$/gm;
+    const outline: OutlineEntryList = [];
+    let match;
+    let ids = new Set<string>();
+    while ((match = headingsPattern.exec(this._markdown)) !== null) {
+      const level = match[1].length;
+      const title = match[2];
+      let id = title.toLowerCase().replace(/\s+/g, "_").replace(/[^\w\-]/g, "");
+      let headingDuplicateCount = 1;
+      while (ids.has(id)) {
+        id = `${id}_${headingDuplicateCount++}`;
+      }
+      ids.add(id);
+      outline.push({ id, title, level });
+    }
+    return outline;
+  }
+
+  getLineAndColumnFromOffset(offset: number): { line: number; column: number } {
+    let line = 1;
+    let column = 1;
+    const max = Math.min(Math.max(offset, 0), this._markdown.length);
+    for (let i = 0; i < max; i += 1) {
+      if (this._markdown[i] === "\n") {
+        line += 1;
+        column = 1;
+      } else {
+        column += 1;
+      }
+    }
+    return { line, column };
+  }
+
+  private _offsetFromDomPosition(node: Node, offset: number): number {
+    if (!this._editor.contains(node)) {
+      return 0;
+    }
+
+    const range = document.createRange();
+    range.setStart(this._editor, 0);
+    range.setEnd(node, offset);
+    return range.toString().length;
+  }
 
   private _clearSelectionMarkers(): void {
-    const spans = this.editor.querySelectorAll(".selection");
+    const spans = this._editor.querySelectorAll(".selection");
     spans.forEach((span) => {
+      // Unwrap the text node from the selection span and remove the span from the DOM.
       const parent = span.parentNode;
       if (!parent) {
         return;
       }
-
       while (span.firstChild) {
         parent.insertBefore(span.firstChild, span);
       }
@@ -381,38 +253,73 @@ export class TextEditor extends HTMLElement {
   }
 
   private _renderSelectionMarkers(): void {
-    if (!this._selectionRange) {
-      return;
-    }
-
     this._clearSelectionMarkers();
-    this._rebuildTextIndex();
-
-    const { start, end } = this._selectionRange;
-    for (const entry of this._textNodeRanges) {
-      if (entry.end <= start || entry.start >= end) {
-        continue;
-      }
-
-      const localStart = Math.max(start, entry.start) - entry.start;
-      const localEnd = Math.min(end, entry.end) - entry.start;
-      if (localStart >= localEnd) {
-        continue;
-      }
-
-      const range = document.createRange();
-      range.setStart(entry.node, localStart);
-      range.setEnd(entry.node, localEnd);
-
-      const span = document.createElement("span");
-      span.className = "selection";
-      range.surroundContents(span);
-    }
+    const range = this._domRangeFromSelection()
+    const textNodes = this._getTextNodesInRange(range);
+    // wrap each text node in the selection with a span.selection element to provide visual feedback of the selection when the editor is not focused.
+    textNodes.forEach((textNode) => {
+      const selectionSpan = document.createElement("span");
+      selectionSpan.classList.add("selection");
+      textNode.parentNode!.insertBefore(selectionSpan, textNode);
+      selectionSpan.appendChild(textNode);
+    });
   }
 
-  /** Hide visual selection markers */
-  // private _removeSelectionMarkers(): void {
-  //   //this._showSelectionMarkers = false;
-  //   //this._clearSelectionMarkers();
-  // }
+  private _domRangeFromSelection(): Range
+  {
+    const { start, end } = this._selectionRange;
+    this._editor.normalize();
+    const treeWalker = document.createTreeWalker(this._editor, NodeFilter.SHOW_TEXT, null);
+    let currentOffset = 0;
+    const range = this._editor.ownerDocument.createRange();
+    while (treeWalker.nextNode()) {
+      const node = treeWalker.currentNode as Text;
+      const nodeEnd = currentOffset + node.textContent!.length;
+      if (start >= currentOffset && start <= nodeEnd) {
+        range.setStart(node, start - currentOffset);
+      }
+      if (end >= currentOffset && end <= nodeEnd) {
+        range.setEnd(node, end - currentOffset);
+        break;
+      }
+      currentOffset = nodeEnd;
+    }
+
+    return range;
+  }
+
+  private _getTextNodesInRange(range: Range): Text[] {
+
+    // Collect all text nodes that intersect with the selection range.
+    const textNodes: Text[] = [];
+    const treeWalker = document.createTreeWalker(this._editor, NodeFilter.SHOW_TEXT, null);
+    while (treeWalker.nextNode()) {
+      const node = treeWalker.currentNode as Text;
+      if (node.textContent && range.intersectsNode(node)) {
+        textNodes.push(node);
+      }
+    }
+
+    // If no text nodes intersect with the range, return an empty array.
+    if (textNodes.length === 0) {
+      return textNodes;
+    }
+
+    // Split the first node at the start offset.
+    if (range.startOffset > 0) {
+      textNodes[0] = textNodes[0].splitText(range.startOffset);
+    }
+
+    // Split the last node at the end offset.
+    const lastNode = textNodes[textNodes.length - 1];
+    if(range.endOffset < lastNode.textContent.length) {
+      lastNode.splitText(range.endOffset);
+    }
+
+    return textNodes;
+  }
+
+  _applySelectionMarkers(): void {
+    this._renderSelectionMarkers();
+  }
 }

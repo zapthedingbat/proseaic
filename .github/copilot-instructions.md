@@ -3,8 +3,8 @@
 Keep code clean, simple, and highly readable.
 
 ## Core Preferences
-
 - Prefer straightforward implementations over defensive or speculative abstractions.
+- Favor clean, minimal code over preserving backward compatibility unless compatibility is explicitly requested.
 - Minimize cyclomatic complexity.
 - Use the fewest branches and moving parts needed to satisfy the requirement.
 - Favor direct API usage over compatibility fallbacks unless compatibility is explicitly requested.
@@ -19,9 +19,13 @@ Keep code clean, simple, and highly readable.
 - Make the smallest change that solves the asked problem.
 - Avoid unrelated refactors.
 - Do not "harden" code beyond the requested behavior.
-- Do not add extra telemetry/logging/debug code unless requested.
+- Add simple logging/debug code when it helps understand the flow or diagnose issues.
+- Add comments when they clarify intent or non-obvious decisions, but do not over-comment obvious code.
+- NEVER add 'helpers' or 'utilities' unless they are directly related to the requested change and clearly reduce complexity.
+- if a change is purely additive it's likely out of scope. Use your judgement and err on the side of minimalism.
 
 ## Communication
 
 - When proposing a solution, choose the simplest valid option first.
 - If there is a tradeoff, briefly explain it, but default to the simpler path.
+- Highlight any bad practices, anti-patterns, code smells, or potential issues in the existing code when you encounter them, but do not attempt to fix them unless they are directly related to the requested change.

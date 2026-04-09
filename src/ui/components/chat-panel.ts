@@ -1,3 +1,8 @@
+import { ClearHistoryEvent, SelectCheckpointEvent, SubmitPromptEvent } from "../lib/events.js";
+import { BaseHtmlElement } from "./base-html-element.js";
+import { Logger } from "../lib/logging/logger.js";
+import { ChatMessage } from "../lib/chat/chat-message.js";
+
 type ChatCheckpointRef = {
   id?: string;
   documentId?: string;
@@ -8,26 +13,19 @@ type ChatCheckpointRef = {
   };
 };
 
-type ChatEntry = {
-  role: string;
-  content?: string;
-  thinking?: string;
-  checkpoint?: ChatCheckpointRef;
-};
-
 // <chat-panel> WebComponent
-export class ChatPanel extends HTMLElement {
+export class ChatPanel extends BaseHtmlElement {
+
   private modelsSelect: HTMLSelectElement;
   private textarea: HTMLTextAreaElement;
-  private clearButton: HTMLButtonElement;
+  private clearHistoryButton: HTMLButtonElement;
   private sendButton: HTMLButtonElement;
   private historyDiv: HTMLDivElement;
   private statusDiv: HTMLDivElement | null;
   private _models: Array<string | { name?: string }>;
   private _state: {
-    history: ChatEntry[];
-    active: ChatEntry | null;
-    status?: string;
+    history: ChatMessage[];
+    active: ChatMessage | null;
   };
 
   constructor() {
@@ -255,7 +253,7 @@ export class ChatPanel extends HTMLElement {
     `;
     this.modelsSelect = this.shadowRoot!.getElementById("model-select") as HTMLSelectElement;
     this.textarea = this.shadowRoot!.querySelector("textarea") as HTMLTextAreaElement;
-    this.clearButton = this.shadowRoot!.querySelector(".header .button.clear") as HTMLButtonElement;
+    this.clearHistoryButton = this.shadowRoot!.querySelector(".header .button.clear") as HTMLButtonElement;
     this.sendButton = this.shadowRoot!.querySelector(".button.send") as HTMLButtonElement;
     this.historyDiv = this.shadowRoot!.getElementById("chat-history") as HTMLDivElement;
     this.statusDiv = this.shadowRoot!.getElementById("chat-status") as HTMLDivElement | null;
@@ -268,16 +266,14 @@ export class ChatPanel extends HTMLElement {
 
   connectedCallback(): void {
     this.sendButton.addEventListener("click", this._handleSendButtonClick);
-    this.clearButton.addEventListener("click", this._handleClearButtonClick);
-    this.modelsSelect.addEventListener("change", this._handleModelChange);
+    this.clearHistoryButton.addEventListener("click", this._handleClearHistoryButtonClick);
     this.textarea.addEventListener("keydown", this._handleTextareaKeydown);
     this.historyDiv.addEventListener("click", this._handleHistoryClick);
   }
 
   disconnectedCallback(): void {
     this.sendButton.removeEventListener("click", this._handleSendButtonClick);
-    this.clearButton.removeEventListener("click", this._handleClearButtonClick);
-    this.modelsSelect.removeEventListener("change", this._handleModelChange);
+    this.clearHistoryButton.removeEventListener("click", this._handleClearHistoryButtonClick);
     this.textarea.removeEventListener("keydown", this._handleTextareaKeydown);
     this.historyDiv.removeEventListener("click", this._handleHistoryClick);
   }
@@ -286,12 +282,12 @@ export class ChatPanel extends HTMLElement {
     return this.modelsSelect.value;
   }
 
-  setHistory(history: ChatEntry[]): void {
+  setHistory(history: ChatMessage[]): void {
     this._state.history = history || [];
     this._renderState();
   }
 
-  setActive(entry: ChatEntry | null): void {
+  setActive(entry: ChatMessage | null): void {
     console.log("Setting active entry:", entry);
     this._state.active = entry || null;
     this._renderState();
@@ -305,68 +301,38 @@ export class ChatPanel extends HTMLElement {
   private _handleTextareaKeydown = (event: KeyboardEvent): void => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      this._send();
+      this._submit();
     }
   };
 
   private _handleSendButtonClick = (event: MouseEvent): void => {
     event.preventDefault();
-    this._send();
+    this._submit();
   };
 
-  private _handleClearButtonClick = (event: MouseEvent): void => {
+  private _handleClearHistoryButtonClick = (event: MouseEvent): void => {
     event.preventDefault();
-    this.dispatchEvent(new CustomEvent("clear", {
-      bubbles: true,
-      composed: true
-    }));
-  };
-
-  private _handleModelChange = (_event: Event): void => {
-    this.dispatchEvent(new CustomEvent("model-change", {
-      detail: { model: this.model },
-      bubbles: true,
-      composed: true
-    }));
+    this.dispatchEvent(new ClearHistoryEvent());
   };
 
   private _handleHistoryClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
-    const button = target?.closest("button[data-checkpoint-id][data-checkpoint-target]") as HTMLButtonElement | null;
+    const button = target?.closest("button[data-checkpoint-id]") as HTMLButtonElement | null;
     if (!button) {
       return;
     }
-
-    const checkpointId = button.dataset.checkpointId;
-    const documentId = button.dataset.documentId;
-    const targetName = button.dataset.checkpointTarget;
-    if (!checkpointId || !documentId) {
-      return;
-    }
-
-    const targetNameNormalized = targetName === "before" ? "before" : "after";
-
-    this.dispatchEvent(new CustomEvent("checkpoint-select", {
-      detail: {
-        checkpointId,
-        documentId,
-        target: targetNameNormalized
-      },
-      bubbles: true,
-      composed: true
-    }));
+    const checkpointId = button.dataset.checkpointId || "";
+    this.dispatchEvent(new SelectCheckpointEvent(checkpointId));
   };
 
-  private _send(): void {
+  private _submit(): void {
     const promptText = this.textarea.value.trim();
-    if (!promptText) return;
-
-    this.dispatchEvent(new CustomEvent("submit", {
-      detail: { prompt: promptText },
-      bubbles: true,
-      composed: true
-    }));
-
+    if (!promptText){
+      this._logger?.info("Nothing to send");
+      return;
+    }
+    this._logger?.info("Send", promptText);
+    this.dispatchEvent(new SubmitPromptEvent(promptText));
     this.textarea.value = "";
   }
 
@@ -413,36 +379,50 @@ export class ChatPanel extends HTMLElement {
     return output;
   }
 
-  private _formatCheckpointAction(checkpoint?: ChatCheckpointRef): string {
-    if (!checkpoint?.id || !checkpoint.documentId) {
-      return "";
-    }
-
-    const label = checkpoint.label?.trim() || "Revision checkpoint";
-    const beforeLabel = checkpoint.targets?.before?.trim() || "Before";
-    const afterLabel = checkpoint.targets?.after?.trim() || "After";
-
-    return `<div class="checkpoint-action"><div class="checkpoint-label">${this._escapeHtml(label)}</div><div class="checkpoint-actions"><button class="checkpoint-button" type="button" data-checkpoint-id="${this._escapeHtml(checkpoint.id)}" data-document-id="${this._escapeHtml(checkpoint.documentId)}" data-checkpoint-target="before">${this._escapeHtml(beforeLabel)}</button><button class="checkpoint-button" type="button" data-checkpoint-id="${this._escapeHtml(checkpoint.id)}" data-document-id="${this._escapeHtml(checkpoint.documentId)}" data-checkpoint-target="after">${this._escapeHtml(afterLabel)}</button></div></div>`;
-  }
-
-  private _formatHistoryEntry(entry: ChatEntry): string {
-    const role = entry.role;
-    const content = entry.content || "";
-    const thinking = entry.thinking || "";
-
-    if (role === "user") {
+  private _formatHistoryEntry(message: ChatMessage): string {
+    const role = message.role;
+    if(role === "assistant"){
+      const thinkingHtml = message.thinking ? `<div class="chat-thinking markdown">${this._renderMarkdown(message.thinking)}</div>` : "";
+      const content = message.content ? message.content.reduce((acc, part) => {
+        if (part.type === "text") {
+          return acc + this._escapeHtml(part.text);
+        } else if (part.type === "image") {
+          const src = this._escapeHtml(`data:base64,${part.data}`);
+          return acc + `<img src="${src}" style="max-width: 100%; height: auto; margin: 8px 0;">`;
+        }
+        return acc;
+      }, "") : "";
+      const contentHtml = message.content ? `<div class="chat-response markdown">${this._renderMarkdown(content)}</div>` : "";
+      return `${thinkingHtml}${contentHtml}`;
+    } else if (role === "user") {
+      const content = message.content ? message.content.reduce((acc, part) => {
+        if (part.type === "text") {
+          return acc + this._escapeHtml(part.text);
+        } else if (part.type === "image") {
+          const src = this._escapeHtml(`data:base64,${part.data}`);
+          return acc + `<img src="${src}" style="max-width: 100%; height: auto; margin: 8px 0;">`;
+        }
+        return acc;
+      }, "") : "";
       return `<div class="chat-request">${this._escapeHtml(content)}</div>`;
+    } else if (role === "tool") {
+      const content = message.content ? message.content.reduce((acc, part) => {
+        if (part.type === "text") {
+          return acc + this._escapeHtml(part.text);
+        }
+        return acc;
+      }, "") : "";
+      return `<div class="chat-tool markdown">${this._renderMarkdown(content)}</div>`;
+    } else if (role === "system") {
+      const content = message.content ? message.content.reduce((acc, part) => {
+        if (part.type === "text") {
+          return acc + this._escapeHtml(part.text);
+        }
+        return acc;
+      }, "") : "";
+      return `<div class="chat-system markdown">${this._renderMarkdown(content)}</div>`;
     }
-
-    if (role === "tool") {
-      return `<div class="chat-tool markdown">${this._renderMarkdown(content)}</div>${this._formatCheckpointAction(entry.checkpoint)}`;
-    }
-
-    if (content === "") {
-      return `<div class="chat-thinking markdown">${this._renderMarkdown(thinking)}</div>`;
-    }
-
-    return `<div class="chat-thinking markdown">${this._renderMarkdown(thinking)}</div><div class="chat-response markdown">${this._renderMarkdown(content)}</div>`;
+    return "";
   }
 
   private _renderState(): void {
@@ -453,9 +433,6 @@ export class ChatPanel extends HTMLElement {
 
       this.historyDiv.innerHTML = entries.map(item => this._formatHistoryEntry(item)).join("");
       this.historyDiv.scrollTop = this.historyDiv.scrollHeight;
-    }
-    if (this._state && typeof this._state.status === "string" && this.statusDiv) {
-      this.statusDiv.textContent = this._state.status;
     }
   }
 

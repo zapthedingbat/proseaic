@@ -1,9 +1,10 @@
 import express from "express";
 import cors from "cors";
-import { OLLAMA_HOST } from "./routes/config.js";
 
 import { staticRoutes } from "./routes/static.js";
 import { proxy } from "./routes/proxy.js";
+
+const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
 
 const app = express();
 
