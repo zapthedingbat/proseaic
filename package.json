@@ -4,15 +4,10 @@
   "main": "src/server/server.js",
   "type": "module",
   "scripts": {
-    "build": "npm run build:ui",
-    "build:ui": "tsc -p tsconfig.ui.json && node scripts/copy-ui-assets.mjs",
-    "build:webui": "npm run build:ui",
-    "watch:ui": "tsc -p tsconfig.ui.json --watch",
-    "watch:webui": "npm run watch:ui",
-    "prestart": "npm run build:ui",
-    "test": "vitest run --environment jsdom",
-    "test:watch": "vitest --environment jsdom",
-    "start": "node -r dotenv/config src/server/server.js"
+    "build": "node -r dotenv/config scripts/script.mjs",
+    "watch": "node -r dotenv/config scripts/script.mjs",
+    "start": "node -r dotenv/config scripts/script.mjs",
+    "test": "vitest run --environment jsdom"
   },
   "keywords": [],
   "author": "",
@@ -20,10 +15,12 @@
   "description": "",
   "dependencies": {
     "cors": "^2.8.6",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "marked": "^18.0.0"
   },
   "devDependencies": {
     "dotenv": "^17.4.0",
+    "esbuild": "^0.25.4",
     "jsdom": "^27.0.1",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
