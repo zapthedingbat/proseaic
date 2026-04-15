@@ -1,5 +1,8 @@
-import { TextEditor } from "../components/text-editor.js";
+// import { TextEditor } from "../components/text-editor.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
+import { IEditableText } from "../lib/editable-text.js";
+import { LoggerFactory } from "../lib/logging/logger-factory.js";
+import { Logger } from "../lib/logging/logger.js";
 
 const schema: ToolSchema = {
   type: "function",
@@ -25,19 +28,17 @@ const schema: ToolSchema = {
 
 export class ReplaceSelectionTool {
   schema = schema;
-  private _editor: TextEditor;
-  constructor(editor: TextEditor) {
+  private _editor: IEditableText;
+  private _logger: Logger;
+
+  constructor(loggerFactory: LoggerFactory, editor: IEditableText) {
+    this._logger = loggerFactory("Replace Selection Tool");
     this._editor = editor;
   }
   execute = async (args: Record<string, unknown>): Promise<unknown> => {
+    this._logger.debug("Executing with args:", args);
     const text = args.text as string;
-    this._editor.setSelectionMarkdown(text);
-    this._editor.dispatchEvent(new CustomEvent("change", {
-      detail: { content: this._editor.getDocumentMarkdown() },
-      bubbles: true,
-      composed: true
-    }));
-
+    this._editor.replaceSelection(text);
     return {
       explanation: args.explanation || "Replaced the selected text."
     };

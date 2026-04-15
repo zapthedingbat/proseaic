@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Markdown AI Editor</title>
+  <link rel="stylesheet" href="/codicon.css" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -10,15 +11,18 @@
 <div class="page">
   <header>
     <menu-bar>
-      <button>Text Wrapping</button>
+      <button data-template-id="meeting-notes">Insert Meeting Notes</button>
+      <button popovertarget="settings-panel">Settings</button>
     </menu-bar>
   </header>
+  <settings-panel id="settings-panel" popover></settings-panel>
   <main>
     <aside class="left">
+      <outline-panel></outline-panel>
       <document-panel></document-panel>
     </aside>
     <section class="center">
-      <text-editor></text-editor>
+      <markdown-editor></markdown-editor>
     </section>
     <aside class="right">
       <chat-panel></chat-panel>

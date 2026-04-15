@@ -6,6 +6,9 @@ import { ToolSchema } from "../tools/tool-schema.js";
 import { IPlatformService } from "./platform-service.js";
 import { StreamEvent } from "./stream-event.js";
 import { IPlatform } from "./platform.js";
+import { EventDispatcher } from "../events/event-dispatcher.js";
+import { IEventEmitter } from "../events/event-emitter.js";
+import { ChatStreamEventMap } from "./chat-stream-event-map.js";
 
 export interface IPlatformRegistry {
   register(platform: IPlatform): void;
@@ -13,16 +16,25 @@ export interface IPlatformRegistry {
 }
 
 export class PlatformRegistry implements IPlatformService, IPlatformRegistry {
-
   private _platforms: Map<string, IPlatform>;
   private _logger: Logger;
-
+  private _events: IEventEmitter<ChatStreamEventMap> = new EventDispatcher<ChatStreamEventMap>();
+  
   constructor(_loggerFactory: LoggerFactory) {
     this._logger = _loggerFactory("Platform Service");
     this._platforms = new Map<string, IPlatform>();
+    this._events = new EventDispatcher<ChatStreamEventMap>();
   }
 
-  generate(model: Model, messages: ChatMessage[], tools: ToolSchema[]): AsyncIterable<StreamEvent> {
+  on<K extends keyof ChatStreamEventMap>(event: K, cb: (e: ChatStreamEventMap[K]) => void): void {
+    this._events.on(event, cb);
+  }
+  
+  off<K extends keyof ChatStreamEventMap>(event: K, cb: (e: ChatStreamEventMap[K]) => void): void {
+    this._events.off(event, cb);
+  }
+
+  async *generate(model: Model, messages: ChatMessage[], tools: ToolSchema[]): AsyncIterable<StreamEvent> {
     
     // Select the platform adapter based on the model details, and delegate the generation to it.
     const platform = this._platforms.get(model.platform);
@@ -31,7 +43,11 @@ export class PlatformRegistry implements IPlatformService, IPlatformRegistry {
       throw new Error(`No platform registered for platform name: ${model.platform}`);
     }
 
-    return platform.generate(model, messages, tools);
+    const streamEvents = platform.generate(model, messages, tools);
+    for await (const streamEvent of streamEvents) {
+      this._events.emit("streamEvent", streamEvent);
+      yield streamEvent;
+    }
   }
 
   async getModels(): Promise<Model[]> {

@@ -30,7 +30,6 @@ export class TaskCompleteTool implements ITool {
   
   execute = async (args: Record<string, unknown>): Promise<unknown> => {
     const summary = args.summary as string;
-    this._logger.info(`Task completed: ${summary}`);
     return {
       summary
     };

@@ -10,35 +10,29 @@ export type OllamaRequestMessage =
   | OllamaAssistantRequestMessage
   | OllamaToolRequestMessage;
 
-type OllamaRequestMessageBase = {
-  content: string;
-}
-
-export type OllamaToolRequestMessage = OllamaRequestMessageBase & {
+export type OllamaToolRequestMessage = {
   role: "tool";
+  content: string;
   tool_call_id: string;
 }
 
-export type OllamaAssistantRequestMessage = OllamaRequestMessageBase & {
+export type OllamaAssistantRequestMessage = {
   role: "assistant";
   images?: string[];
-  tool_calls?: Array<{
-    id: string;
-    type: "function";
-    function: {
-      name: string;
-      arguments: string | JSONValue;
-    }
-  }>;
-}
+} & (
+  | { tool_calls: Array<{ id: string; type: "function"; function: { name: string; arguments: string | JSONValue } }> }
+  | { content: string }
+);
 
-export type OllamaUserRequestMessage = OllamaRequestMessageBase & {
+export type OllamaUserRequestMessage = {
   role: "user";
+  content: string;
   images?: string[];
 }
 
-export type OllamaSystemRequestMessage = OllamaRequestMessageBase & {
+export type OllamaSystemRequestMessage = {
   role: "system";
+  content: string;
 }
 
 export type OllamaRequest = {

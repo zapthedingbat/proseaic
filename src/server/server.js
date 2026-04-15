@@ -5,18 +5,18 @@ import cors from "cors";
 import { staticRoutes } from "./routes/static.js";
 import { proxy } from "./routes/proxy.js";
 
-const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
+const OLLAMA_HOST = process.env.OLLAMA_HOST || "https://ollama.com";
+const ANTHROPIC_HOST = process.env.ANTHROPIC_HOST || "https://api.anthropic.com";
 
 export function startServer(){
   const app = express();
 
   app.use(cors());
-  app.use(express.json());
-
-  // Proxy all requests to /api and /v1 to the Ollama API
-  const ollama = proxy(OLLAMA_HOST, { streamResponse: true });
-  app.use("/api", ollama);
-  app.use("/v1", ollama);
+  //app.use(express.json());
+  
+  // Proxy requests to the appropriate upstream host based on the path prefix
+  app.use(proxy("/ollama", OLLAMA_HOST, { streamResponse: true }));
+  app.use(proxy("/anthropic", ANTHROPIC_HOST, { streamResponse: true }));
 
   // Static file serving for the web UI
   app.use(staticRoutes(import.meta.url, "../../dist/ui"));

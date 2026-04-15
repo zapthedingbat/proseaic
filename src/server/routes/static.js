@@ -9,5 +9,8 @@ export function staticRoutes(moduleUrl, dir){
     index: "index.html",
     fallthrough: true
   }));
+  router.use(expressStatic(path.join(_dirname, dir, "assets"), {
+    fallthrough: true
+  }));
   return router;
 }

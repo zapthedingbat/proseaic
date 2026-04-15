@@ -10,7 +10,11 @@ export class NdJsonStreamReader<T> {
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          // Flush any buffered decoder state and parse a final unterminated NDJSON line.
+          buffer += decoder.decode();
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
@@ -22,6 +26,11 @@ export class NdJsonStreamReader<T> {
             yield data as T;
           }
         }
+      }
+
+      if (buffer.trim()) {
+        const data = JSON.parse(buffer);
+        yield data as T;
       }
     } finally {
       reader.releaseLock();

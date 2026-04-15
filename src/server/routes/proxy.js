@@ -1,4 +1,8 @@
 import fs from "fs";
+import { Readable, PassThrough } from "stream";
+
+const LOGGING_TO_FILE = true;
+const LOGGING_TO_CONSOLE = true;
 
 function resolveUpstreamUrl(req, upstreamBaseUrl, targetPath) {
   if (typeof targetPath === "string" && targetPath.length > 0) {
@@ -13,117 +17,139 @@ function resolveUpstreamUrl(req, upstreamBaseUrl, targetPath) {
   return new URL(req.originalUrl, upstreamBaseUrl);
 }
 
-async function streamResponseToClient(upstreamRes, res) {
-  if (!upstreamRes.body) {
-    return;
-  }
-
-  const reader = upstreamRes.body.getReader();
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    if (value) {
-      res.write(Buffer.from(value));
-    }
-  }
-}
-
-export function proxy(upstreamBaseUrl, options = {}) {
-  const { targetPath = null, streamResponse = false } = options;
+export function proxy(prefix, upstreamBaseUrl, options = {}) {
+  const { targetPath = null } = options;
 
   return async (req, res, next) => {
+
+    if(!req.path.startsWith(prefix)) {
+      return next();
+    }
+
+    let fileLogStream = null;
+
     try {
-      const url = resolveUpstreamUrl(req, upstreamBaseUrl, targetPath);
+      const upstreamUrl = new URL(req.originalUrl.replace(prefix, ""), upstreamBaseUrl);
 
-      // Log request
-      console.log("→ Request");
-      console.dir({
-        method: req.method,
-        url: url.toString(),
-        headers: req.headers,
-        body: req.body,
-      }, { depth: null, colors: true });
+      const upstreamHeaders = {
+        ...req.headers,
+        host: upstreamUrl.host
+      };
 
-      // log request to file for debugging
-    
-      await fs.promises.mkdir("./logs", { recursive: true });
-      const logFileName = `./logs/proxy-${Date.now()}.log`;
-      await fs.promises.writeFile(logFileName, JSON.stringify({
-        method: req.method,
-        url: url.toString(),
-        headers: req.headers,
-        body: req.body,
-      }, null, 2));
-      
-      // Prepare body for forwarding
-      let body;
-      if (req.method !== "GET" && req.method !== "HEAD") {
-        if (typeof req.body === "object") {
-          body = JSON.stringify(req.body);
-        } else {
-          body = req.body;
-        }
+      if (LOGGING_TO_FILE) {
+        await fs.promises.mkdir("./logs", { recursive: true });
+        const logFileName = `./logs/${Date.now()}-${upstreamUrl.hostname}.log`;
+        fileLogStream = fs.createWriteStream(logFileName);
+        fileLogStream.write(`${req.method} ${upstreamUrl.toString()}\n`);
+        fileLogStream.write(`${Object.entries(upstreamHeaders)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join("\n")
+        }\n\n`);
       }
 
-      const upstreamRes = await fetch(url, {
+      if (LOGGING_TO_CONSOLE) {
+        process.stdout.write(`${req.method} ${upstreamUrl.toString()}\n`);
+        process.stdout.write(`${Object.entries(upstreamHeaders)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join("\n")
+        }\n\n`);
+      }
+
+      // Pipe req to each log target with { end: false } so the streams stay
+      // open for the response. Also pipe to a PassThrough that feeds fetch,
+      // letting it end naturally to signal end-of-body to the upstream.
+      let fetchBody = null;
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        const fetchBranch = new PassThrough();
+        if (fileLogStream) {
+          req.pipe(fileLogStream, { end: false });
+        }
+        if (LOGGING_TO_CONSOLE) {
+          req.pipe(process.stdout, { end: false });
+        }
+        req.pipe(fetchBranch);
+        fetchBody = Readable.toWeb(fetchBranch);
+      }
+
+      const upstreamRes = await fetch(upstreamUrl.toString(), {
         method: req.method,
-        headers: {
-          ...req.headers,
-          host: undefined,
-        },
-        body,
+        headers: upstreamHeaders,
+        body: fetchBody,
+        duplex: "half",
       });
 
       // Send response
-      res.status(upstreamRes.status);
+      res.status(upstreamRes.status, upstreamRes.statusText);
 
+      // Filter out encoding headers because fetch will automatically decode the response body, and we don't want to send uncompressed data to the client if it doesn't expect it.
+      // A better fix would be to not decode the response body in the first place, but that makes it harder to log and requires using undici.request directly instead of fetch.
       upstreamRes.headers.forEach((value, key) => {
+        if (key === "content-encoding") return;
+        if (key === "content-length") return;
         res.setHeader(key, value);
       });
 
-      if (streamResponse) {
-        console.log("← Response");
-        console.dir({
-          status: upstreamRes.status,
-          headers: Object.fromEntries(upstreamRes.headers),
-          body: "<streamed>",
-        }, { depth: null, colors: true });
+      if (fileLogStream) {
+        fileLogStream.write(`${upstreamRes.status} ${upstreamRes.statusText}\n`);
+        fileLogStream.write(`${Object.entries(upstreamRes.headers)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join("\n")
+        }\n`);
+        fileLogStream.write("\n");
+      }
 
-        await streamResponseToClient(upstreamRes, res);
+      if (LOGGING_TO_CONSOLE) {
+        process.stdout.write(`${upstreamRes.status} ${upstreamRes.statusText}\n`);
+        process.stdout.write(`${Object.entries(upstreamRes.headers)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join("\n")
+        }\n`);
+        process.stdout.write("\n");
+      }
+
+      if (!upstreamRes.body) {
+        if (fileLogStream){
+          fileLogStream.end();
+        }
         res.end();
         return;
       }
 
-      // Read response body fully
-      const contentType = upstreamRes.headers.get("content-type") || "";
-      let responseBody;
+      // Stream response body to client and log simultaneously
+      const responseReader = upstreamRes.body.getReader();
+  
+      // Read the response body in chunks and write to the client as they arrive
+      while (true) {
+        const { value, done } = await responseReader.read();
 
-      if (contentType.includes("application/json")) {
-        responseBody = await upstreamRes.json();
-      } else {
-        responseBody = await upstreamRes.text();
+        if (done){
+          break;
+        }
+
+        if (value) {
+          const buf = Buffer.from(value);
+          res.write(buf);
+          if(LOGGING_TO_CONSOLE) {
+            process.stdout.write(buf);  // stream to console
+          }
+          if (fileLogStream) {
+            fileLogStream.write(buf);  // stream to log file
+          }
+        }
       }
 
-      // Log response
-      console.log("← Response");
-      console.dir({
-        status: upstreamRes.status,
-        headers: Object.fromEntries(upstreamRes.headers),
-        body: responseBody,
-      }, { depth: null, colors: true });
-
-      if (typeof responseBody === "object") {
-        res.json(responseBody);
-      } else {
-        res.send(responseBody);
+      if (fileLogStream) {
+        fileLogStream.end();
       }
+      res.end();
+      return;
 
     } catch (err) {
-      console.error("Proxy error:", err);
-      next(err);
+      console.error("Error proxying request:", err);
+      if (fileLogStream){
+        fileLogStream.destroy();
+      }
+      res.status(502).send("Bad Gateway");
     }
   };
 }

@@ -14,6 +14,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@vscode/codicons": "^0.0.45",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "marked": "^18.0.0"

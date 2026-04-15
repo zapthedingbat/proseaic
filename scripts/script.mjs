@@ -71,12 +71,22 @@ async function processBuildResult(result) {
   }
 }
 
+async function copyCodiconAssets(signal) {
+  signal.throwIfAborted();
+  const codiconSrc = path.join(root, "node_modules", "@vscode", "codicons", "dist");
+  await fs.mkdir(destStaticAssetsDir, { recursive: true });
+  for (const file of ["codicon.css", "codicon.ttf"]) {
+    await fs.copyFile(path.join(codiconSrc, file), path.join(destStaticAssetsDir, file));
+  }
+}
+
 async function runBuild(signal) {
   signal.throwIfAborted();
 
   // Build the project and copy static assets, ensuring that we have the latest build output and assets in place.
   await Promise.all([
     copyAllFiles(signal, sourceStaticAssetsDir, destStaticAssetsDir, isStaticAssetFile),
+    copyCodiconAssets(signal),
     build(getBuildOptions())
   ]);
 }
@@ -87,6 +97,7 @@ async function runStart(signal) {
   // Build the project and copy static assets before starting the server, so that we have everything in place before we start serving requests.
   await Promise.all([
     copyAllFiles(signal, sourceStaticAssetsDir, destStaticAssetsDir, isStaticAssetFile),
+    copyCodiconAssets(signal),
     build(getBuildOptions())
   ]);
 
@@ -123,6 +134,7 @@ async function runWatch(signal) {
     // Copy all static assets initially, so that we have them in place before the first build completes.
     // We can be selective about which files to copy based on their extensions, since we only want to copy static assets and not source files or other non-asset files.
     await copyAllFiles(signal, sourceStaticAssetsDir, destStaticAssetsDir, isStaticAssetFile);
+    await copyCodiconAssets(signal);
 
     // Perform the initial build after copying static assets, so that we have the first build output ready to serve.
     await rebuildContext(ctx);

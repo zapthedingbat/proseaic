@@ -16,6 +16,10 @@ type BaseChatMessage = {
   meta?: Record<string, unknown>;
 };
 
+export type ErrorChatMessage = BaseChatMessage & {
+  role: "error";
+};
+
 export type SystemChatMessage = BaseChatMessage & {
   role: "system";
 };
@@ -39,4 +43,5 @@ export type ChatMessage =
   | SystemChatMessage
   | UserChatMessage
   | AssistantChatMessage
-  | ToolChatMessage;
+  | ToolChatMessage
+  | ErrorChatMessage;

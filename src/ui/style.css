@@ -3,11 +3,20 @@
   font-family: sans-serif;
   box-sizing: border-box;
 
-  --page-bg-color: #1e1e1e;
+  --primary-color: #5a0;
+  --error-color: #f48771;
+
+
+  --text-color: #ccc; 
+  --bg-color: #1e1e1e;
+
+  --page-bg-color: var(--bg-color);
+  --menu-bar-bg: #252526;
+  --menu-bar-text-color: #ccc;
   --input-radius: 4px;
   --input-border: 1px solid #555;
   --input-focus-border: 1px solid #08F;
-  --input-background-color: #333;
+  --input-bg-color: var(--bg-color);
   --input-text-color: #fff;
   --output-text-color: #ddd;
 
@@ -21,12 +30,17 @@
   --editor-text-color: #000;
   --editor-box-shadow: 0 0 8px -4px rgba(0,0,0,0.5);
 
-  --chat-request-bubble-bg: rgba(200, 255, 255, 0.07);
-  --chat-text-color: #bfbfbf;
+  --editor-hr-color: #09f;
+
+  --chat-text-color: var(--text-color);
   --chat-vertical-gap: 14px;
   --chat-request-text-color: var(--chat-text-color);
   --chat-response-text-color: var(--chat-text-color);
   --chat-thinking-text-color: #8c8c8c;
+  --chat-error-text-color: var(--error-color);
+  --chat-error-border-color: var(--error-color);
+  --chat-error-bg-color: rgba(244, 136, 113, 0.1);
+  --chat-request-bg-color: rgba(200, 255, 255, 0.07);
 
   --gap: 4px;
   --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -58,19 +72,17 @@ body {
 
 header,
 footer {
-  /* Expand these if we need them, but for now just reserve some space */
   flex-shrink: 0;
-  font-size: 0;
   overflow: hidden;
 }
 
 header {
-  /* Just a thin bar for now, but we can expand this if we want to add more controls or a file explorer or something */
-  height: 8px;
+  height: 36px;
 }
 
 footer {
-  height: 18px;
+  height: 24px;
+  font-size: 0;
 }
 
 main {
@@ -91,6 +103,7 @@ main {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
+  gap: var(--gap);
 }
 
 .left {

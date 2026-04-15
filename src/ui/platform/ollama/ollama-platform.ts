@@ -7,19 +7,27 @@ import { OllamaStreamChunk, IOllamaStreamReader } from "./ollama-stream-reader.j
 import { LoggerFactory } from "../../lib/logging/logger-factory.js";
 import { Logger } from "../../lib/logging/logger.js";
 import { OllamaAssistantRequestMessage, OllamaRequest, OllamaRequestMessage, OllamaSystemRequestMessage, OllamaToolRequestMessage, OllamaUserRequestMessage } from "./ollama-request.js";
+import { JSONValue } from "../../lib/JSONValue.js";
 
 export class OllamaPlatform implements IPlatform {
   private _logger: Logger;
   private _endpoint: string;
+  private _getApiKey: () => string;
   private _streamReaderFactory: () => IOllamaStreamReader;
+  private _fetch: typeof globalThis.fetch;
 
   constructor(
     loggerFactory: LoggerFactory,
-    endpoint: string,
-    streamReaderFactory: () => IOllamaStreamReader) {
+    fetch: typeof globalThis.fetch,
+    getApiKey: () => string,
+    streamReaderFactory: () => IOllamaStreamReader,
+    endpoint: string
+  ) {
       this._endpoint = endpoint;
+      this._getApiKey = getApiKey;
       this._streamReaderFactory = streamReaderFactory;
       this._logger = loggerFactory("Ollama platform");
+      this._fetch = fetch;
   }
 
   get name(): string {
@@ -40,8 +48,11 @@ export class OllamaPlatform implements IPlatform {
   }
 
   private async _fetchModelList(): Promise<Array<string>> {
-    const response = await fetch(`${this._endpoint}/api/tags`, {
-      method: "GET"
+    const response = await this._fetch(`${this._endpoint}/api/tags`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this._getApiKey()}`,
+      },
     });
     if (!response.ok) {
       throw new Error(`Ollama API error: ${response.statusText}`);
@@ -51,9 +62,12 @@ export class OllamaPlatform implements IPlatform {
   }
 
   private async _fetchModelDetails(modelName: string): Promise<Model> {
-    const response = await fetch(`${this._endpoint}/api/show`, {
+    const response = await this._fetch(`${this._endpoint}/api/show`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this._getApiKey()}`,
+      },
       body: JSON.stringify({ model: modelName }),
     });
     if (!response.ok) {
@@ -75,12 +89,15 @@ export class OllamaPlatform implements IPlatform {
     // Format the messages for Ollama's API
     const request = this.buildModelInput(model, chatMessages, tools);
 
-    this._logger.info("Sending request to Ollama API", request);
+    this._logger.debug("Sending request to Ollama API", request);
 
     // Send the request to Ollama's API
-    const response = await fetch(`${this._endpoint}/api/chat`, {
+    const response = await this._fetch(`${this._endpoint}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this._getApiKey()}`,
+      },
       body: JSON.stringify(request),
     });
 
@@ -95,9 +112,8 @@ export class OllamaPlatform implements IPlatform {
     // Read the streaming response using NdJson format chunks and convert them into StreamEvents that we can yield back to the caller.
     const reader = this._streamReaderFactory();
     for await (const chunk of reader.read(response.body!)) {
-      const streamEvent = this.buildStreamEventFromChunk(chunk);
-      this._logger.debug("Received chunk from Ollama API", chunk, "Converted to stream event", streamEvent);
-      if(streamEvent) {
+      const streamEvents = this.buildStreamEventFromChunk(chunk);
+      for (const streamEvent of streamEvents) {
         yield streamEvent;
       }
     }
@@ -105,12 +121,8 @@ export class OllamaPlatform implements IPlatform {
 
   private buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]) {
 
-    // TODO: Adapt the output for tool calls depending on if the model supports tool calls in the message stream, or if they need to be emitted as text and parsed out by the client.
-
-    const ASSISTANT_NAME = "Ollama Assistant";
     const modelName = model.name;
-    const KNOWLEDGE_AREA = "copy writing and technical writing, proofreading, grammar correction, and general writing assistance";
-
+    
     /* TODO: add 'memory' section with relevant info from session memory and user memory, and update it as the conversation goes on.
     e.g
     <userMemory>
@@ -120,33 +132,32 @@ export class OllamaPlatform implements IPlatform {
     ...
     </sessionMemory>
     */
-
+   
+    const KNOWLEDGE_AREA = "copy writing and technical writing, proofreading, grammar correction, and general writing assistance";
     const initialMessages: OllamaRequestMessage[] = [
       {
         role: 'system',
         content: `You are an expert writing assistant, working with a user in their text editor.
-When asked for your name, you must respond with "${ASSISTANT_NAME}". When asked about the model you are using, you must state that you are using ${modelName}.
 <instructions>
 You are a highly sophisticated automated writing agent with expert-level knowledge across ${KNOWLEDGE_AREA}.
-The user will ask a question, or ask you to perform a task, and it may require lots of research to answer correctly. There is a selection of tools that let you perform actions or retrieve helpful context to answer the user's question.
+The user will ask a question, or ask you to perform a task, and it may require research to answer correctly. There is a selection of tools that let you perform actions or retrieve helpful context to answer the user's question.
 Think creatively and explore the workspace in order to complete the task.
+If the user asks you to write content or make edits, you should use the tools to edit the current document or selection, rather than providing text to copy and paste unless they explicitly ask you to.
 </instructions>
 <toolUseInstructions>
-If the user is requesting a text sample, you can answer it directly without using any tools.
+If the user is explicitly requesting a text sample, you can answer it directly without using any tools. Otherwise, when you need to perform a task or retrieve information, use the tools available to you. The tools will provide you with information that you don't currently have access to, and allow you to perform actions in the user's workspace.
 When using a tool, follow the JSON schema very carefully and make sure to include ALL required properties.
 No need to ask permission before using a tool.
 </toolUseInstructions>
-<editFileInstructions>
-Before you edit an existing file, make sure you either already have it in the provided context, or read it with the provided tools, so that you can make proper changes.
-</editFileInstructions>
+<editDocumentInstructions>
+Before you edit an existing document or selection make sure you either already have the relevant content in the provided context, or read it with the provided tools, so that you can make proper changes.
+</editDocumentInstructions>
 <outputFormatting>
-When you answer a question, or complete a task, format your answer in markdown. If you are including snippets, format them as quotes or, if it is code, use markdown code blocks with the appropriate language tag.
+When you answer a question, or complete a task, format your answer in markdown. Don't use HTML encoding like &lt; or &gt;. If you are including snippets, format them as quotes or, if it is code use markdown code blocks with the appropriate language tag.
 </outputFormatting>
 `
       },
     ];
-
-    // TODO: If the model doesn't support tool calls in the message stream, we can emit them as text with a special format that the client can parse out and convert back into tool calls.
 
     const formattedMessages = chatMessages.map((message, index, array) => this._formatMessage(message, index, array)).filter(Boolean) as OllamaRequestMessage[];
     const messages = initialMessages.concat(formattedMessages);
@@ -217,11 +228,32 @@ When you answer a question, or complete a task, format your answer in markdown. 
   }
 
   private _formatAssistantMessage(message: AssistantChatMessage, index: number, array: ChatMessage[]): OllamaAssistantRequestMessage {
+    const tool_calls = message.tool_calls?.map(tc => ({
+      id: tc.id,
+      type: "function" as const,
+      function: {
+        name: tc.name,
+        arguments: tc.arguments as JSONValue,
+      }
+    }));
+
+    if(tool_calls && tool_calls.length > 0) {
+      return ({
+        role: "assistant",
+        tool_calls: tool_calls,
+      });
+    }
+
     const contentString = message.content.reduce((acc, part) => {
       if(part.type === "text") {
         return `${acc}\n${part.text}\n`;
       } else if (part.type === "context") {
-        return acc + `<${part.name}>\n${JSON.stringify(part.data, null, 2)}\n</${part.name}>\n`;
+        if(typeof part.data === "string") {
+          return acc + part.data;
+        } else if ( typeof part.data === "object" && part.data !== null) {
+          return acc + JSON.stringify(part.data, null, 2);
+        }
+        return acc;
       }
       return acc;
     }, "");
@@ -237,9 +269,9 @@ When you answer a question, or complete a task, format your answer in markdown. 
     }
 
     return ({
-      role: "assistant",
-      content: contentString,
+      role: "assistant",// Ollama's API requires either content or tool_calls to be present, so if there's no text content we need to include an empty string to satisfy the schema.
       images: images.length > 0 ? images : undefined,
+      content: contentString || " ",
     });
   }
 
@@ -261,42 +293,37 @@ When you answer a question, or complete a task, format your answer in markdown. 
     }
   }
 
-  private buildStreamEventFromChunk(chunk: OllamaStreamChunk): StreamEvent | undefined {
+  private buildStreamEventFromChunk(chunk: OllamaStreamChunk): StreamEvent[] {
+    const events: StreamEvent[] = [];
+
     const text = chunk.message?.content;
     if (typeof text === "string" && text.length > 0) {
-      return {
-        type: "text_delta",
-        text,
-      };
+      events.push({ type: "text_delta", text });
     }
 
-    const reasoning = chunk.message?.thinking ?? chunk.thinking;
-    if (typeof reasoning === "string" && reasoning.length > 0) {
-      return {
-        type: "reasoning_delta",
-        text: reasoning,
-      };
+    const thinking = chunk.message?.thinking ?? chunk.thinking;
+    if (typeof thinking === "string" && thinking.length > 0) {
+      events.push({ type: "reasoning_delta", text: thinking });
     }
 
-    const toolCall = chunk.message?.tool_calls?.[0];
-    const toolName = toolCall?.function?.name;
-    if (typeof toolName === "string" && toolName.length > 0) {
-      return {
-        type: "tool_call",
-        tool_call: {
-          id: toolCall?.id || `call_${Math.random().toString(32).slice(-8)}`,
-          name: toolName,
-          arguments: toolCall?.function?.arguments ?? {},
-        }
-      };
+    for (const toolCall of chunk.message?.tool_calls ?? []) {
+      const toolName = toolCall?.function?.name;
+      if (typeof toolName === "string" && toolName.length > 0) {
+        events.push({
+          type: "tool_call",
+          tool_call: {
+            id: toolCall?.id || `call_${Math.random().toString(32).slice(-8)}`,
+            name: toolName,
+            arguments: toolCall?.function?.arguments ?? {},
+          }
+        });
+      }
     }
 
     if (chunk.done) {
-      return {
-        type: "done",
-      };
+      events.push({ type: "done" });
     }
 
-    return undefined;
+    return events;
   }
 }

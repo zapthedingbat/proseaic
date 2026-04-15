@@ -1,9 +1,8 @@
 import { IChatHistory } from "../history/chat-history.js";
-import { AssistantChatMessage, ChatMessage, ChatMessageContentPart, ToolCall, ToolChatMessage, UserChatMessage } from "./chat-message.js";
+import { AssistantChatMessage, ChatMessage, ChatMessageContentPart, ErrorChatMessage, ToolCall, ToolChatMessage, UserChatMessage } from "./chat-message.js";
 import { LoggerFactory } from "../logging/logger-factory.js";
 import { Logger } from "../logging/logger.js";
 import { Model } from "../models/model.js";
-import { IModelService } from "../models/model-service.js";
 import { IPlatformService } from "../platform/platform-service.js";
 import { IToolService } from "../tools/tool-service.js";
 import { ChatMessageEvent } from "../events.js";
@@ -38,16 +37,16 @@ export class ChatSession extends EventTarget implements IChatSession {
 
   // The message that the assistant is currently generating. As the assistant generates a response, we can update this message with the partial content and any tool calls that are emitted along the way, allowing us to show a live-updating response in the UI.
   private _activeChatMessage: ChatMessage | null = null;
-  private _modelService: IModelService;
+  private _models: Map<string, Model> | null
 
-  constructor(loggerFactory: LoggerFactory, platformService: IPlatformService, history: IChatHistory, toolsService: IToolService, modelService: IModelService) {
+  constructor(loggerFactory: LoggerFactory, platformService: IPlatformService, history: IChatHistory, toolsService: IToolService) {
     super();
     this._id = `chat_${Date.now()}`;
     this._logger = loggerFactory(`Chat Session ${this._id}`);
     this._platformService = platformService;
     this._history = history;
     this._toolsService = toolsService;
-    this._modelService = modelService;
+    this._models = null;
   }
 
   async clearHistory(): Promise<void> {
@@ -62,11 +61,27 @@ export class ChatSession extends EventTarget implements IChatSession {
     return this._history.getMessages(maxMessages);
   }
 
+  async getModel(modelIdentifier: string): Promise<Model | undefined> {
+    // Cache the list of models in memory so we don't have to fetch the list of models from the platform every time the user submits a prompt.
+    // If the model isn't found in the cache, we throw an error which will be caught and returned as part of the assistant's response, giving feedback to the user about the invalid model identifier.
+    if(!this._models) {
+      const models = await this._platformService.getModels();
+      this._models = new Map(models.map(model => [model.name, model]));
+    }
+    return this._models.get(modelIdentifier);
+  }
+
   async submitUserPrompt(modelIdentifier: string, prompt: string, context: ChatMessageContext): Promise<void> {
 
     // When the user submits a prompt, we create a new user message and add it to the history.
     // This message serves as the input to the assistant's response generation.
+    
+    // Alloy tools to add information to the prompt context, which can then be used by tools when executing. For example, a tool that fetches real-time data could add that data to the prompt context so it can be included in the assistant's response.
+    const toolsContext = this._toolsService.addContext();
+    Object.assign(context, toolsContext);
+    
     const userChatMessage = this._buildUserChatMessage(modelIdentifier, prompt, context);
+
     await this._history.addMessage(userChatMessage);
     this.dispatchEvent(new ChatMessageEvent(userChatMessage));
 
@@ -81,8 +96,15 @@ export class ChatSession extends EventTarget implements IChatSession {
     let continueAgentLoop = true;
     while (continueAgentLoop) {
       
-      // TODO: Handle missing or invalid model identifier more gracefully.
-      const model: Model = this._modelService.getModel(modelIdentifier);
+      // Get the model details for the selected model identifier, which includes information about which platform to use for generating the response.
+      // If the model identifier is invalid, we throw an error which will be caught and returned as part of the assistant's response, giving feedback to the user about the invalid model identifier.
+      const model: Model | undefined = await this.getModel(modelIdentifier);
+      if(!model) {
+        await this._error(`Model not found: ${modelIdentifier}`, modelIdentifier);
+        assistantMessage = null;
+        continueAgentLoop = false;
+        return;
+      }
 
       // Select the relevant platform based on the model details, and use it to convert from our internal message format and user message context into the format expected by the model endpoint.
       // Then send the request to the model endpoint and stream the response, collecting any tool calls that are emitted along the way.
@@ -100,9 +122,12 @@ export class ChatSession extends EventTarget implements IChatSession {
       };
       this._activeChatMessage = assistantMessage;
     
-      const queuedToolCalls: ToolCall[] = [];
+      //const queuedToolCalls: ToolCall[] = [];
+      const toolResults: ToolChatMessage[] = [];
       let isThinking = false;
+      let assistantMessageTextContent = "";
       for await (const streamEvent of streamEvents) {
+
         this._logger.debug("Received stream event", streamEvent);
 
         if(!assistantMessage) {
@@ -111,10 +136,8 @@ export class ChatSession extends EventTarget implements IChatSession {
 
         switch (streamEvent.type) {
           case "text_delta":
-            assistantMessage.content.push({
-              type: "text",
-              text: streamEvent.text
-            });
+            assistantMessageTextContent += streamEvent.text;
+            assistantMessage.content = [{ type: "text", text: assistantMessageTextContent }];
             this.dispatchEvent(new ChatMessageEvent(assistantMessage));
             break;
           case "reasoning_delta":
@@ -127,24 +150,22 @@ export class ChatSession extends EventTarget implements IChatSession {
           case "tool_call":
             assistantMessage.tool_calls = assistantMessage.tool_calls || [];
             assistantMessage.tool_calls.push(streamEvent.tool_call);
-            queuedToolCalls.push(streamEvent.tool_call);
+            //queuedToolCalls.push(streamEvent.tool_call);
+            
+            const toolChatMessage = await this._runToolAndGetResultMessage(modelIdentifier, streamEvent.tool_call);
+            toolResults.push(toolChatMessage);
+
             break;
           case "error":
             // If there's an error event, we can add an error message to the history to give feedback to the user about the issue.
-            const errorMessage: ChatMessage = {
-              model: modelIdentifier,
-              role: "system",
-              content: [{ type: "text", text: `Error generating response: ${streamEvent.error instanceof Error ? streamEvent.error.message : String(streamEvent.error)}` }]
-            };
-            await this._history.addMessage(errorMessage);
+            const errorMessage = await this._error(`Error generating response: ${streamEvent.error instanceof Error ? streamEvent.error.message : String(streamEvent.error)}`, modelIdentifier);
+            // TODO: could we just return here?
+            this.dispatchEvent(new ChatMessageEvent(errorMessage));
             assistantMessage = null;
-            this._activeChatMessage = null;
-            // We set continueAgentLoop to false here to stop the loop if there's an error,
-            // but depending on the desired behavior, we could also choose to continue the loop and allow the assistant to try generating another response,
-            // or to skip the rest of this turn and wait for the next user prompt.
             continueAgentLoop = false;
             break;
           case "done":
+            this._logger.debug("Assistant finished generating response", assistantMessage);
             await this._history.addMessage(assistantMessage);
             contextMessages.push(assistantMessage);
             assistantMessage = null;
@@ -156,6 +177,31 @@ export class ChatSession extends EventTarget implements IChatSession {
         }
       }
 
+      // Safety net: if the stream ended without a 'done' event (e.g. Ollama sends tool_calls
+      // and done:true in the same chunk, and only the tool_call event was emitted), finalize
+      // the assistant message here so it is included in contextMessages before tool results.
+      if (assistantMessage) {
+        this._logger.warn("Stream ended without 'done' event. Finalizing assistant message.");
+        await this._history.addMessage(assistantMessage);
+        contextMessages.push(assistantMessage);
+        assistantMessage = null;
+        this._activeChatMessage = null;
+      }
+
+      if(toolResults.length == 0) {
+        continueAgentLoop = false;
+      } else{
+        // If there are tool results, we feed them back into the next turn of the assistant's response generation to allow it to react to the tool results in real time and adjust its response accordingly.
+        // This allows for more dynamic and interactive conversations where the assistant can use tools, see the results, and then decide what to do next based on those results, rather than having to wait for the next user prompt to react to tool results.
+        for(const toolResult of toolResults) {
+          this._logger.debug("Tool result", toolResult);
+          await this._history.addMessage(toolResult);
+          contextMessages.push(toolResult);
+        }
+      }
+
+
+      /*
       const toolResultMessages = await this._runToolsAndGetResultMessages(modelIdentifier, queuedToolCalls);
       if (toolResultMessages.length === 0) {
         // If there are no tool calls, we're done with this turn of the conversation and can wait for the next user prompt.
@@ -179,7 +225,21 @@ export class ChatSession extends EventTarget implements IChatSession {
         await this._history.addMessage(toolResultMessage);
         contextMessages.push(toolResultMessage);
       }
+      */
     }
+
+    // Prompt complete, we can finalize the conversation turn here if needed, or perform any cleanup or finalization tasks.
+  }
+
+  private async _error(messageText: string, modelIdentifier:string): Promise<ErrorChatMessage> {
+    const errorMessage: ErrorChatMessage = {
+      model: modelIdentifier,
+      role: "error",
+      content: [{ type: "text", text: messageText }]
+    };
+    await this._history.addMessage(errorMessage);
+    this._activeChatMessage = null;
+    return errorMessage;
   }
 
   private _buildUserChatMessage(modelIdentifier: string, prompt: string, context: ChatMessageContext): UserChatMessage {
@@ -209,40 +269,44 @@ export class ChatSession extends EventTarget implements IChatSession {
   // Runs the provided tool calls sequentially, returning their results as chat messages.
   // If any tool call fails, the error is caught and returned as the tool call result,
   // allowing the assistant to receive feedback about tool failures and adjust its behavior accordingly.
-  private async _runToolsAndGetResultMessages(modelIdentifier: string, queued: ToolCall[]): Promise<ChatMessage[]> {
-    const toolMessages: ChatMessage[] = [];
+  /*
+  private async _runToolsAndGetResultMessages(modelIdentifier: string, queued: ToolCall[]): Promise<ToolChatMessage[]> {
+    const toolMessages: ToolChatMessage[] = [];
     for (const toolCall of queued) {
-      const toolName = toolCall.name
-      if (!toolName) {
-        continue;
-      }
-      const args = this._parseToolArguments(toolCall.arguments);
-
-      try {
-        const result = await this._runTool(toolName, args);
-        const toolMessage: ToolChatMessage = {
-          model: modelIdentifier,
-          role: "tool",
-          content: [{ type: "text", text: JSON.stringify({ ok: true, tool: toolName, result }) }],
-          tool_call_id: toolCall.id
-        };
-        toolMessages.push(toolMessage);
-      } catch (error) {
-        this._logger.error(`Error running tool ${toolName}`, error);
-        toolMessages.push({
-          model: modelIdentifier,
-          role: "tool",
-          content: [{ type: "text", text: JSON.stringify({
-            ok: false,
-            tool: toolName,
-            error: (error as Error | null)?.message || `Tool failed: ${toolName}`
-          }) }],
-          tool_call_id: toolCall.id
-        });
-      }
+      const message = await this._runToolAndGetResultMessage(modelIdentifier, toolCall);
+      toolMessages.push(message);
     }
-
     return toolMessages;
+  }
+  */
+
+  // Runs the provided tool calls sequentially, returning their results as chat messages.
+  // If any tool call fails, the error is caught and returned as the tool call result,
+  // allowing the assistant to receive feedback about tool failures and adjust its behavior accordingly.
+  private async _runToolAndGetResultMessage(modelIdentifier: string, toolCall: ToolCall): Promise<ToolChatMessage> {
+    const toolName = toolCall.name
+    const args = this._parseToolArguments(toolCall.arguments);
+    try {
+      const result = await this._runTool(toolName, args);
+      return {
+        model: modelIdentifier,
+        role: "tool",
+        content: [{ type: "text", text: JSON.stringify({ ok: true, tool: toolName, result }) }],
+        tool_call_id: toolCall.id
+      };
+    } catch (error) {
+      this._logger.error(`Error running tool ${toolName}`, error);
+      return {
+        model: modelIdentifier,
+        role: "tool",
+        content: [{ type: "text", text: JSON.stringify({
+          ok: false,
+          tool: toolName,
+          error: (error as Error | null)?.message || `Tool failed: ${toolName}`
+        }) }],
+        tool_call_id: toolCall.id
+      };
+    }
   }
 
   private _parseToolArguments(raw: unknown): Record<string, unknown> {
