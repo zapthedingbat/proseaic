@@ -259,7 +259,7 @@ export class ChatPanel extends BaseHtmlElement {
       history: [],
       activeMessage: null
     };
-    this._marked = new Marked();
+    this._marked = new Marked({ breaks: true });
     this._activeMessageElement = null;
     this._activeMessageReference = null;
     this._activeThinkingElement = null;

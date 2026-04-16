@@ -1,4 +1,4 @@
-import { MdSection } from "./markdown/markdown";
+import { MdSection } from "../markdown/markdown";
 
 export interface IStructuredDocument {
   insertSection(sectionTitle: string, sectionContent: string, insertBeforeSectionId?: string): void;

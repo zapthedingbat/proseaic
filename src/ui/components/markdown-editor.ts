@@ -1,7 +1,7 @@
-import { IEditableText } from "../lib/editable-text.js";
+import { IEditableText } from "../lib/document/editable-text.js";
 import { BaseHtmlElement } from "./base-html-element.js";
 import { LineType, MdLine, MdSection } from "../lib/markdown/markdown.js";
-import { IStructuredDocument } from "../lib/structured-document.js";
+import { IStructuredDocument } from "../lib/document/structured-document.js";
 
 /**
  * I didn't set out to build a markdown editor, but I needed a way to edit markdown content with a decent UX and some structure (e.g. to support an outline view), so here we are.

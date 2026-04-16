@@ -1,4 +1,4 @@
-import { NdJsonStreamReader } from "../../lib/ndjson-stream-reader.js";
+import { NdJsonStreamReader } from "../../lib/platform/ndjson-stream-reader.js";
 
 export type OllamaStreamChunk = {
   done?: boolean;

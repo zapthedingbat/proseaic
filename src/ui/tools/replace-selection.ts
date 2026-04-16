@@ -1,6 +1,6 @@
 // import { TextEditor } from "../components/text-editor.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
-import { IEditableText } from "../lib/editable-text.js";
+import { IEditableText } from "../lib/document/editable-text.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
 

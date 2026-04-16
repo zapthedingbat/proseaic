@@ -1,5 +1,5 @@
 
-import { SseStreamReader } from "../../lib/sse-stream-reader.js";
+import { SseStreamReader } from "../../lib/platform/sse-stream-reader.js";
 import { MistralStreamChunk } from "./mistral-request.js";
 
 export interface IMistralStreamReader {

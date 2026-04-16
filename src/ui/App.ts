@@ -1,7 +1,7 @@
 import { BrowserChatHistory } from "./lib/history/browser-chat-history.js";
 import { ChatMessageContext } from "./lib/chat/chat-message-context.js";
 import { ChatSession } from "./lib/chat/chat-session.js";
-import { ComponentInstanceResolver } from "./lib/component-instance-resolver.js";
+import { ComponentInstanceResolver } from "./lib/ui/component-instance-resolver.js";
 import { ConsoleLogger } from "./lib/logging/console-logger.js";
 import { DocumentManager, IDocumentService } from "./lib/document/document-manager.js";
 import { FileSystemDocumentStore } from "./lib/document/file-system-document-store.js";

@@ -1,5 +1,7 @@
 # Copilot Instructions for This Repository
 
+This application is a document editor with integrated AI assistance. The user can talk to the AI assistant through a chat panel. The AI can help with a variety of document editing tasks, such as structuring documents, generating or modifying content, or making editorial or proofing suggestions.
+
 Keep code clean, simple, and highly readable.
 
 ## Core Preferences

@@ -1,7 +1,7 @@
 import { ToolSchema } from "../lib/tools/tool-schema.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
-import { IStructuredDocument } from "../lib/structured-document.js";
+import { IStructuredDocument } from "../lib/document/structured-document.js";
 
 const schema: ToolSchema = {
   type: "function",

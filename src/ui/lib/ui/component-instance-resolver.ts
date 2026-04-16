@@ -1,6 +1,6 @@
-import { BaseHtmlElement } from "../components/base-html-element.js";
-import { LoggerFactory } from "./logging/logger-factory.js";
-import { Logger } from "./logging/logger.js";
+import { BaseHtmlElement } from "../../components/base-html-element.js";
+import { LoggerFactory } from "../logging/logger-factory.js";
+import { Logger } from "../logging/logger.js";
 
 export class ComponentInstanceResolver {
 

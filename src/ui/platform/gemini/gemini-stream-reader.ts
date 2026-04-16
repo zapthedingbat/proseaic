@@ -1,5 +1,5 @@
 
-import { SseStreamReader } from "../../lib/sse-stream-reader.js";
+import { SseStreamReader } from "../../lib/platform/sse-stream-reader.js";
 import { GeminiStreamChunk } from "./gemini-request.js";
 
 export interface IGeminiStreamReader {
