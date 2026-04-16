@@ -7,13 +7,13 @@ const schema: ToolSchema = {
   type: "function",
   function: {
     name: "task_complete",
-    description: "Indicates that a task has been completed.",
+    description: "Signal that all requested tool work is finished and the assistant is ready to provide the final user-facing response.",
     parameters: {
       type: "object",
       properties: {
         summary: {
           type: "string",
-          description: "A summary of the completed task."
+          description: "Optional short summary of completed actions."
         },
       },
       required: []

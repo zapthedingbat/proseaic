@@ -8,17 +8,17 @@ const schema: ToolSchema = {
   type: "function",
   function: {
     name: "replace_selection",
-    description: "Replace the current selection.",
+    description: "Replace the currently selected text in the editor. Use this to apply user-requested edits instead of returning rewrite text for the user to paste.",
     parameters: {
       type: "object",
       properties: {
         text: {
           type: "string",
-          description: "The full replacement text for the selected region."
+          description: "The full replacement text for the selected region. Provide complete final text, not a diff."
         },
         explanation: {
           type: "string",
-          description: "A short explanation of the change."
+          description: "Optional one-line summary of what was changed."
         }
       },
       required: ["text"]

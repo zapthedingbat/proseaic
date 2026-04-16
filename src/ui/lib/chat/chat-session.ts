@@ -76,7 +76,7 @@ export class ChatSession extends EventTarget implements IChatSession {
     // When the user submits a prompt, we create a new user message and add it to the history.
     // This message serves as the input to the assistant's response generation.
     
-    // Alloy tools to add information to the prompt context, which can then be used by tools when executing. For example, a tool that fetches real-time data could add that data to the prompt context so it can be included in the assistant's response.
+    // Allow tools to add information to the prompt context, which can then be used by tools when executing. For example, a tool that fetches real-time data could add that data to the prompt context so it can be included in the assistant's response.
     const toolsContext = this._toolsService.addContext();
     Object.assign(context, toolsContext);
     

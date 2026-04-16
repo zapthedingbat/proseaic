@@ -62,11 +62,7 @@ describe("ChatSession", () => {
           }
         }
       ]),
-      notifyPromptComplete: vi.fn()
-    };
-
-    const modelService = {
-      getModel: vi.fn(() => ({ name: "demo-model", platform: "demo-platform" }))
+      addContext: vi.fn(() => ({}))
     };
 
     let callCount = 0;
@@ -90,7 +86,7 @@ describe("ChatSession", () => {
 
         return streamFrom([{ type: "done" }]);
       }),
-      getModels: vi.fn(async () => [])
+      getModels: vi.fn(async () => [{ name: "demo-model", platform: "demo-platform", capabilities: [] }])
     };
 
     const loggerFactory = vi.fn(() => ({
@@ -105,8 +101,7 @@ describe("ChatSession", () => {
       loggerFactory,
       platformService as any,
       history as any,
-      toolsService as any,
-      modelService as any
+      toolsService as any
     );
 
     await session.submitUserPrompt("demo-model", "Use the tool", {});

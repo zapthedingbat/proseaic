@@ -1,15 +1,11 @@
 // <outline-panel> WebComponent
 
-export interface OutlineItem {
-  level: number;   // 1–6
-  title: string;   // heading text with the # prefix stripped
-  children: OutlineItem[];
-}
+import { MdSection } from "../lib/markdown/markdown";
 
 export class DocumentOutlinePanel extends HTMLElement {
 
   private _outlineElement: HTMLDivElement;
-  private _items: OutlineItem[] = [];
+  private _rootSection: MdSection | undefined;
 
   constructor() {
     super();
@@ -103,8 +99,8 @@ export class DocumentOutlinePanel extends HTMLElement {
     this._outlineElement.removeEventListener("click", this._handleClick);
   }
 
-  setOutline(items: OutlineItem[]): void {
-    this._items = items;
+  setDocument(rootMarkdownSection: MdSection): void {
+    this._rootSection = rootMarkdownSection;
     this._render();
   }
 
@@ -120,27 +116,32 @@ export class DocumentOutlinePanel extends HTMLElement {
   };
 
   private _render(): void {
-    if (this._items.length === 0) {
+    if (!this._rootSection || this._rootSection.children.length === 0) {
       this._outlineElement.innerHTML = `<div class="empty">No headings.</div>`;
       return;
     }
     this._outlineElement.innerHTML = "";
-    this._renderItems(this._outlineElement, this._items, 0);
+    this._renderItems(this._outlineElement, this._rootSection, 0);
   }
 
-  private _renderItems(container: HTMLElement, items: OutlineItem[], depth: number): void {
-    for (const item of items) {
-      const btn = document.createElement("button");
-      btn.className = "item";
-      btn.style.paddingLeft = `${depth * 14 + 8}px`;
-      btn.setAttribute("data-level", String(item.level));
-      btn.setAttribute("data-title", item.title);
-      btn.setAttribute("role", "listitem");
-      btn.title = item.title;
-      btn.textContent = item.title;
-      container.appendChild(btn);
+  private _renderItems(container: HTMLElement, section: MdSection, depth: number): void {
+
+    const title = section.headingLine?.raw || "Root";
+    const level = section.level;
+    
+    const btn = document.createElement("button");
+    btn.className = "item";
+    btn.style.paddingLeft = `${depth * 14 + 8}px`;
+    btn.setAttribute("data-level", String(level));
+    btn.setAttribute("data-title", title);
+    btn.setAttribute("role", "listitem");
+    btn.title = title;
+    btn.textContent = title;
+    container.appendChild(btn);
+
+    for (const item of section.children) {
       if (item.children.length > 0) {
-        this._renderItems(container, item.children, depth + 1);
+        this._renderItems(container, item, depth + 1);
       }
     }
   }

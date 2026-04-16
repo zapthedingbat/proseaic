@@ -3,9 +3,21 @@ import { ChatMessageContext } from "./lib/chat/chat-message-context.js";
 import { ChatSession } from "./lib/chat/chat-session.js";
 import { ComponentInstanceResolver } from "./lib/component-instance-resolver.js";
 import { ConsoleLogger } from "./lib/logging/console-logger.js";
-import { CountLettersTool } from "./tools/count-letters.js";
+import { DocumentManager, IDocumentService } from "./lib/document/document-manager.js";
+import { FileSystemDocumentStore } from "./lib/document/file-system-document-store.js";
+import { IChatStream } from "./lib/platform/chat-stream.js";
+import { IPlatformService } from "./lib/platform/platform-service.js";
+import { IToolService } from "./lib/tools/tool-service.js";
+import { LocalStorageDocumentStore } from "./lib/document/local-storage-document-store.js";
 import { Logger } from "./lib/logging/logger.js";
 import { LoggerFactory } from "./lib/logging/logger-factory.js";
+import { PlatformRegistry } from "./lib/platform/platform-registry.js";
+import { SubmitPromptEvent } from "./lib/events.js";
+import { TaskCompleteTool } from "./tools/task-complete.js";
+import { TEMPLATES } from "./templates.js";
+import { ToolRegistry } from "./lib/tools/tools-registry.js";
+
+// Platforms
 import { AnthropicPlatform } from "./platform/anthropic/anthropic-platform.js";
 import { AnthropicStreamReader } from "./platform/anthropic/anthropic-stream-reader.js";
 import { GeminiPlatform } from "./platform/gemini/gemini-platform.js";
@@ -16,9 +28,6 @@ import { OllamaPlatform } from "./platform/ollama/ollama-platform.js";
 import { OllamaStreamReader } from "./platform/ollama/ollama-stream-reader.js";
 import { OpenAIPlatform } from "./platform/openai/openai-platform.js";
 import { OpenAIStreamReader } from "./platform/openai/openai-stream-reader.js";
-import { PlatformRegistry } from "./lib/platform/platform-registry.js";
-import { SubmitPromptEvent } from "./lib/events.js";
-import { ToolRegistry } from "./lib/tools/tools-registry.js";
 
 // UI Components
 import { MarkdownEditor } from "./components/markdown-editor.js";
@@ -29,15 +38,12 @@ import { SettingsPanel } from "./components/settings-panel.js";
 
 // Tools
 import { ReplaceSelectionTool } from "./tools/replace-selection.js";
-import { StreamReplaceSelectionTool } from "./tools/stream-replace-selection.js";
-import { TaskCompleteTool } from "./tools/task-complete.js";
-import { TEMPLATES } from "./templates.js";
-import { IPlatformService } from "./lib/platform/platform-service.js";
-import { IToolService } from "./lib/tools/tool-service.js";
-import { IChatStream } from "./lib/platform/chat-stream.js";
-import { DocumentManager, IDocumentService } from "./lib/document/document-manager.js";
-import { LocalStorageDocumentStore } from "./lib/document/local-storage-document-store.js";
-import { FileSystemDocumentStore } from "./lib/document/file-system-document-store.js";
+import { ReadDocumentOutlineTool } from "./tools/read-document-outline.js";
+import { ReadDocumentSectionTool } from "./tools/read-document-section.js";
+import { RemoveDocumentSectionTool } from "./tools/remove-document-section.js";
+import { InsertDocumentSectionTool } from "./tools/insert-document-section.js";
+import { ReplaceDocumentSectionTool } from "./tools/replace-document-section.js";
+import { MoveDocumentSectionTool } from "./tools/move-document-section.js";
 
 type AppOptions = {
   documentService: IDocumentService;
@@ -76,7 +82,6 @@ export class App {
     this._componentInstanceResolver = options.componentInstanceResolver;
     this._platformService = options.platformService;
     this._chatStream = options.chatStream;
-    //this._toolService = options.toolService;
     this._documentService = options.documentService;
   }
 
@@ -122,10 +127,14 @@ export class App {
     // Register tools in the tool registry so that they can be used by the ChatSession and invoked by the assistant in its responses.
     const toolRegistry = new ToolRegistry();
     toolRegistry.registerMany([
-      new CountLettersTool(),
       new TaskCompleteTool(loggerFactory),
       new ReplaceSelectionTool(loggerFactory, markdownEditor),
-      new StreamReplaceSelectionTool(loggerFactory, markdownEditor, platformRegistry)
+      new ReadDocumentOutlineTool(loggerFactory, markdownEditor),
+      new ReadDocumentSectionTool(loggerFactory, markdownEditor),
+      new InsertDocumentSectionTool(loggerFactory, markdownEditor),
+      new ReplaceDocumentSectionTool(loggerFactory, markdownEditor),
+      new MoveDocumentSectionTool(loggerFactory, markdownEditor),
+      new RemoveDocumentSectionTool(loggerFactory, markdownEditor),
     ]);
 
     // Chat history is saved to local storage under the "chat_history" key.
@@ -221,9 +230,6 @@ export class App {
     const submitPromptEvent = event as SubmitPromptEvent;
     this._logger.debug("submit-prompt event", submitPromptEvent);
 
-    // Maybe we do this here, or maybe in the ChatSession, but either way we need to get that info from the TextEditor component and include it in the context that we pass to the ChatSession when submitting the prompt.
-    const selectedText = this._markdownEditor?.getSelection().text || null;
-    const documentOutline = this._markdownEditor?.getDocumentOutline() || [];
 
     const modelIdentifier = this._chatPanel?.model;
     const promptText = submitPromptEvent.detail.promptText;
@@ -236,13 +242,6 @@ export class App {
     // This will include any relevant information from the TextEditor, such as the selected text and document outline, which can then be used by tools when executing.
     const context: ChatMessageContext = {}
 
-    if(selectedText){
-      context.selectedText = selectedText;
-    }
-
-    if(documentOutline.length > 0){
-      context.documentOutline = documentOutline;
-    }
     
     this._chatSession.submitUserPrompt(modelIdentifier, promptText, context);
   }
@@ -283,8 +282,10 @@ export class App {
   }
 
   private _refreshOutlinePanel(): void {
-    const items = this._markdownEditor?.getOutlineItems() ?? [];
-    this._outlinePanel?.setOutline(items);
+    const outline = this._markdownEditor?.getOutline();
+    if(outline){
+      this._outlinePanel?.setDocument(outline);
+    }
   }
 
   private _handleChatPanelClearHistory = (): void => {

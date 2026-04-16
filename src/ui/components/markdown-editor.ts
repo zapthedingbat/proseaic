@@ -1,7 +1,7 @@
 import { IEditableText } from "../lib/editable-text.js";
 import { BaseHtmlElement } from "./base-html-element.js";
-import { JSONValue } from "../lib/JSONValue.js";
-import { OutlineItem } from "./outline-panel.js";
+import { LineType, MdLine, MdSection } from "../lib/markdown/markdown.js";
+import { IStructuredDocument } from "../lib/structured-document.js";
 
 /**
  * I didn't set out to build a markdown editor, but I needed a way to edit markdown content with a decent UX and some structure (e.g. to support an outline view), so here we are.
@@ -18,24 +18,6 @@ export interface EditorSelection {
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-type LineType =
-  | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-  | "blockquote" | "fence-open" | "fence-body" | "fence-close"
-  | "list-ul" | "list-ol"
-  | "hr" | "blank" | "paragraph";
-
-interface MdLine {
-  type: LineType;
-  raw: string;
-}
-
-export interface MdSection {
-  level: number;           // 0 = root, 1-6 = heading level
-  headingLine: MdLine | null;
-  bodyLines: MdLine[];
-  children: MdSection[];
-}
 
 interface CaretPos {
   lineIndex: number;
@@ -257,16 +239,26 @@ function splitOnNewlines(text: string): string[] {
   return text.split("\n").map(l => l.replace(/\r$/, ""));
 }
 
+function parseHeading(raw: string): { level: number; title: string } | null {
+  const match = raw.match(/^(#{1,6})\s+(.+)$/);
+  if (!match) return null;
+  return {
+    level: match[1].length,
+    title: match[2].trim(),
+  };
+}
+
 function buildModel(lines: MdLine[]): MdSection {
-  const root: MdSection = { level: 0, headingLine: null, bodyLines: [], children: [] };
+  const root: MdSection = { id: "root", level: 0, headingLine: null, bodyLines: [], children: [] };
   const stack: MdSection[] = [root];
+  let nextSectionId = 1;
 
   for (const line of lines) {
     const hm = line.type.match(/^h([1-6])$/);
     if (hm) {
       const level = parseInt(hm[1]);
       while (stack.length > 1 && stack[stack.length - 1].level >= level) stack.pop();
-      const section: MdSection = { level, headingLine: line, bodyLines: [], children: [] };
+      const section: MdSection = { id: `section-${nextSectionId++}`, level, headingLine: line, bodyLines: [], children: [] };
       stack[stack.length - 1].children.push(section);
       stack.push(section);
     } else {
@@ -295,11 +287,11 @@ function buildModel(lines: MdLine[]): MdSection {
  * before the browser mutates the DOM.
  *
  */
-export class MarkdownEditor extends BaseHtmlElement implements IEditableText {
+export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IStructuredDocument {
 
   private _editor!: HTMLDivElement;
   private _markdown = "";
-  private _model: MdSection = { level: 0, headingLine: null, bodyLines: [], children: [] };
+  private _model: MdSection = { id: "root", level: 0, headingLine: null, bodyLines: [], children: [] };
   private _processing = false;
   private _activeDiv: HTMLElement | null = null;
   private _overlay: HTMLDivElement;
@@ -500,6 +492,140 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText {
     this._overlay = this.shadowRoot!.getElementById("overlay") as HTMLDivElement;
     this._initEmptyLine();
   }
+  
+  insertSection(
+    sectionTitle: string,
+    sectionContent: string,
+    insertBeforeSectionId?: string,
+  ): void {
+    const before = insertBeforeSectionId ? this._findSectionNode(insertBeforeSectionId) : null;
+    const defaultLevel = before?.section.level ?? 2;
+    const section = this._createSection(sectionTitle, sectionContent, defaultLevel);
+    if (!section) return;
+
+    if (before) {
+      before.parent.children.splice(before.index, 0, section);
+    } else {
+      this._model.children.push(section);
+    }
+
+    this._rebuildFromModel();
+  }
+
+  moveSection(sectionId: string, insertBeforeSectionId?: string): void {
+    const found = this._findSectionNode(sectionId);
+    if (!found) return;
+
+    if (insertBeforeSectionId && insertBeforeSectionId === found.section.id) {
+      return;
+    }
+
+    const movingSection = found.section;
+    found.parent.children.splice(found.index, 1);
+
+    if (insertBeforeSectionId) {
+      const before = this._findSectionNode(insertBeforeSectionId);
+      if (before) {
+        before.parent.children.splice(before.index, 0, movingSection);
+      } else {
+        this._model.children.push(movingSection);
+      }
+    } else {
+      this._model.children.push(movingSection);
+    }
+
+    this._rebuildFromModel();
+  }
+
+  removeSection(sectionId: string): void {
+    const found = this._findSectionNode(sectionId);
+    if (!found) return;
+
+    found.parent.children.splice(found.index, 1);
+    this._rebuildFromModel();
+  }
+
+  replaceSection(sectionId: string, sectionContent: string): void {
+    const found = this._findSectionNode(sectionId);
+    if (!found) return;
+
+    const rawLines = sectionContent ? splitOnNewlines(sectionContent) : [];
+    found.section.bodyLines = this._classifyLines(rawLines);
+    this._rebuildFromModel();
+  }
+
+  getSectionContent(sectionId: string): string {
+    const found = this._findSectionNode(sectionId);
+    if (!found) return "";
+    return found.section.bodyLines.map(line => line.raw).join("\n");
+  }
+
+  private _createSection(sectionTitle: string, sectionContent: string, defaultLevel: number): MdSection | null {
+    const parsedHeading = parseHeading(sectionTitle.trim());
+    const headingLevel = Math.max(1, Math.min(6, parsedHeading?.level ?? defaultLevel));
+    const headingText = parsedHeading?.title ?? sectionTitle.replace(/^#{1,6}\s+/, "").trim();
+    if (!headingText) return null;
+
+    const headingLine: MdLine = {
+      type: `h${headingLevel}` as LineType,
+      raw: `${"#".repeat(headingLevel)} ${headingText}`,
+    };
+
+    const rawLines = sectionContent ? splitOnNewlines(sectionContent) : [];
+    return {
+      id: "new-section",
+      level: headingLevel,
+      headingLine,
+      bodyLines: this._classifyLines(rawLines),
+      children: [],
+    };
+  }
+
+  private _findSectionNode(sectionId: string): { section: MdSection; parent: MdSection; index: number } | null {
+    const walk = (parent: MdSection): { section: MdSection; parent: MdSection; index: number } | null => {
+      for (let i = 0; i < parent.children.length; i++) {
+        const section = parent.children[i];
+
+        if (section.id === sectionId) {
+          return { section, parent, index: i };
+        }
+
+        const nested = walk(section);
+        if (nested) return nested;
+      }
+      return null;
+    };
+
+    return walk(this._model);
+  }
+
+  private _rebuildFromModel(): void {
+    const rawLines = this._modelToRawLines();
+    const mdLines = this._classifyLines(rawLines);
+
+    this._markdown = rawLines.join("\n");
+    this._model = buildModel(mdLines);
+
+    this._processing = true;
+    this._renderDom(mdLines, null);
+    this._processing = false;
+
+    this._emitChange();
+  }
+
+  private _modelToRawLines(): string[] {
+    const lines: string[] = [];
+    lines.push(...this._model.bodyLines.map(line => line.raw));
+
+    const appendSection = (section: MdSection): void => {
+      if (section.headingLine) lines.push(section.headingLine.raw);
+      lines.push(...section.bodyLines.map(line => line.raw));
+      section.children.forEach(appendSection);
+    };
+
+    this._model.children.forEach(appendSection);
+    return lines;
+  }
 
   // ---- Lifecycle ----
 
@@ -560,30 +686,34 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText {
     return { text, start, end };
   }
 
-  /** Return the section outline as a typed array for the outline panel. */
-  getOutlineItems(): OutlineItem[] {
-    const convert = (sections: MdSection[]): OutlineItem[] =>
-      sections.map(s => ({
-        level: s.level,
-        title: (s.headingLine?.raw ?? "").replace(/^#{1,6}\s+/, ""),
-        children: convert(s.children),
-      }));
-    return convert(this._model.children);
+  getOutline(): MdSection {
+    return this._model;
   }
 
-  /** Return the section outline as a plain JSON-serializable array. */
-  getDocumentOutline(): JSONValue[] {
-    const convert = (sections: MdSection[]): JSONValue[] =>
-      sections.map(s => {
-        const item: Record<string, JSONValue> = {
-          level:    s.level,
-          heading:  s.headingLine?.raw ?? "",
-          children: convert(s.children),
-        };
-        return item;
-      });
-    return convert(this._model.children);
-  }
+  /** Return the section outline as a typed array for the outline panel. */
+  // getOutlineItems(): OutlineItem[] {
+  //   const convert = (sections: MdSection[]): OutlineItem[] =>
+  //     sections.map(s => ({
+  //       level: s.level,
+  //       title: (s.headingLine?.raw ?? "").replace(/^#{1,6}\s+/, ""),
+  //       children: convert(s.children),
+  //     }));
+  //   return convert(this._model.children);
+  // }
+
+  // /** Return the section outline as a plain JSON-serializable array. */
+  // getDocumentOutline(): JSONValue[] {
+  //   const convert = (sections: MdSection[]): JSONValue[] =>
+  //     sections.map(s => {
+  //       const item: Record<string, JSONValue> = {
+  //         level:    s.level,
+  //         heading:  s.headingLine?.raw ?? "",
+  //         children: convert(s.children),
+  //       };
+  //       return item;
+  //     });
+  //   return convert(this._model.children);
+  // }
 
   /** Replace the current selection with `text`. */
   replaceSelection(text: string): void {
