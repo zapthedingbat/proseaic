@@ -45,8 +45,8 @@ export class UiPane extends BaseHtmlElement {
   .header {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 0 4px;
+    gap: var(--gap);
+    padding: 0 var(--gap);
     height: 28px;
     flex-shrink: 0;
     user-select: none;
@@ -65,8 +65,8 @@ export class UiPane extends BaseHtmlElement {
     border-radius: var(--ui-border-radius);
   }
   .twisty:hover {
+    background: var(--action-item-bg-color);
     opacity: 1;
-    background: rgba(255, 255, 255, 0.08);
   }
   .twisty-icon {
     transition: transform 0.2s ease;
@@ -76,7 +76,7 @@ export class UiPane extends BaseHtmlElement {
   }
   .title {
     flex: 1;
-    font-size: 0.85rem;
+    font-size: 1rem;
     font-weight: 600;
     opacity: 0.9;
     white-space: nowrap;
@@ -86,14 +86,8 @@ export class UiPane extends BaseHtmlElement {
   .actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: var(--gap);
     flex-shrink: 0;
-  }
-  .actions .action-item {
-    opacity: 0.7;
-  }
-  .actions .action-item:hover {
-    opacity: 1;
   }
   .body {
     flex: 1;

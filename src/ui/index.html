@@ -8,39 +8,34 @@
 </head>
 <body>
 
-<div class="page">
-  <header>
+<div class="app">
+  <header class="app-header">
     <ui-menu-bar>
       <button class="action-item" data-template-id="meeting-notes">Insert Meeting Notes</button>
-      <button class="action-item" popovertarget="ui-settings-panel">Settings</button>
     </ui-menu-bar>
   </header>
   <ui-settings-panel id="ui-settings-panel" popover></ui-settings-panel>
-  <main>
-    <aside class="left">
-      <ui-pane-view>
-        <ui-pane title="Outline">
-          <ui-outline-panel></ui-outline-panel>
-        </ui-pane>
-        <ui-pane title="Documents">
-          <ui-document-panel></ui-document-panel>
-        </ui-pane>
-      </ui-pane-view>
-    </aside>
-    <section class="center">
+  <main class="app-main">
+    <ui-pane-view class="pane-view left">
+      <ui-pane title="Outline">
+        <ui-outline-panel></ui-outline-panel>
+      </ui-pane>
+      <ui-pane title="Documents">
+        <ui-document-panel></ui-document-panel>
+      </ui-pane>
+    </ui-pane-view>
+    <section class="workspace center">
       <ui-markdown-editor></ui-markdown-editor>
     </section>
-    <aside class="right">
-      <ui-pane-view>
-        <ui-pane title="Chat">
-          <ui-chat-panel></ui-chat-panel>
-        </ui-pane>
-      </ui-pane-view>
-    </aside>
+    <ui-pane-view class="pane-view right">
+      <ui-pane title="Chat">
+        <ui-chat-panel></ui-chat-panel>
+      </ui-pane>
+    </ui-pane-view>
   </main>
-  <footer>
+  <footer class="app-footer">
     <ui-menu-bar>
-      <button>Pull Model</button>
+      <span>Markdown AI Editor</span>
     </ui-menu-bar>
   </footer>
 </div>

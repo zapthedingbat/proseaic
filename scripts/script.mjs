@@ -9,6 +9,7 @@ const root = path.resolve(here, "..");
 const sourceStaticAssetsDir = path.join(root, "src", "ui");
 const destStaticAssetsDir = path.join(root, "dist", "ui");
 const staticAssetsExtensions = new Set([".html", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg"]);
+const sourceFileExtensions = new Set([".ts", ".css"]);
 
 function isStaticAssetFile (fileName) {
   return staticAssetsExtensions.has(path.extname(fileName));
@@ -158,7 +159,7 @@ async function runWatch(signal) {
         const srcPath = path.join(sourceStaticAssetsDir, filename);
         const destPath = path.join(destStaticAssetsDir, filename);
         await fs.copyFile(srcPath, destPath);
-      } else if (path.extname(filename) === ".ts") {
+      } else if (sourceFileExtensions.has(path.extname(filename))) {
         console.log(`Source file changed: ${filename}, triggering rebuild...`);
         await rebuildContext(ctx);
       }

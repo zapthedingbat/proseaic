@@ -7,7 +7,7 @@ import { PaneAction } from "./pane.js";
 
 const html = `
 <div class="panel">
-  <div id="chat-history" class="scroll-box bottom-up"></div>
+  <div id="chat-history" class="chat-history scroll-box bottom-up"></div>
   <div id="chat-input" class="textarea-input">
     <textarea id="chat-textarea"></textarea>
     <div class="actions-container">
@@ -95,11 +95,17 @@ export class ChatPanel extends BaseHtmlElement {
 
   getPaneActions(): PaneAction[] {
     return [
+      { id: "settings", title: "Settings", icon: "codicon-gear" },
       { id: "clear", title: "Clear chat", icon: "codicon-archive" }
     ];
   }
 
   onPaneAction(actionId: string): void {
+    if (actionId === "settings") {
+      const settingsPanel = this.ownerDocument.getElementById("ui-settings-panel") as HTMLElement | null;
+      settingsPanel?.showPopover();
+      return;
+    }
     if (actionId === "clear") {
       this.dispatchEvent(new ClearHistoryEvent());
     }

@@ -12,7 +12,7 @@ export class DocumentPanel extends BaseHtmlElement {
 
     this.shadowRoot!.innerHTML = `
 <div class="panel">
-  <ul class="list" role="list"></ul>
+  <ul class="document-list list" role="list"></ul>
 </div>
 `;
 
@@ -138,10 +138,10 @@ export class DocumentPanel extends BaseHtmlElement {
 
   private _makeItemRow(docId: string, title: string): HTMLLIElement {
     const row = document.createElement("li");
-    row.className = `list-item${docId === this._activeId ? " active" : ""}`;
+    row.className = `action-item list-item${docId === this._activeId ? " active" : ""}`;
     row.dataset.docId = docId;
 
-    const titleBtn = document.createElement("button");
+    const titleBtn = document.createElement("div");
     titleBtn.className = "list-item-title";
     titleBtn.dataset.docId = docId;
     titleBtn.dataset.action = "select";
@@ -152,14 +152,14 @@ export class DocumentPanel extends BaseHtmlElement {
     actions.className = "list-item-actions";
 
     const renameBtn = document.createElement("button");
-    renameBtn.className = "action-btn";
+    renameBtn.className = "action-item";
     renameBtn.dataset.docId = docId;
     renameBtn.dataset.action = "rename";
     renameBtn.title = "Rename";
     renameBtn.innerHTML = `<i class="codicon codicon-rename"></i>`;
 
     const deleteBtn = document.createElement("button");
-    deleteBtn.className = "action-btn delete-btn";
+    deleteBtn.className = "action-item";
     deleteBtn.dataset.docId = docId;
     deleteBtn.dataset.action = "delete";
     deleteBtn.title = "Delete";

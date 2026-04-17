@@ -18,10 +18,18 @@
 
 
   --text-color: #ccc; 
-  --bg-color: #1e1e1e;
+  --app-bg-color: #191a1b;
+
+  --action-item-bg-color: rgba(255, 255, 255, 0.1);
 
   --ui-border-radius: 4px;
   --panel-bg-color: #191a1b;
+
+  --pane-border: 1px solid var(--pane-border-color);
+  --pane-border-color: #2a2b2c;
+  --pane-bg-color: #191a1b;
+
+  --workspace-bg-color: #121314;
 
   --page-bg-color: var(--bg-color);
   --menu-bar-bg: #252526;
@@ -72,33 +80,33 @@ body {
   background-color: var(--page-bg-color);
 }
 
-.page {
+body>.app {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
   height: 100vh;
+  background-color: var(--app-bg-color);
 }
 
-header,
-footer {
+header.app-header,
+footer.app-footer {
   flex-shrink: 0;
   overflow: hidden;
 }
 
-header {
+header.app-header {
   height: 36px;
+  border-bottom: var(--pane-border);
 }
 
-footer {
+footer.app-footer {
   height: 24px;
   font-size: 0;
+  border-top: var(--pane-border);
 }
 
-main {
+main.app-main {
   flex: 1;
   display: flex;
-  gap: var(--gap);
-  margin: var(--gap);
   min-height: 0;
 }
 
@@ -108,26 +116,25 @@ main {
   min-width: 0;
 }
 
-.left, .right {
+.pane-view {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: var(--gap);
 }
 
-.left > *,
-.right > *{
-  flex-grow: 1;
-  height: 100%;
+.pane-view.left {
+  width: 220px;
+  border-right: var(--pane-border);
 }
 
-.left {
-  min-width: 180px;
-  max-width: 280px;
-  width: 220px;
-}
-.right {
+.pane-view.right {
   width: 300px;
+  border-left: var(--pane-border);
+}
+
+.workspace {
+  background-color: var(--workspace-bg-color);
 }
 
 .selection {
