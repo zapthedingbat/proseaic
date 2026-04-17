@@ -3,7 +3,7 @@ import { PaneAction } from "./pane.js";
 
 // <document-panel> WebComponent
 export class DocumentPanel extends BaseHtmlElement {
-  private list: HTMLUListElement;
+  private _listEl: HTMLUListElement;
   private _documents: Array<{ id: string; title?: string }>;
   private _activeId: string | null;
 
@@ -13,20 +13,21 @@ export class DocumentPanel extends BaseHtmlElement {
     this.shadowRoot!.innerHTML = `
 <div class="panel">
   <ul class="document-list list" role="list"></ul>
+  <div class="cover empty" aria-hidden="true">No documents yet.</div>
 </div>
 `;
 
-    this.list = this.shadowRoot!.querySelector(".list") as HTMLUListElement;
+    this._listEl = this.shadowRoot!.querySelector(".list") as HTMLUListElement;
     this._documents = [];
     this._activeId = null;
   }
 
   connectedCallback(): void {
-    this.list.addEventListener("click", this._handleListClick);
+    this._listEl.addEventListener("click", this._handleListClick);
   }
 
   disconnectedCallback(): void {
-    this.list.removeEventListener("click", this._handleListClick);
+    this._listEl.removeEventListener("click", this._handleListClick);
   }
 
   getPaneActions(): PaneAction[] {
@@ -67,7 +68,7 @@ export class DocumentPanel extends BaseHtmlElement {
         composed: true,
       }));
     } else if (action === "rename") {
-      const row = btn.closest(".item") as HTMLDivElement | null;
+      const row = btn.closest(".list-item") as HTMLLIElement | null;
       if (row) this._startRename(row);
     } else if (action === "delete") {
       this.dispatchEvent(new CustomEvent("delete", {
@@ -85,14 +86,14 @@ export class DocumentPanel extends BaseHtmlElement {
     }));
   };
 
-  private _startRename(row: HTMLDivElement): void {
+  private _startRename(row: HTMLLIElement): void {
     const docId = row.dataset.docId!;
     const titleBtn = row.querySelector(".list-item-title") as HTMLButtonElement;
     const actions = row.querySelector(".list-item-actions") as HTMLDivElement;
 
     const input = document.createElement("input");
     input.type = "text";
-    input.className = ".input";
+    input.className = "input";
     input.value = titleBtn.textContent?.trim() ?? "";
 
     const cleanup = () => {
@@ -171,18 +172,20 @@ export class DocumentPanel extends BaseHtmlElement {
   }
 
   private _render(): void {
-    while (this.list.firstChild) this.list.removeChild(this.list.firstChild);
-
-    if (this._documents.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "empty";
-      empty.textContent = "No documents yet.";
-      this.list.appendChild(empty);
-      return;
+    while (this._listEl.firstChild){
+      this._listEl.removeChild(this._listEl.firstChild);
     }
 
-    for (const doc of this._documents) {
-      this.list.appendChild(this._makeItemRow(doc.id, doc.title || "Untitled"));
+    const empty = this.shadowRoot!.querySelector(".empty") as HTMLDivElement;
+    if (this._documents.length === 0) {
+      empty.style.display = "";
+      this._listEl.style.display = "none";
+    } else {
+      empty.style.display = "none";
+      this._listEl.style.display = "";
+      for (const doc of this._documents) {
+        this._listEl.appendChild(this._makeItemRow(doc.id, doc.title || "Untitled"));
+      }
     }
   }
 }

@@ -31,7 +31,7 @@
   --menu-bar-text-color: #ccc;
   --input-radius: var(--ui-border-radius);
   --input-border: 1px solid #555;
-  --input-focus-border: 1px solid #08F;
+  --input-focus-border: 1px solid var(--primary-color);
   --input-bg-color: var(--bg-color);
   --input-text-color: #fff;
   --output-text-color: #ddd;
@@ -40,13 +40,14 @@
   --editor-font-family: 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, serif;
   --editor-font-size: 1.25rem;
   --editor-padding: 1em;
-  --editor-selection-bg: rgba(200, 255, 0, 0.5);
+  --editor-selection-bg: color-mix(in srgb, var(--primary-color) 80%, transparent);
+  --editor-selection-text-color: #fff;
   --editor-selection-radius: 2px;
   --editor-bg-color: #fff;
   --editor-text-color: #000;
   --editor-box-shadow: 0 0 8px -4px rgba(0,0,0,0.5);
 
-  --editor-hr-color: #09f;
+  --editor-hr-color: var(--primary-color);
 
   --chat-text-color: var(--text-color);
   --chat-vertical-gap: 14px;

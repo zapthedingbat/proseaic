@@ -315,11 +315,6 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
           margin: 0 auto;
           overflow-y: auto;
         }
-        .selection {
-          background-color: var(--editor-selection-bg, rgba(100, 150, 250, 0.3));
-          border-radius: var(--editor-selection-radius, 2px);
-          outline: 1px solid #FF0;
-        }
         #editor {
           flex: 1 0 auto;
           margin: 16px;
@@ -332,6 +327,14 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
           box-shadow: var(--editor-box-shadow, 0 0 8px -4px rgba(0,0,0,0.5));
           outline: none;
           cursor: text;
+        }
+
+        .selection,
+        #editor::selection,
+        #editor *::selection {
+          background-color: var(--editor-selection-bg);
+          color: var(--editor-selection-text-color);
+          border-radius: var(--editor-selection-radius);
         }
 
         #overlay {

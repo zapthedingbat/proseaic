@@ -186,6 +186,7 @@ export class App {
     this._documentPanel.addEventListener("select", this._handleDocumentSelect);
     this._documentPanel.addEventListener("create", this._handleDocumentCreate);
     this._documentPanel.addEventListener("rename", this._handleDocumentRename);
+    this._documentPanel.addEventListener("delete", this._handleDocumentDelete);
     await this._refreshDocumentPanel();
 
     this._chatPanel = this._componentInstanceResolver.resolve(ChatPanel, "ui-chat-panel");
@@ -270,6 +271,20 @@ export class App {
   private _handleDocumentRename = async (event: Event): Promise<void> => {
     const { id, title } = (event as CustomEvent<{ id: string; title: string }>).detail;
     await this._documentService.renameDocument(id, title);
+    await this._refreshDocumentPanel();
+  }
+
+  private _handleDocumentDelete = async (event: Event): Promise<void> => {
+    const { id } = (event as CustomEvent<{ id: string }>).detail;
+    await this._documentService.deleteDocument(id);
+
+    if (this._activeDocumentId === id) {
+      this._activeDocumentId = null;
+      this._markdownEditor?.setMarkdown("");
+      this._refreshOutlinePanel();
+    }
+
+    await this._refreshDocumentPanel();
   }
 
   private _handleDocumentCreate = async (): Promise<void> => {
