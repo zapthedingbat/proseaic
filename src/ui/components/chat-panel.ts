@@ -3,13 +3,10 @@ import { ClearHistoryEvent, InsertContentEvent, NewDocumentEvent, SelectCheckpoi
 import { BaseHtmlElement } from "./base-html-element.js";
 import { AssistantChatMessage, ChatMessage, ChatMessageContentPart, ToolChatMessage } from "../lib/chat/chat-message.js";
 import { Model } from "../lib/models/model.js";
+import { PaneAction } from "./pane.js";
 
 const html = `
 <div class="panel">
-  <div class="header">
-    <div class="title">Chat</div>
-    <button id="chat-clear" class="action-item" type="button" title="Clear chat"><i class="codicon codicon-archive"></i></button>
-  </div>
   <div id="chat-history" class="scroll-box bottom-up"></div>
   <div id="chat-input" class="textarea-input">
     <textarea id="chat-textarea"></textarea>
@@ -42,7 +39,6 @@ export class ChatPanel extends BaseHtmlElement {
 
   private modelsSelect: HTMLSelectElement;
   private textarea: HTMLTextAreaElement;
-  private clearHistoryButton: HTMLButtonElement;
   private sendButton: HTMLButtonElement;
   private historyDiv: HTMLDivElement;
   private _models: Array<Model>;
@@ -59,7 +55,6 @@ export class ChatPanel extends BaseHtmlElement {
     this.shadowRoot!.innerHTML = html;
     this.modelsSelect = this.shadowRoot!.getElementById("chat-model-select") as HTMLSelectElement;
     this.textarea = this.shadowRoot!.getElementById("chat-textarea") as HTMLTextAreaElement;
-    this.clearHistoryButton = this.shadowRoot!.getElementById("chat-clear") as HTMLButtonElement;
     this.sendButton = this.shadowRoot!.getElementById("chat-send") as HTMLButtonElement;
     this.historyDiv = this.shadowRoot!.getElementById("chat-history") as HTMLDivElement;
     this._models = [];
@@ -84,7 +79,6 @@ export class ChatPanel extends BaseHtmlElement {
 
   connectedCallback(): void {
     this.sendButton.addEventListener("click", this._handleSendButtonClick);
-    this.clearHistoryButton.addEventListener("click", this._handleClearHistoryButtonClick);
     this.textarea.addEventListener("keydown", this._handleTextareaKeydown);
     this.textarea.addEventListener("input", this._handleTextareaInput);
     this.historyDiv.addEventListener("click", this._handleHistoryClick);
@@ -93,11 +87,22 @@ export class ChatPanel extends BaseHtmlElement {
 
   disconnectedCallback(): void {
     this.sendButton.removeEventListener("click", this._handleSendButtonClick);
-    this.clearHistoryButton.removeEventListener("click", this._handleClearHistoryButtonClick);
     this.textarea.removeEventListener("keydown", this._handleTextareaKeydown);
     this.textarea.removeEventListener("input", this._handleTextareaInput);
     this.historyDiv.removeEventListener("click", this._handleHistoryClick);
     this.historyDiv.removeEventListener("click", this._handleContentActionClick);
+  }
+
+  getPaneActions(): PaneAction[] {
+    return [
+      { id: "clear", title: "Clear chat", icon: "codicon-archive" }
+    ];
+  }
+
+  onPaneAction(actionId: string): void {
+    if (actionId === "clear") {
+      this.dispatchEvent(new ClearHistoryEvent());
+    }
   }
 
   get model(): string {
@@ -247,11 +252,6 @@ export class ChatPanel extends BaseHtmlElement {
   private _handleSendButtonClick = (event: MouseEvent): void => {
     event.preventDefault();
     this._submit();
-  };
-
-  private _handleClearHistoryButtonClick = (event: MouseEvent): void => {
-    event.preventDefault();
-    this.dispatchEvent(new ClearHistoryEvent());
   };
 
   private _handleHistoryClick = (event: MouseEvent): void => {

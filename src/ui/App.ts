@@ -174,6 +174,9 @@ export class App {
   // The initialize method performs the actual setup of the app, including loading data and wiring up components. It is called from the static create() method after the App instance is created.
   private async initialize(): Promise<void> {
 
+    this._componentInstanceResolver.resolve(UiPaneView, "ui-pane-view");
+    this._componentInstanceResolver.resolve(UiPane, "ui-pane");
+
     this._markdownEditor = this._componentInstanceResolver.resolve(MarkdownEditor, "ui-markdown-editor");
     this._markdownEditor.addEventListener("change", this._handleEditorChange);
 
@@ -321,4 +324,6 @@ export class App {
     });
   }
 }
+
+
 

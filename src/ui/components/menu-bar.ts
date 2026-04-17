@@ -46,7 +46,11 @@ export class MenuBar extends BaseHtmlElement {
     margin: 0 4px;
   }
 </style>
-<slot></slot>
+<div class="menu-bar">
+  <div class="action-items">
+    <slot></slot>
+  </div>
+</div>
 `;
   }
 }

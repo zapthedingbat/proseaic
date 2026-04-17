@@ -14,11 +14,14 @@ export class UiPaneView extends BaseHtmlElement {
     flex-direction: column;
     gap: var(--gap, 4px);
     height: 100%;
-    overflow: hidden;
     min-height: 0;
   }
 </style>
 <slot></slot>
 `;
   }
+}
+
+if (!customElements.get("ui-pane-view")) {
+  customElements.define("ui-pane-view", UiPaneView);
 }

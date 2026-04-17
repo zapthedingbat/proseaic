@@ -10,31 +10,7 @@ export class DocumentOutlinePanel extends BaseHtmlElement {
   constructor() {
     super();
     this.shadowRoot!.innerHTML = `
-<link rel="stylesheet" href="/codicon.css" />
 <style>
-  :host {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    border-radius: var(--input-radius);
-    border: var(--input-border);
-    padding: var(--gap);
-    color: var(--output-text-color);
-  }
-
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: calc(var(--gap) * 2);
-    font-size: 0.95rem;
-  }
-
-  .title {
-    font-weight: 600;
-    opacity: 0.9;
-  }
-
   .outline {
     display: flex;
     flex-direction: column;
@@ -66,35 +42,15 @@ export class DocumentOutlinePanel extends BaseHtmlElement {
     opacity: 1;
   }
 
-  .action-item {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border: none;
-    background: transparent;
-    color: var(--output-text-color);
-    cursor: pointer;
-    font-size: 0.85rem;
-    line-height: 1;
-    opacity: 0.6;
-  }
-
-  .action-item:hover {
-    opacity: 1;
-  }
-
   .empty {
     font-size: 0.85rem;
     opacity: 0.5;
     padding: 4px 8px;
   }
 </style>
-<div class="header">
-  <div class="title">Outline</div>
+<div class="panel">
+  <div class="outline" role="list"></div>
 </div>
-<div class="outline" role="list"></div>
     `;
     this._outlineElement = this.shadowRoot!.querySelector(".outline") as HTMLDivElement;
   }
@@ -128,7 +84,7 @@ export class DocumentOutlinePanel extends BaseHtmlElement {
     for (const section of this._outline) {
 
       const sectionItem = document.createElement("div");
-      
+
       const btn = document.createElement("button");
       btn.className = "item";
       btn.style.paddingLeft = `${section.sectionLevel * 14 + 8}px`;
@@ -172,9 +128,7 @@ export class DocumentOutlinePanel extends BaseHtmlElement {
       sectionItem.appendChild(increaseLevelBtn);
 
       // TODO: Support dragging sections up and down to re-order them.
-
       this._outlineElement.appendChild(sectionItem);
-
     }
   }
 }

@@ -1,45 +1,54 @@
 import { BaseHtmlElement } from "./base-html-element";
+import { PaneAction } from "./pane.js";
 
 // <document-panel> WebComponent
 export class DocumentPanel extends BaseHtmlElement {
   private list: HTMLUListElement;
-  private addButton: HTMLButtonElement;
   private _documents: Array<{ id: string; title?: string }>;
   private _activeId: string | null;
 
   constructor() {
     super();
-    
+
     this.shadowRoot!.innerHTML = `
 <div class="panel">
-  <div class="header">
-    <div class="title">Documents</div>
-    <button class="button add" type="button" title="New document"><i class="codicon codicon-new-file"></i></button>
-  </div>
   <ul class="list" role="list"></ul>
 </div>
 `;
 
     this.list = this.shadowRoot!.querySelector(".list") as HTMLUListElement;
-    this.addButton = this.shadowRoot!.querySelector(".add") as HTMLButtonElement;
     this._documents = [];
     this._activeId = null;
   }
 
   connectedCallback(): void {
     this.list.addEventListener("click", this._handleListClick);
-    this.addButton.addEventListener("click", this._handleAddClick);
   }
 
   disconnectedCallback(): void {
     this.list.removeEventListener("click", this._handleListClick);
-    this.addButton.removeEventListener("click", this._handleAddClick);
+  }
+
+  getPaneActions(): PaneAction[] {
+    return [
+      { id: "create", title: "New document", icon: "codicon-new-file" }
+    ];
+  }
+
+  onPaneAction(actionId: string): void {
+    if (actionId === "create") {
+      this._handleAddClick();
+    }
   }
 
   setDocuments(documents: Array<{ id: string; title?: string }>, activeId: string | null): void {
     this._documents = Array.isArray(documents) ? documents : [];
     this._activeId = activeId || null;
     this._render();
+    this.dispatchEvent(new CustomEvent("pane-actions-changed", {
+      bubbles: false,
+      composed: false
+    }));
   }
 
   private _handleListClick = (event: MouseEvent): void => {
