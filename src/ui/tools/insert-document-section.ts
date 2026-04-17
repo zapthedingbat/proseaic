@@ -2,6 +2,7 @@ import { ToolSchema } from "../lib/tools/tool-schema.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
 import { IStructuredDocument } from "../lib/document/structured-document.js";
+import { JSONValue } from "../lib/JSONValue.js";
 
 const schema: ToolSchema = {
   type: "function",
@@ -38,7 +39,7 @@ export class InsertDocumentSectionTool {
     this._logger = loggerFactory("Insert Document Section Tool");
     this._doc = doc;
   }
-  execute = async (args: Record<string, unknown>): Promise<unknown> => {
+  execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
     const sectionTitle = args.section_title as string;
     const sectionContent = args.section_content as string;

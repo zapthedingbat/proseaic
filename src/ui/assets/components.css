@@ -1,0 +1,311 @@
+/* Global styles for the UI components.
+  * This file contains styles that are specific to the UI components of the application,
+  * such as the menu bar, document panel, outline panel, and settings panel. It defines
+  * the layout, spacing, and appearance of these components to ensure a cohesive user
+  * interface. This file is imported in the main HTML file and applies to all components
+  * that are part of the UI.
+  */
+
+:host *,
+:host *::before,
+:host *::after {
+  box-sizing: inherit;
+}
+
+:host {
+  box-sizing: border-box;
+  font-family: var(--font-family);
+  color: var(--text-color);
+}
+
+:host .panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--panel-bg-color);
+  border-radius: var(--input-radius);
+  border: var(--input-border);
+  padding: var(--gap);
+  color: var(--output-text-color);
+}
+
+/* Panel */
+.panel .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: calc(var(--gap) * 2);
+  font-size: 0.95rem;
+}
+
+.panel .title {
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.panel .header .button {
+  border: none;
+  background: transparent;
+  color: var(--output-text-color);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+/* Cover = floats vertically and horizontally centered */
+.panel .cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scroll Box */
+.panel .scroll-box {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--gap);
+}
+
+.panel .scroll-box.bottom-up {
+  align-content: end;
+}
+
+/* Panel Lists */
+.panel ul.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  overflow-y: auto;
+}
+
+.panel ul.list li.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--gap);
+  border-radius: var(--input-radius);
+  border: var(--input-border);
+}
+
+.panel ul.list li.list-item .list-item-content {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.panel ul.list li.list-item .list-item-title {
+  font-weight: bold;
+}
+
+.panel ul.list li.list-item .list-item-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  padding-right: 4px;
+  gap: 2px;
+}
+
+.panel ul.list li.list-item:hover .list-item-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.panel ul.list li.list-item .input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--output-text-color);
+  font-family: var(--font-family);
+  font-size: inherit;
+  outline: none;
+}
+
+.panel ul.list li.list-item .input:focus {
+  border-color: var(--input-border-focus-color);
+}
+
+/* Inputs */
+
+.textarea-input {
+  border: var(--input-border);
+  border-radius: var(--input-radius);
+  padding: 0 6px 6px;
+  position: relative;
+}
+
+.textarea-input:focus-within {
+  border: var(--input-focus-border);
+}
+
+.textarea-input > textarea {
+  background-color: transparent;
+  border: none;
+  box-sizing: border-box;
+  color: var(--input-text-color);
+  font-family: monospace;
+  font-family: var(--font-family);
+  font-size: 1rem;
+  min-height: 60px;
+  padding: calc(var(--gap) * 2);
+  resize: none;
+  width: 100%;
+}
+
+.textarea-input > textarea:focus {
+  outline: none;
+}
+
+/* Action items */
+
+.actions-container {
+  display: flex;
+  gap: var(--gap);
+  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+  align-items: center;
+}
+
+.actions-container > .action-item {
+  flex-shrink: 0;
+}
+
+.action-item {
+  border: none;
+  background: transparent;
+  color: var(--output-text-color);
+  cursor: pointer;
+  padding: 3px 4px;
+  border-radius: var(--input-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.action-item:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.action-item:not(:open):hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.action-item.delete {
+  color: #ff8080;
+}
+
+select.action-item {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+select.action-item:open {
+  background-color: var(--input-bg-color);
+  color: var(--input-text-color);
+}
+
+select.action-item option {
+  background-color: var(--input-bg-color);
+  color: var(--input-text-color);
+}
+
+/* Chat messages */
+
+.chat-message {
+  margin-bottom: var(--chat-vertical-gap);
+}
+
+.chat-message[role="error"] {
+  color: var(--chat-error-text-color);
+  margin-bottom: var(--chat-vertical-gap);
+  border: 1px solid var(--chat-error-border-color);
+  border-radius: var(--ui-border-radius);
+  padding: calc(var(--gap) * 2);
+  background-color: var(--chat-error-bg-color);
+}
+
+.chat-message[role="user"] {
+  color: var(--chat-request-text-color);
+  padding: 8px 12px;
+  max-width: 90%;
+  margin-left: auto;
+  background-color: var(--chat-request-bg-color);
+  border-radius: 12px 12px 0;
+  width: fit-content;
+}
+
+.chat-message[role="assistant"] {
+  color: var(--chat-response-text-color);
+}
+
+.chat-message .thinking {
+  color: var(--chat-thinking-text-color);
+}
+
+.chat-message .content {
+
+}
+
+.chat-message .tool {
+  
+}
+
+.chat-message .tool:before {
+  content: "";
+  position: absolute;
+  left: 10.5px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  border-radius: 0;
+  background-color: var(--chat-request-border);
+  mask-image: linear-gradient(to bottom, #000 0 5px, transparent 5px 25px, #000 24px 100%);
+}
+
+.chat-message .tool .chat-icon {
+  position: absolute;
+  left: 5px;
+  top: 9px;
+  width: 12px;
+  height: 12px;
+  font-size: 12px;
+  line-height: 12px;
+  text-align: center;
+}
+
+.chat-message .tool .chat-icon:before & .codicon {
+  position: absolute;
+  left: 5px;
+  top: 9px;
+  width: 12px;
+  height: 12px;
+  font-size: 12px;
+  line-height: 12px;
+  text-align: center;
+}
+
+.chat-message .tool .content {
+  padding: 4px 12px 4px 18px;
+  position: relative;
+}
+
+/* Markdown */
+.markdown code,
+.markdown pre {
+  overflow-x: auto;
+}
+.markdown a {
+  color: inherit;
+  text-decoration: underline;
+}

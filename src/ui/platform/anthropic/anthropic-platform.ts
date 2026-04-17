@@ -75,6 +75,7 @@ export class AnthropicPlatform implements IPlatform {
           name: item.id,
           platform: this.name,
           capabilities,
+          supportsStreamingToolCalls: true,
         });
       }
 
@@ -212,7 +213,7 @@ export class AnthropicPlatform implements IPlatform {
   }
 
   private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): AnthropicRequest {
-    let systemContent = buildWritingAssistantSystemPrompt();
+    let systemContent = buildWritingAssistantSystemPrompt(!model.supportsStreamingToolCalls);
 
     const messages: AnthropicRequestMessage[] = [];
     let i = 0;

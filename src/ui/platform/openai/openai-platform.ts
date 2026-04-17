@@ -76,6 +76,7 @@ export class OpenAIPlatform implements IPlatform {
       .map(item => ({
         name: item.id,
         platform: this.name,
+        supportsStreamingToolCalls: true,
       }));
   }
 
@@ -163,7 +164,7 @@ export class OpenAIPlatform implements IPlatform {
   }
 
   private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): OpenAIRequest {
-    const systemPrompt = buildWritingAssistantSystemPrompt();
+    const systemPrompt = buildWritingAssistantSystemPrompt(!model.supportsStreamingToolCalls);
 
     const initialMessages: OpenAIRequestMessage[] = [
       { role: "system", content: systemPrompt },

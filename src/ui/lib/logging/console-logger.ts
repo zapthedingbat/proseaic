@@ -27,5 +27,8 @@ export class ConsoleLogger implements Logger {
   }
   private _log(level: LogLevels, ...data: any[]): void {
     this._console[level](`[${this._name}]`, ...data);
+    this._console.groupCollapsed('trace');
+    this._console.trace();
+    this._console.groupEnd();
   }
 }

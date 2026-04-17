@@ -1,11 +1,11 @@
 // <outline-panel> WebComponent
+import { DocumentOutline } from "../lib/document/document-outline";
+import { BaseHtmlElement } from "./base-html-element";
 
-import { MdSection } from "../lib/markdown/markdown";
-
-export class DocumentOutlinePanel extends HTMLElement {
+export class DocumentOutlinePanel extends BaseHtmlElement {
 
   private _outlineElement: HTMLDivElement;
-  private _rootSection: MdSection | undefined;
+  private _outline: DocumentOutline | undefined;
 
   constructor() {
     super();
@@ -67,14 +67,23 @@ export class DocumentOutlinePanel extends HTMLElement {
     opacity: 1;
   }
 
-  .item[data-level="1"] {
-    font-weight: 600;
-    font-size: 0.9rem;
-    opacity: 1;
+  .action-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: var(--output-text-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    opacity: 0.6;
   }
 
-  .item[data-level="2"] {
-    font-weight: 500;
+  .action-item:hover {
+    opacity: 1;
   }
 
   .empty {
@@ -99,50 +108,74 @@ export class DocumentOutlinePanel extends HTMLElement {
     this._outlineElement.removeEventListener("click", this._handleClick);
   }
 
-  setDocument(rootMarkdownSection: MdSection): void {
-    this._rootSection = rootMarkdownSection;
+  setDocument(outline: DocumentOutline): void {
+    this._outline = outline;
     this._render();
   }
 
   private _handleClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
-    const btn = target?.closest("button[data-title]") as HTMLButtonElement | null;
+    const btn = target?.closest("button[data-section]") as HTMLButtonElement | null;
     if (!btn) return;
-    this.dispatchEvent(new CustomEvent("navigate", {
-      detail: { title: btn.dataset.title, level: Number(btn.dataset.level) },
-      bubbles: true,
-      composed: true,
-    }));
   };
 
   private _render(): void {
-    if (!this._rootSection || this._rootSection.children.length === 0) {
+    if (!this._outline || this._outline.length === 0) {
       this._outlineElement.innerHTML = `<div class="empty">No headings.</div>`;
       return;
     }
     this._outlineElement.innerHTML = "";
-    this._renderItems(this._outlineElement, this._rootSection, 0);
-  }
 
-  private _renderItems(container: HTMLElement, section: MdSection, depth: number): void {
+    for (const section of this._outline) {
 
-    const title = section.headingLine?.raw || "Root";
-    const level = section.level;
-    
-    const btn = document.createElement("button");
-    btn.className = "item";
-    btn.style.paddingLeft = `${depth * 14 + 8}px`;
-    btn.setAttribute("data-level", String(level));
-    btn.setAttribute("data-title", title);
-    btn.setAttribute("role", "listitem");
-    btn.title = title;
-    btn.textContent = title;
-    container.appendChild(btn);
+      const sectionItem = document.createElement("div");
+      
+      const btn = document.createElement("button");
+      btn.className = "item";
+      btn.style.paddingLeft = `${section.sectionLevel * 14 + 8}px`;
+      btn.setAttribute("data-level", String(section.sectionLevel));
+      btn.setAttribute("data-section", section.sectionTitleId);
+      btn.setAttribute("role", "listitem");
+      btn.title = section.sectionTitle;
+      btn.textContent = section.sectionTitle;
+      sectionItem.appendChild(btn);
 
-    for (const item of section.children) {
-      if (item.children.length > 0) {
-        this._renderItems(container, item, depth + 1);
-      }
+      // Add delete button.
+      const delBtn = document.createElement("button");
+      delBtn.className = "action-item";
+      delBtn.style.opacity = "0.6";
+      delBtn.setAttribute("data-level", String(section.sectionLevel));
+      delBtn.setAttribute("data-delete", section.sectionTitleId);
+      delBtn.setAttribute("role", "listitem");
+      delBtn.title = `Delete section "${section.sectionTitle}"`;
+      delBtn.innerHTML = `<span class="codicon codicon-trash"></span>`;
+      sectionItem.appendChild(delBtn);
+
+      // Add decrease and increase button.
+      const reduceLevelBtn = document.createElement("button");
+      reduceLevelBtn.className = "action-item";
+      reduceLevelBtn.style.opacity = "0.6";
+      reduceLevelBtn.setAttribute("data-level", String(section.sectionLevel));
+      reduceLevelBtn.setAttribute("data-reduce", section.sectionTitleId);
+      reduceLevelBtn.setAttribute("role", "listitem");
+      reduceLevelBtn.title = `Reduce level of section "${section.sectionTitle}"`;
+      reduceLevelBtn.innerHTML = `<span class="codicon codicon-arrow-left"></span>`;
+      sectionItem.appendChild(reduceLevelBtn);
+
+      const increaseLevelBtn = document.createElement("button");
+      increaseLevelBtn.className = "action-item";
+      increaseLevelBtn.style.opacity = "0.6";
+      increaseLevelBtn.setAttribute("data-level", String(section.sectionLevel));
+      increaseLevelBtn.setAttribute("data-increase", section.sectionTitleId);
+      increaseLevelBtn.setAttribute("role", "listitem");
+      increaseLevelBtn.title = `Increase level of section "${section.sectionTitle}"`;
+      increaseLevelBtn.innerHTML = `<span class="codicon codicon-arrow-right"></span>`;
+      sectionItem.appendChild(increaseLevelBtn);
+
+      // TODO: Support dragging sections up and down to re-order them.
+
+      this._outlineElement.appendChild(sectionItem);
+
     }
   }
 }

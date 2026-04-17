@@ -1,3 +1,13 @@
+/**
+ * Global styles and CSS variables.
+ * This file defines the overall look and feel of the application, including
+ * colors, typography, spacing, and layout. It also sets up CSS variables
+ * that can be used throughout the app for consistent styling.
+ * This file is imported in the main HTML file and applies to the root of the application.
+ * It's not adopted by WebComponents, so it provides a global variable baseline for the
+ * entire app, but not reusable classes
+ */
+
 :root {
   font-size: 13px;
   font-family: sans-serif;
@@ -10,10 +20,13 @@
   --text-color: #ccc; 
   --bg-color: #1e1e1e;
 
+  --ui-border-radius: 4px;
+  --panel-bg-color: #191a1b;
+
   --page-bg-color: var(--bg-color);
   --menu-bar-bg: #252526;
   --menu-bar-text-color: #ccc;
-  --input-radius: 4px;
+  --input-radius: var(--ui-border-radius);
   --input-border: 1px solid #555;
   --input-focus-border: 1px solid #08F;
   --input-bg-color: var(--bg-color);
@@ -45,10 +58,6 @@
   --gap: 4px;
   --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   font-family: var(--font-family);
-}
-
-*, *::before, *::after {
-  box-sizing: inherit
 }
 
 html, body {
@@ -104,6 +113,12 @@ main {
   display: flex;
   flex-direction: column;
   gap: var(--gap);
+}
+
+.left > *,
+.right > *{
+  flex-grow: 1;
+  height: 100%;
 }
 
 .left {

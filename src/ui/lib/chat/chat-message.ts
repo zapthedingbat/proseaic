@@ -1,3 +1,5 @@
+import { JSONValue } from "../JSONValue";
+
 export type ToolCall = {
   id: string;
   name: string;
@@ -6,9 +8,9 @@ export type ToolCall = {
 };
 
 export type ChatMessageContentPart =
-  | { type: "text"; text: string }
+  | { type: "context"; name: string; data: JSONValue}
   | { type: "image"; url?: string; data?: string; mime_type?: string }
-  | { type: "context"; name: string; data: unknown }
+  | { type: "text"; text: string };
 
 type BaseChatMessage = {
   model: string;
@@ -37,6 +39,7 @@ export type AssistantChatMessage = BaseChatMessage & {
 export type ToolChatMessage = BaseChatMessage & {
   role: "tool";
   tool_call_id: string;
+  success?: boolean;
 };
 
 export type ChatMessage =

@@ -7,10 +7,11 @@ import { IPlatformService } from "../platform/platform-service.js";
 import { IToolService } from "../tools/tool-service.js";
 import { ChatMessageEvent } from "../events.js";
 import { ChatMessageContext } from "./chat-message-context.js";
+import { JSONValue } from "../JSONValue.js";
 
 export interface IChatSession extends EventTarget {
   submitUserPrompt(modelIdentifier: string, prompt: string, context: ChatMessageContext): Promise<void>;
-  getActiveChatMessage(): ChatMessage | null;
+  getActiveAssistantChatMessage(): ChatMessage | null;
   getMessages(maxMessages?: number): Promise<ChatMessage[]>;
   clearHistory(): Promise<void>;
 }
@@ -36,7 +37,7 @@ export class ChatSession extends EventTarget implements IChatSession {
   private _id: string;
 
   // The message that the assistant is currently generating. As the assistant generates a response, we can update this message with the partial content and any tool calls that are emitted along the way, allowing us to show a live-updating response in the UI.
-  private _activeChatMessage: ChatMessage | null = null;
+  private _activeAssistantChatMessage: AssistantChatMessage | null = null;
   private _models: Map<string, Model> | null
 
   constructor(loggerFactory: LoggerFactory, platformService: IPlatformService, history: IChatHistory, toolsService: IToolService) {
@@ -53,8 +54,8 @@ export class ChatSession extends EventTarget implements IChatSession {
     await this._history.clearHistory();
   }
 
-  getActiveChatMessage(): ChatMessage | null {
-    return this._activeChatMessage;
+  getActiveAssistantChatMessage(): AssistantChatMessage | null {
+    return this._activeAssistantChatMessage;
   }
 
   async getMessages(maxMessages?: number): Promise<ChatMessage[]> {
@@ -110,9 +111,13 @@ export class ChatSession extends EventTarget implements IChatSession {
       // Then send the request to the model endpoint and stream the response, collecting any tool calls that are emitted along the way.
       const streamEvents = this._platformService.generate(model, contextMessages, this._toolsService.listToolSchemas());
 
+      // Normally this should always be null at this point since the assistant should emit a 'done' event when it finishes its response, setting the active message to null.
+      // This likely means that the model emitted a new response before emitting a 'done'event for the previous response.
+      // The previous response will be discarded and replaced with the new response, which may lead to loss of content or tool calls from the previous response.
+      // To avoid this, ensure that your platform/model emits a 'done' event after finishing its response and before starting to emit a new response.
       if (assistantMessage) {
-        this._logger.warn("Received new assistant response while another response is still active. This likely means that the model emitted a new response before emitting a 'done' event for the previous response. The previous response will be discarded and replaced with the new response, which may lead to loss of content or tool calls from the previous response. To avoid this, ensure that your model emits a 'done' event after finishing its response and before starting to emit a new response.");
-        await this._history.addMessage(assistantMessage);
+        this._logger.warn("Received new assistant response while another response is still active. This previous response will be discarded", assistantMessage);
+        // await this._history.addMessage(assistantMessage);
       }
 
       assistantMessage = {
@@ -120,10 +125,10 @@ export class ChatSession extends EventTarget implements IChatSession {
         role: "assistant",
         content: []
       };
-      this._activeChatMessage = assistantMessage;
-    
-      //const queuedToolCalls: ToolCall[] = [];
-      const toolResults: ToolChatMessage[] = [];
+      this._activeAssistantChatMessage = assistantMessage;
+      this.dispatchEvent(new ChatMessageEvent(assistantMessage));
+
+      const toolResultsMessages: ToolChatMessage[] = [];
       let isThinking = false;
       let assistantMessageTextContent = "";
       for await (const streamEvent of streamEvents) {
@@ -138,22 +143,21 @@ export class ChatSession extends EventTarget implements IChatSession {
           case "text_delta":
             assistantMessageTextContent += streamEvent.text;
             assistantMessage.content = [{ type: "text", text: assistantMessageTextContent }];
-            this.dispatchEvent(new ChatMessageEvent(assistantMessage));
+            //this.dispatchEvent(new ChatMessageEvent(assistantMessage));
             break;
           case "reasoning_delta":
             if(!isThinking) {
               isThinking = true;
             }
             assistantMessage.thinking = (assistantMessage.thinking || "") + streamEvent.text;
-            this.dispatchEvent(new ChatMessageEvent(assistantMessage));
+            //this.dispatchEvent(new ChatMessageEvent(assistantMessage));
             break;
           case "tool_call":
             assistantMessage.tool_calls = assistantMessage.tool_calls || [];
             assistantMessage.tool_calls.push(streamEvent.tool_call);
-            //queuedToolCalls.push(streamEvent.tool_call);
             
             const toolChatMessage = await this._runToolAndGetResultMessage(modelIdentifier, streamEvent.tool_call);
-            toolResults.push(toolChatMessage);
+            toolResultsMessages.push(toolChatMessage);
 
             break;
           case "error":
@@ -168,32 +172,28 @@ export class ChatSession extends EventTarget implements IChatSession {
             this._logger.debug("Assistant finished generating response", assistantMessage);
             await this._history.addMessage(assistantMessage);
             contextMessages.push(assistantMessage);
+            this.dispatchEvent(new ChatMessageEvent(assistantMessage));
             assistantMessage = null;
-            this._activeChatMessage = null;
+            this._activeAssistantChatMessage = null;
             break;
         }
-        if(assistantMessage){
-          this.dispatchEvent(new ChatMessageEvent(assistantMessage));
-        }
       }
-
-      // Safety net: if the stream ended without a 'done' event (e.g. Ollama sends tool_calls
-      // and done:true in the same chunk, and only the tool_call event was emitted), finalize
-      // the assistant message here so it is included in contextMessages before tool results.
+      
       if (assistantMessage) {
         this._logger.warn("Stream ended without 'done' event. Finalizing assistant message.");
         await this._history.addMessage(assistantMessage);
         contextMessages.push(assistantMessage);
+        this.dispatchEvent(new ChatMessageEvent(assistantMessage));
         assistantMessage = null;
-        this._activeChatMessage = null;
+        this._activeAssistantChatMessage = null;
       }
 
-      if(toolResults.length == 0) {
+      if(toolResultsMessages.length == 0) {
         continueAgentLoop = false;
       } else{
         // If there are tool results, we feed them back into the next turn of the assistant's response generation to allow it to react to the tool results in real time and adjust its response accordingly.
         // This allows for more dynamic and interactive conversations where the assistant can use tools, see the results, and then decide what to do next based on those results, rather than having to wait for the next user prompt to react to tool results.
-        for(const toolResult of toolResults) {
+        for(const toolResult of toolResultsMessages) {
           this._logger.debug("Tool result", toolResult);
           await this._history.addMessage(toolResult);
           contextMessages.push(toolResult);
@@ -238,7 +238,7 @@ export class ChatSession extends EventTarget implements IChatSession {
       content: [{ type: "text", text: messageText }]
     };
     await this._history.addMessage(errorMessage);
-    this._activeChatMessage = null;
+    this._activeAssistantChatMessage = null;
     return errorMessage;
   }
 
@@ -269,20 +269,6 @@ export class ChatSession extends EventTarget implements IChatSession {
   // Runs the provided tool calls sequentially, returning their results as chat messages.
   // If any tool call fails, the error is caught and returned as the tool call result,
   // allowing the assistant to receive feedback about tool failures and adjust its behavior accordingly.
-  /*
-  private async _runToolsAndGetResultMessages(modelIdentifier: string, queued: ToolCall[]): Promise<ToolChatMessage[]> {
-    const toolMessages: ToolChatMessage[] = [];
-    for (const toolCall of queued) {
-      const message = await this._runToolAndGetResultMessage(modelIdentifier, toolCall);
-      toolMessages.push(message);
-    }
-    return toolMessages;
-  }
-  */
-
-  // Runs the provided tool calls sequentially, returning their results as chat messages.
-  // If any tool call fails, the error is caught and returned as the tool call result,
-  // allowing the assistant to receive feedback about tool failures and adjust its behavior accordingly.
   private async _runToolAndGetResultMessage(modelIdentifier: string, toolCall: ToolCall): Promise<ToolChatMessage> {
     const toolName = toolCall.name
     const args = this._parseToolArguments(toolCall.arguments);
@@ -291,7 +277,12 @@ export class ChatSession extends EventTarget implements IChatSession {
       return {
         model: modelIdentifier,
         role: "tool",
-        content: [{ type: "text", text: JSON.stringify({ ok: true, tool: toolName, result }) }],
+        success: true,
+        content: [{ type: "text", text: JSON.stringify({
+          ok: true,
+          tool: toolName,
+          result
+        }) }],
         tool_call_id: toolCall.id
       };
     } catch (error) {
@@ -299,6 +290,7 @@ export class ChatSession extends EventTarget implements IChatSession {
       return {
         model: modelIdentifier,
         role: "tool",
+        success: false,
         content: [{ type: "text", text: JSON.stringify({
           ok: false,
           tool: toolName,
@@ -326,7 +318,7 @@ export class ChatSession extends EventTarget implements IChatSession {
     return typeof raw === "object" ? raw as Record<string, unknown> : {};
   }
 
-  private async _runTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  private async _runTool(name: string, args: Record<string, unknown>): Promise<JSONValue> {
     const tool = this._toolsService.findTool(name);
     if (!tool) {
       // If the tool isn't found, we throw an error which will be caught and returned as the tool call result.

@@ -29,6 +29,26 @@ export class ClearHistoryEvent extends CustomEvent<void> implements Event {
   }
 }
 
+export class InsertContentEvent extends CustomEvent<{ content: string }> implements Event {
+  constructor(content: string) {
+    super("insert-content", {
+      detail: { content },
+      bubbles: true,
+      composed: true
+    });
+  }
+}
+
+export class NewDocumentEvent extends CustomEvent<{ content: string }> implements Event {
+  constructor(content: string) {
+    super("new-document", {
+      detail: { content },
+      bubbles: true,
+      composed: true
+    });
+  }
+}
+
 export class ChatMessageEvent extends CustomEvent<{message: ChatMessage}> implements Event {
   constructor(message: ChatMessage) {
     super("message", {

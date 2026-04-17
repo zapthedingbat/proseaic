@@ -3,4 +3,5 @@ export type Model = {
   platform: string;
   version?: string;
   capabilities?: Array<string>;
+  supportsStreamingToolCalls?: boolean;
 };

@@ -1,3 +1,4 @@
+import { BaseHtmlElement } from "./base-html-element";
 
 const PLATFORM_KEYS: Array<{ label: string; storageKey: string; placeholder: string }> = [
   { label: "Anthropic",  storageKey: "anthropic_api_key", placeholder: "sk-ant-…"  },
@@ -120,7 +121,7 @@ const css = `
 }
 `;
 
-export class SettingsPanel extends HTMLElement {
+export class SettingsPanel extends BaseHtmlElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });

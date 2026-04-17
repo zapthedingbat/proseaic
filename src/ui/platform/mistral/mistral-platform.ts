@@ -65,6 +65,7 @@ export class MistralPlatform implements IPlatform {
           name: item.id,
           platform: this.name,
           capabilities,
+          supportsStreamingToolCalls: true,
         };
       });
   }
@@ -147,7 +148,7 @@ export class MistralPlatform implements IPlatform {
   }
 
   private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): MistralRequest {
-    const systemPrompt = buildWritingAssistantSystemPrompt();
+    const systemPrompt = buildWritingAssistantSystemPrompt(!model.supportsStreamingToolCalls);
 
     const initialMessages: MistralRequestMessage[] = [
       { role: "system", content: systemPrompt },

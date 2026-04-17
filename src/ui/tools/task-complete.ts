@@ -1,3 +1,4 @@
+import { JSONValue } from "../lib/JSONValue.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
@@ -28,7 +29,7 @@ export class TaskCompleteTool implements ITool {
     this._logger = loggerFactory("Task complete tool");
   }
   
-  execute = async (args: Record<string, unknown>): Promise<unknown> => {
+  execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     const summary = args.summary as string;
     return {
       summary

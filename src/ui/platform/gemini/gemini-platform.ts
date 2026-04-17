@@ -68,6 +68,7 @@ export class GeminiPlatform implements IPlatform {
         models.push({
           name: modelId,
           platform: this.name,
+          supportsStreamingToolCalls: true,
         });
       }
 
@@ -78,7 +79,7 @@ export class GeminiPlatform implements IPlatform {
   }
 
   async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[]): AsyncIterable<StreamEvent> {
-    const request = this._buildModelInput(chatMessages, tools);
+    const request = this._buildModelInput(model, chatMessages, tools);
 
     this._logger.debug("Sending request to Gemini API", request);
 
@@ -136,8 +137,8 @@ export class GeminiPlatform implements IPlatform {
     }
   }
 
-  private _buildModelInput(chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): GeminiRequest {
-    const systemText = buildWritingAssistantSystemPrompt();
+  private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): GeminiRequest {
+    const systemText = buildWritingAssistantSystemPrompt(!model.supportsStreamingToolCalls);
 
     const contents: GeminiContent[] = [];
     let i = 0;

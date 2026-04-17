@@ -187,12 +187,21 @@ export class App {
     this._chatPanel.addEventListener("submit-prompt", this._handleChatPanelSubmitPrompt);
     this._chatPanel.addEventListener("clear-history", this._handleChatPanelClearHistory);
     
+    // Stream content into the chat panel as it is received from the platform.
+    // TODO: Work out how we handle multiple simultaneous streams for different chat messages.
+    //   We likely need to include some identifier in the stream events so we know which 
+    //   message/panel to stream the content into.
     this._chatStream.on("streamEvent", event => {
-      this._logger.debug("Received stream event in App:", event);
+      const chatPanel = this._chatPanel;
       switch(event.type){
         case "text_delta":
+          chatPanel?.appendResponseToActiveMessage(event.text);
+          break;
         case "reasoning_delta":
-          this._chatPanel?.appendActiveChatMessageContent(event.type, event.text);
+          chatPanel?.appendThinkingToActiveMessage(event.text);
+          break;
+        case "image":
+          chatPanel?.appendImageToActiveMessage(event.data);
           break;
       }
 
@@ -205,14 +214,10 @@ export class App {
     // Load the list of available models from the platform and set them in the chat panel so that the user can select which model to use for their prompts.
     await this._refreshModels();
 
-    // TODO: make this handle more granular stream events so that we can update the UI more responsively as the assistant generates its response,
-    // rather than waiting for the entire response to be generated before updating the UI.
     this._chatSession.addEventListener("message", this._updateChatPanel);
 
     this._wireTemplateButtons();
 
-    // Load any required state and update the UI to reflect that state.
-    // For example, we might want to load the chat history and display it in the chat panel.
     this._updateChatPanel();
   }
 
@@ -223,13 +228,12 @@ export class App {
     }
     const messages = await this._chatSession.getMessages();
     this._chatPanel.setHistory(messages);
-    this._chatPanel.setActive(this._chatSession.getActiveChatMessage());
+    this._chatPanel.setAssistantMessage(this._chatSession.getActiveAssistantChatMessage());
   }
 
   private _handleChatPanelSubmitPrompt = (event: Event): void => {
     const submitPromptEvent = event as SubmitPromptEvent;
     this._logger.debug("submit-prompt event", submitPromptEvent);
-
 
     const modelIdentifier = this._chatPanel?.model;
     const promptText = submitPromptEvent.detail.promptText;
@@ -239,10 +243,8 @@ export class App {
     }
 
     // Build up the context object to pass to the ChatSession when submitting the prompt.
-    // This will include any relevant information from the TextEditor, such as the selected text and document outline, which can then be used by tools when executing.
     const context: ChatMessageContext = {}
 
-    
     this._chatSession.submitUserPrompt(modelIdentifier, promptText, context);
   }
 

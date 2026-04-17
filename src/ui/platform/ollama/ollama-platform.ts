@@ -78,6 +78,7 @@ export class OllamaPlatform implements IPlatform {
       name: modelName,
       platform: this.name,
       capabilities: data.capabilities,
+      supportsStreamingToolCalls: false,
     };
 
     return modelDetails;
@@ -119,21 +120,14 @@ export class OllamaPlatform implements IPlatform {
   private buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]) {
 
     const modelName = model.name;
+    const includeBoundary = !model.supportsStreamingToolCalls;
     
-    /* TODO: add 'memory' section with relevant info from session memory and user memory, and update it as the conversation goes on.
-    e.g
-    <userMemory>
-    ...
-    </userMemory>
-    <sessionMemory>
-    ...
-    </sessionMemory>
-    */
+    this._logger.debug(`Building Ollama request for model: ${modelName}, includeBoundary: ${includeBoundary}, supportsStreamingToolCalls: ${model.supportsStreamingToolCalls}`);
    
     const initialMessages: OllamaRequestMessage[] = [
       {
         role: 'system',
-        content: buildWritingAssistantSystemPrompt()
+        content: buildWritingAssistantSystemPrompt(includeBoundary)
       },
     ];
 
@@ -196,21 +190,16 @@ export class OllamaPlatform implements IPlatform {
     const contentString = message.content.reduce((acc, part) => {
       if(part.type === "text") {
         return `${acc}\n${part.text}\n`;
-      } else if (part.type === "context") {
-        return acc + `<${part.name}>\n${JSON.stringify(part.data, null, 2)}\n</${part.name}>\n`;
       }
       return acc;
     }, "");
 
     const images: string[] = [];
-    if(index === array.length - 1) {
-      // If this is the last message in the conversation, we can include any images as part of the user message, which allows us to display them in the UI at the right time during generation. If we included them as separate messages, they would all come through at once at the start of generation, which isn't ideal.
-      message.content.forEach(part => {
-        if(part.type === "image" && typeof part.data === "string") {
-          images.push(part.data);
-        }
-      });
-    }
+    message.content.forEach(part => {
+      if(part.type === "image" && typeof part.data === "string") {
+        images.push(part.data);
+      }
+    });
 
     return ({
       role: "user",
@@ -220,6 +209,13 @@ export class OllamaPlatform implements IPlatform {
   }
 
   private _formatAssistantMessage(message: AssistantChatMessage, index: number, array: ChatMessage[]): OllamaAssistantRequestMessage {
+    /* 
+    In Ollama’s chat API an assistant message is expected to be either:
+    - a tool call message (tool_calls), where content is typically empty or null
+    - a normal message with content, *or*
+    */
+
+    // Tool calls
     const tool_calls = message.tool_calls?.map(tc => ({
       id: tc.id,
       type: "function" as const,
@@ -236,32 +232,23 @@ export class OllamaPlatform implements IPlatform {
       });
     }
 
+    // Normal message with content (and optional images)
     const contentString = message.content.reduce((acc, part) => {
       if(part.type === "text") {
         return `${acc}\n${part.text}\n`;
-      } else if (part.type === "context") {
-        if(typeof part.data === "string") {
-          return acc + part.data;
-        } else if ( typeof part.data === "object" && part.data !== null) {
-          return acc + JSON.stringify(part.data, null, 2);
-        }
-        return acc;
       }
       return acc;
     }, "");
 
     const images: string[] = [];
-    if(index === array.length - 1) {
-      // If this is the last message in the conversation, we can include any images as part of the assistant message, which allows us to display them in the UI at the right time during generation. If we included them as separate messages, they would all come through at once at the start of generation, which isn't ideal.
-      message.content.forEach(part => {
-        if(part.type === "image" && typeof part.data === "string") {
-          images.push(part.data);
-        }
-      });
-    }
-
+    message.content.forEach(part => {
+      if(part.type === "image" && typeof part.data === "string") {
+        images.push(part.data);
+      }
+    });
+   
     return ({
-      role: "assistant",// Ollama's API requires either content or tool_calls to be present, so if there's no text content we need to include an empty string to satisfy the schema.
+      role: "assistant",
       images: images.length > 0 ? images : undefined,
       content: contentString || " ",
     });
@@ -296,6 +283,11 @@ export class OllamaPlatform implements IPlatform {
     const thinking = chunk.message?.thinking ?? chunk.thinking;
     if (typeof thinking === "string" && thinking.length > 0) {
       events.push({ type: "reasoning_delta", text: thinking });
+    }
+
+    const images = chunk.message?.images ?? [];
+    for(const image of images) {
+      events.push({ type: "image", data: image });
     }
 
     for (const toolCall of chunk.message?.tool_calls ?? []) {

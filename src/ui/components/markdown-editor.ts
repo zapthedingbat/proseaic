@@ -2,6 +2,7 @@ import { IEditableText } from "../lib/document/editable-text.js";
 import { BaseHtmlElement } from "./base-html-element.js";
 import { LineType, MdLine, MdSection } from "../lib/markdown/markdown.js";
 import { IStructuredDocument } from "../lib/document/structured-document.js";
+import { DocumentOutline } from "../lib/document/document-outline.js";
 
 /**
  * I didn't set out to build a markdown editor, but I needed a way to edit markdown content with a decent UX and some structure (e.g. to support an outline view), so here we are.
@@ -582,6 +583,10 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   }
 
   private _findSectionNode(sectionId: string): { section: MdSection; parent: MdSection; index: number } | null {
+    if (sectionId === this._model.id) {
+      return { section: this._model, parent: this._model, index: -1 };
+    }
+
     const walk = (parent: MdSection): { section: MdSection; parent: MdSection; index: number } | null => {
       for (let i = 0; i < parent.children.length; i++) {
         const section = parent.children[i];
@@ -686,34 +691,23 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     return { text, start, end };
   }
 
-  getOutline(): MdSection {
-    return this._model;
+  getOutline(): DocumentOutline {
+
+    // Build the outline by walking the model and extracting heading lines
+    const outline: DocumentOutline = [];
+    const walk = (section: MdSection) => {
+      if (section.headingLine) {
+        outline.push({
+          sectionTitleId: section.id,
+          sectionLevel: section.level,
+          sectionTitle: section.headingLine.raw.replace(/^#{1,6}\s+/, ""),
+        });
+      }
+      section.children.forEach(s => walk(s));
+    };
+    this._model.children.forEach(s => walk(s));
+    return outline;
   }
-
-  /** Return the section outline as a typed array for the outline panel. */
-  // getOutlineItems(): OutlineItem[] {
-  //   const convert = (sections: MdSection[]): OutlineItem[] =>
-  //     sections.map(s => ({
-  //       level: s.level,
-  //       title: (s.headingLine?.raw ?? "").replace(/^#{1,6}\s+/, ""),
-  //       children: convert(s.children),
-  //     }));
-  //   return convert(this._model.children);
-  // }
-
-  // /** Return the section outline as a plain JSON-serializable array. */
-  // getDocumentOutline(): JSONValue[] {
-  //   const convert = (sections: MdSection[]): JSONValue[] =>
-  //     sections.map(s => {
-  //       const item: Record<string, JSONValue> = {
-  //         level:    s.level,
-  //         heading:  s.headingLine?.raw ?? "",
-  //         children: convert(s.children),
-  //       };
-  //       return item;
-  //     });
-  //   return convert(this._model.children);
-  // }
 
   /** Replace the current selection with `text`. */
   replaceSelection(text: string): void {

@@ -1,7 +1,30 @@
 const KNOWLEDGE_AREA = "copy writing and technical writing, proofreading, grammar correction, and general writing assistance";
 
-export function buildWritingAssistantSystemPrompt(): string {
+export const CONTENT_BOUNDARY_START = "---BEGIN CONTENT---";
+export const CONTENT_BOUNDARY_END = "---END CONTENT---";
+
+const BOUNDARY_PROMPT_ADDENDUM = `
+<contentBoundaryInstructions>
+IMPORTANT: When generating substantial blocks of text content (prose, drafts, examples, code snippets, etc.), ALWAYS wrap them with these exact delimiters on their own lines:
+
+${CONTENT_BOUNDARY_START}
+[the actual content here]
+${CONTENT_BOUNDARY_END}
+
+EXAMPLES:
+- If asked to "write a paragraph about X", wrap the paragraph with the markers
+- If asked to "generate a section for my document", wrap the section with the markers  
+- If asked to "create an example", wrap the example with the markers
+- If asked to "draft a response", wrap the response with the markers
+
+Use these markers for ANY substantial content block. Do NOT use them for brief explanations, commentary, or short answers.
+The markers help the editor identify content you want the user to insert into their document.
+</contentBoundaryInstructions>`;
+
+export function buildWritingAssistantSystemPrompt(includeBoundaryInstructions = false): string {
+  const boundaryStart = includeBoundaryInstructions ? BOUNDARY_PROMPT_ADDENDUM + "\n" : "";
   return `You are an expert writing assistant, working with a user in their text editor.
+${boundaryStart}
 <instructions>
 You are a highly sophisticated automated writing agent with expert-level knowledge across ${KNOWLEDGE_AREA}.
 The user will ask a question, or ask you to perform a task, and it may require research to answer correctly. There is a selection of tools that let you perform actions or retrieve helpful context to answer the user's question.

@@ -1,5 +1,7 @@
+import { BaseHtmlElement } from "./base-html-element";
+
 // <menu-bar> WebComponent
-export class MenuBar extends HTMLElement {
+export class MenuBar extends BaseHtmlElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });

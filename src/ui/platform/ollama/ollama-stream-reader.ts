@@ -13,6 +13,7 @@ export type OllamaStreamChunk = {
         arguments?: Record<string, unknown>;
       };
     }>;
+    images?: string[];
   };
 };
 
