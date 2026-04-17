@@ -45,6 +45,14 @@ export class MenuBar extends BaseHtmlElement {
     background: rgba(255, 255, 255, 0.15);
     margin: 0 4px;
   }
+
+  ::slotted(.app-icon) {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    opacity: 0.95;
+  }
 </style>
 <div class="menu-bar">
   <div class="action-items">

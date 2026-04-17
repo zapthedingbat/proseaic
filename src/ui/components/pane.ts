@@ -42,6 +42,11 @@ export class UiPane extends BaseHtmlElement {
   :host([collapsed]) {
     flex: 0 0 auto;
   }
+
+  :host(:not(:first-child)) {
+    border-top: var(--pane-border);
+  }
+
   .header {
     display: flex;
     align-items: center;

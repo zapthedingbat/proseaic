@@ -96,6 +96,10 @@ footer.app-footer {
 header.app-header {
   height: 36px;
   border-bottom: var(--pane-border);
+  display: flex;
+  align-items: center;
+  padding: 0 calc(var(--gap) *2);
+  gap: var(--gap);
 }
 
 footer.app-footer {
