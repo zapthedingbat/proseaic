@@ -38,6 +38,9 @@ function getBuildOptions() {
     absWorkingDir: root,
     entryPoints: ["src/ui/script.ts"],
     bundle: true,
+    loader: {
+      ".css": "text"
+    },
     format: "esm",
     platform: "browser",
     target: ["es2022"],

@@ -1,35 +1,40 @@
 import { Logger } from "../lib/logging/logger.js";
 import { LoggerInjected } from "../lib/logging/logger-injected.js";
+// @ts-ignore: esbuild bundles CSS imports as raw text.
+import componentStyles from "../assets/components.css";
+// @ts-ignore: esbuild bundles CSS imports as raw text.
+import codiconStyles from "@vscode/codicons/dist/codicon.css";
 
-const constructableStylesheetCache = new WeakMap<CSSStyleSheet, CSSStyleSheet>();
-
-function getConstructableStylesheet(sourceSheet: CSSStyleSheet): CSSStyleSheet | null {
-  const cachedSheet = constructableStylesheetCache.get(sourceSheet);
-  if (cachedSheet) {
-    return cachedSheet;
-  }
-
+function createConstructableStylesheet(cssText: string): CSSStyleSheet | null {
   try {
-    const cssText = Array.from(sourceSheet.cssRules, (rule) => rule.cssText).join("\n");
-    const constructableSheet = new CSSStyleSheet();
-    constructableSheet.replaceSync(cssText);
-    constructableStylesheetCache.set(sourceSheet, constructableSheet);
-    return constructableSheet;
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(cssText);
+    return sheet;
   } catch {
     return null;
   }
 }
 
+const commonStylesheets: CSSStyleSheet[] = [
+  createConstructableStylesheet(componentStyles),
+  createConstructableStylesheet(codiconStyles)
+].filter((s): s is CSSStyleSheet => s !== null);
+
 export abstract class BaseHtmlElement extends HTMLElement implements LoggerInjected {
   protected _logger: Logger;
-  
-  constructor(init: ShadowRootInit = { mode: "open" }) {
+
+  constructor() {
     super();
     this._logger = console;
-    this.attachShadow(init);
-    // Prevent re-attaching shadow root in derived classes
-    this.attachShadow = () => { return this.shadowRoot! }; 
+    this.attachShadow({ mode: "open" });
     this.adoptCommonStyles();
+  }
+  
+  override attachShadow(init: ShadowRootInit): ShadowRoot {
+    if (this.shadowRoot) {
+      return this.shadowRoot;
+    }
+    return super.attachShadow(init);
   }
   
   set logger(logger: Logger) {
@@ -37,19 +42,16 @@ export abstract class BaseHtmlElement extends HTMLElement implements LoggerInjec
   }
 
   protected adoptCommonStyles(): void {
-    const doc = this.ownerDocument;
-    for (const sheet of doc.styleSheets) {
-      const sheetNode = sheet.ownerNode;
-      if(sheetNode && sheetNode instanceof HTMLLinkElement && sheetNode.rel === "stylesheet" && sheetNode.dataset.adopt !== undefined) {
-        const constructableSheet = getConstructableStylesheet(sheet as CSSStyleSheet);
-        if (!constructableSheet) {
-          this._logger.debug(`Skipped stylesheet: ${sheet.href || "inline style"}`);
-          continue;
-        }
-        if (!this.shadowRoot!.adoptedStyleSheets.includes(constructableSheet)) {
-          this.shadowRoot!.adoptedStyleSheets.push(constructableSheet);
-        }
+    const shadowRoot = this.shadowRoot;
+    if (!shadowRoot) {
+      return;
+    }
+
+    for (const sheet of commonStylesheets) {
+      if (!shadowRoot.adoptedStyleSheets.includes(sheet)) {
+        shadowRoot.adoptedStyleSheets.push(sheet);
       }
     }
   }
 }
+

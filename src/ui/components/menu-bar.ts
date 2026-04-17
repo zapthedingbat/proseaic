@@ -4,7 +4,6 @@ import { BaseHtmlElement } from "./base-html-element";
 export class MenuBar extends BaseHtmlElement {
   constructor() {
     super();
-    this.attachShadow({ mode: "open" });
     this.shadowRoot!.innerHTML = `
 <link rel="stylesheet" href="/codicon.css" />
 <style>

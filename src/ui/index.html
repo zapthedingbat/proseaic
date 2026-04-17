@@ -4,35 +4,44 @@
   <meta charset="utf-8" />
   <title>Markdown AI Editor</title>
   <link rel="stylesheet" href="/app.css" />
-  <link rel="stylesheet" href="/codicon.css" data-adopt="true" />
-  <link rel="stylesheet" href="/components.css" data-adopt="true" />
+  <link rel="stylesheet" href="/codicon.css" />
 </head>
 <body>
 
 <div class="page">
   <header>
-    <menu-bar>
+    <ui-menu-bar>
       <button data-template-id="meeting-notes">Insert Meeting Notes</button>
-      <button popovertarget="settings-panel">Settings</button>
-    </menu-bar>
+      <button popovertarget="ui-settings-panel">Settings</button>
+    </ui-menu-bar>
   </header>
-  <settings-panel id="settings-panel" popover></settings-panel>
+  <ui-settings-panel id="ui-settings-panel" popover></ui-settings-panel>
   <main>
     <aside class="left">
-      <outline-panel></outline-panel>
-      <document-panel></document-panel>
+      <ui-pane-view>
+        <ui-pane title="Outline">
+          <ui-outline-panel></ui-outline-panel>
+        </ui-pane>
+        <ui-pane title="Documents">
+          <ui-document-panel></ui-document-panel>
+        </ui-pane>
+      </ui-pane-view>
     </aside>
     <section class="center">
-      <markdown-editor></markdown-editor>
+      <ui-markdown-editor></ui-markdown-editor>
     </section>
     <aside class="right">
-      <chat-panel></chat-panel>
+      <ui-pane-view>
+        <ui-pane title="Chat">
+          <ui-chat-panel></ui-chat-panel>
+        </ui-pane>
+      </ui-pane-view>
     </aside>
   </main>
   <footer>
-    <menu-bar>
+    <ui-menu-bar>
       <button>Pull Model</button>
-    </menu-bar>
+    </ui-menu-bar>
   </footer>
 </div>
 <script type="module" src="/script.js"></script>

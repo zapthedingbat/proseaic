@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { MarkdownEditor } from "../../../src/ui/components/markdown-editor.js";
 
-if (!customElements.get("markdown-editor")) {
-  customElements.define("markdown-editor", MarkdownEditor);
+if (!customElements.get("ui-markdown-editor")) {
+  customElements.define("ui-markdown-editor", MarkdownEditor);
 }
 
 describe("MarkdownEditor section operations", () => {
   it("exposes and replaces root content before first heading", () => {
-    const editor = document.createElement("markdown-editor") as MarkdownEditor;
+    const editor = document.createElement("ui-markdown-editor") as MarkdownEditor;
 
     editor.setMarkdown("Intro paragraph\n\n# Heading\nBody");
 
@@ -21,7 +21,7 @@ describe("MarkdownEditor section operations", () => {
   });
 
   it("exposes and replaces root content when there are no headings", () => {
-    const editor = document.createElement("markdown-editor") as MarkdownEditor;
+    const editor = document.createElement("ui-markdown-editor") as MarkdownEditor;
 
     editor.setMarkdown("Line one\nLine two");
 

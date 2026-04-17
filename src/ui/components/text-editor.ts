@@ -24,7 +24,6 @@ export class TextEditor extends BaseHtmlElement {
 
   constructor() {
     super();
-    this.attachShadow({ mode: "open" });
     
     // Initialize shadow DOM with editor styles and structure
     this.shadowRoot!.innerHTML = `

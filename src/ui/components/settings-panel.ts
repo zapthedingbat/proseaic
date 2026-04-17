@@ -124,7 +124,6 @@ const css = `
 export class SettingsPanel extends BaseHtmlElement {
   constructor() {
     super();
-    this.attachShadow({ mode: "open" });
     this._render();
   }
 

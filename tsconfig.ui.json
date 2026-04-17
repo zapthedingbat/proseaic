@@ -3,6 +3,7 @@
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "Bundler",
+    "allowArbitraryExtensions": true,
     "lib": ["DOM", "ES2022"],
     "rootDir": "src/ui",
     "outDir": "dist/ui",
@@ -11,6 +12,6 @@
     "noEmitOnError": true,
     "sourceMap": true
   },
-  "include": ["src/ui/**/*.ts"],
+  "include": ["src/ui/**/*.ts", "src/ui/**/*.d.ts"],
   "exclude": ["src/ui/**/*.test.ts"]
 }

@@ -35,6 +35,9 @@ import { ChatPanel } from "./components/chat-panel.js";
 import { DocumentPanel } from "./components/document-panel.js";
 import { DocumentOutlinePanel } from "./components/outline-panel.js";
 import { SettingsPanel } from "./components/settings-panel.js";
+import { UiPane } from "./components/pane.js";
+import { UiPaneView } from "./components/pane-view.js";
+
 
 // Tools
 import { ReplaceSelectionTool } from "./tools/replace-selection.js";
@@ -107,7 +110,7 @@ export class App {
 
     const componentInstanceResolver = new ComponentInstanceResolver(_document, _customElementsRegistry, loggerFactory);
 
-    const markdownEditor = componentInstanceResolver.resolve(MarkdownEditor, "markdown-editor");
+    const markdownEditor = componentInstanceResolver.resolve(MarkdownEditor, "ui-markdown-editor");
 
     // Use local proxy
     const OLLAMA_ENDPOINT = "/ollama";
@@ -171,19 +174,18 @@ export class App {
   // The initialize method performs the actual setup of the app, including loading data and wiring up components. It is called from the static create() method after the App instance is created.
   private async initialize(): Promise<void> {
 
-    // this._textEditor = this._componentInstanceResolver.resolve(TextEditor, "text-editor");
-    this._markdownEditor = this._componentInstanceResolver.resolve(MarkdownEditor, "markdown-editor");
+    this._markdownEditor = this._componentInstanceResolver.resolve(MarkdownEditor, "ui-markdown-editor");
     this._markdownEditor.addEventListener("change", this._handleEditorChange);
 
-    this._outlinePanel = this._componentInstanceResolver.resolve(DocumentOutlinePanel, "outline-panel");
+    this._outlinePanel = this._componentInstanceResolver.resolve(DocumentOutlinePanel, "ui-outline-panel");
 
-    this._documentPanel = this._componentInstanceResolver.resolve(DocumentPanel, "document-panel");
+    this._documentPanel = this._componentInstanceResolver.resolve(DocumentPanel, "ui-document-panel");
     this._documentPanel.addEventListener("select", this._handleDocumentSelect);
     this._documentPanel.addEventListener("create", this._handleDocumentCreate);
     this._documentPanel.addEventListener("rename", this._handleDocumentRename);
     await this._refreshDocumentPanel();
 
-    this._chatPanel = this._componentInstanceResolver.resolve(ChatPanel, "chat-panel");
+    this._chatPanel = this._componentInstanceResolver.resolve(ChatPanel, "ui-chat-panel");
     this._chatPanel.addEventListener("submit-prompt", this._handleChatPanelSubmitPrompt);
     this._chatPanel.addEventListener("clear-history", this._handleChatPanelClearHistory);
     
@@ -208,7 +210,7 @@ export class App {
     });
 
     // Register the settings panel component and listen for settings changes so we can refresh the model list when API keys are updated.
-    this._componentInstanceResolver.resolve(SettingsPanel, "settings-panel");
+    this._componentInstanceResolver.resolve(SettingsPanel, "ui-settings-panel");
     this._global.document.addEventListener("settings-changed", this._handleSettingsChanged);
 
     // Load the list of available models from the platform and set them in the chat panel so that the user can select which model to use for their prompts.
@@ -319,3 +321,4 @@ export class App {
     });
   }
 }
+
