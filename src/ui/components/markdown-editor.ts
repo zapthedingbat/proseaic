@@ -548,6 +548,40 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     this._rebuildFromModel();
   }
 
+  increaseSectionLevel(sectionId: string): void {
+    const found = this._findSectionNode(sectionId);
+    if (!found?.section.headingLine) return;
+
+    const nextLevel = Math.min(6, found.section.level + 1);
+    if (nextLevel === found.section.level) return;
+
+    this._setSectionLevel(found.section, nextLevel);
+    this._rebuildFromModel();
+  }
+
+  decreaseSectionLevel(sectionId: string): void {
+    const found = this._findSectionNode(sectionId);
+    if (!found?.section.headingLine) return;
+
+    const nextLevel = Math.max(1, found.section.level - 1);
+    if (nextLevel === found.section.level) return;
+
+    this._setSectionLevel(found.section, nextLevel);
+    this._rebuildFromModel();
+  }
+
+  focusSection(sectionId: string): void {
+    const lineIndex = this._findSectionHeadingLineIndex(sectionId);
+    if (lineIndex === null) return;
+
+    const lineStart = this._lineStartOffset(lineIndex);
+    this._savedStart = lineStart;
+    this._savedEnd = lineStart;
+
+    this._editor.focus();
+    this._restoreCaretPos({ lineIndex, charOffset: 0 });
+  }
+
   replaceSection(sectionId: string, sectionContent: string): void {
     const found = this._findSectionNode(sectionId);
     if (!found) return;
@@ -604,6 +638,50 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     };
 
     return walk(this._model);
+  }
+
+  private _setSectionLevel(section: MdSection, level: number): void {
+    if (!section.headingLine) return;
+    const title = section.headingLine.raw.replace(/^#{1,6}\s+/, "");
+    section.level = level;
+    section.headingLine.type = `h${level}` as LineType;
+    section.headingLine.raw = `${"#".repeat(level)} ${title}`;
+  }
+
+  private _findSectionHeadingLineIndex(sectionId: string): number | null {
+    let lineIndex = this._model.bodyLines.length;
+
+    const walk = (section: MdSection): number | null => {
+      if (section.headingLine) {
+        if (section.id === sectionId) return lineIndex;
+        lineIndex += 1;
+      }
+
+      lineIndex += section.bodyLines.length;
+
+      for (const child of section.children) {
+        const found = walk(child);
+        if (found !== null) return found;
+      }
+
+      return null;
+    };
+
+    for (const section of this._model.children) {
+      const found = walk(section);
+      if (found !== null) return found;
+    }
+
+    return null;
+  }
+
+  private _lineStartOffset(targetLineIndex: number): number {
+    const lines = this._markdown.split("\n");
+    let offset = 0;
+    for (let i = 0; i < targetLineIndex; i++) {
+      offset += (lines[i]?.length ?? 0) + 1;
+    }
+    return offset;
   }
 
   private _rebuildFromModel(): void {

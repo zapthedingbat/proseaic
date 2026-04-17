@@ -28,8 +28,11 @@ export class FileSystemDocumentStore implements IDocumentStore {
     const directoryHandle = await this._getDirectoryHandle();
     const fileHandle = await directoryHandle.getFileHandle(`${id}.md`);
     const file = await fileHandle.getFile();
-    const raw = await file.text();
-    return JSON.parse(raw);
+    const content = await file.text();
+    return {
+      title: id,
+      content
+    };
   }
 
   async updateDocument(id: string, content: string): Promise<void> {

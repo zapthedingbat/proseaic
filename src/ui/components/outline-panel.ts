@@ -4,55 +4,48 @@ import { BaseHtmlElement } from "./base-html-element";
 
 export class DocumentOutlinePanel extends BaseHtmlElement {
 
-  private _outlineElement: HTMLDivElement;
+  private _outlineElement: HTMLUListElement;
   private _outline: DocumentOutline | undefined;
 
   constructor() {
     super();
     this.shadowRoot!.innerHTML = `
 <style>
-  .outline {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    padding-right: 2px;
+  .outline-list {
+    margin: var(--gap);
   }
 
-  .item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    border: none;
-    background: transparent;
-    color: var(--output-text-color);
-    padding: 3px 8px;
-    border-radius: 4px;
+  .list-item {
+    gap: var(--gap);
+  }
+
+  .list-item-title {
+    flex: 1;
+    min-width: 0;
+    padding-left: var(--outline-indent, 8px);
     cursor: pointer;
-    font-family: var(--font-family);
-    font-size: 0.85rem;
-    line-height: 1.4;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0.85;
   }
 
-  .item:hover {
-    background: rgba(255, 255, 255, 0.06);
+  .list-item-title:hover {
     opacity: 1;
   }
 
-  .empty {
+  .cover.empty {
     font-size: 0.85rem;
     opacity: 0.5;
-    padding: 4px 8px;
+  }
+
+  .list-item-title,
+  .list-item-actions {
+    white-space: nowrap;
   }
 </style>
 <div class="panel">
-  <div class="outline" role="list"></div>
+  <ul class="outline-list list" role="list"></ul>
+  <div class="cover empty" aria-hidden="true">No headings.</div>
 </div>
     `;
-    this._outlineElement = this.shadowRoot!.querySelector(".outline") as HTMLDivElement;
+    this._outlineElement = this.shadowRoot!.querySelector(".outline-list") as HTMLUListElement;
   }
 
   connectedCallback(): void {
@@ -70,62 +63,78 @@ export class DocumentOutlinePanel extends BaseHtmlElement {
 
   private _handleClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
-    const btn = target?.closest("button[data-section]") as HTMLButtonElement | null;
+    const btn = target?.closest("[data-action][data-section]") as HTMLElement | null;
     if (!btn) return;
+
+    const sectionId = btn.dataset.section;
+    const action = btn.dataset.action;
+    if (!sectionId || !action) return;
+
+    this.dispatchEvent(new CustomEvent(action, {
+      detail: { sectionId },
+      bubbles: true,
+      composed: true,
+    }));
   };
 
   private _render(): void {
+    const empty = this.shadowRoot!.querySelector(".empty") as HTMLDivElement;
     if (!this._outline || this._outline.length === 0) {
-      this._outlineElement.innerHTML = `<div class="empty">No headings.</div>`;
+      empty.style.display = "";
+      this._outlineElement.style.display = "none";
+      this._outlineElement.innerHTML = "";
       return;
     }
+    empty.style.display = "none";
+    this._outlineElement.style.display = "";
     this._outlineElement.innerHTML = "";
 
     for (const section of this._outline) {
 
-      const sectionItem = document.createElement("div");
+      const sectionItem = document.createElement("li");
+      sectionItem.className = "action-item list-item";
+      sectionItem.style.setProperty("--outline-indent", `${section.sectionLevel * 14 + 8}px`);
 
-      const btn = document.createElement("button");
-      btn.className = "item";
-      btn.style.paddingLeft = `${section.sectionLevel * 14 + 8}px`;
-      btn.setAttribute("data-level", String(section.sectionLevel));
-      btn.setAttribute("data-section", section.sectionTitleId);
-      btn.setAttribute("role", "listitem");
-      btn.title = section.sectionTitle;
-      btn.textContent = section.sectionTitle;
-      sectionItem.appendChild(btn);
+      const title = document.createElement("div");
+      title.className = "list-item-title";
+      title.setAttribute("data-level", String(section.sectionLevel));
+      title.setAttribute("data-section", section.sectionTitleId);
+      title.setAttribute("data-action", "select");
+      title.title = section.sectionTitle;
+      title.textContent = section.sectionTitle;
 
-      // Add delete button.
+      const actions = document.createElement("div");
+      actions.className = "list-item-actions";
+
       const delBtn = document.createElement("button");
       delBtn.className = "action-item";
-      delBtn.style.opacity = "0.6";
       delBtn.setAttribute("data-level", String(section.sectionLevel));
-      delBtn.setAttribute("data-delete", section.sectionTitleId);
-      delBtn.setAttribute("role", "listitem");
+      delBtn.setAttribute("data-section", section.sectionTitleId);
+      delBtn.setAttribute("data-action", "delete");
+      delBtn.type = "button";
       delBtn.title = `Delete section "${section.sectionTitle}"`;
       delBtn.innerHTML = `<span class="codicon codicon-trash"></span>`;
-      sectionItem.appendChild(delBtn);
 
-      // Add decrease and increase button.
       const reduceLevelBtn = document.createElement("button");
       reduceLevelBtn.className = "action-item";
-      reduceLevelBtn.style.opacity = "0.6";
       reduceLevelBtn.setAttribute("data-level", String(section.sectionLevel));
-      reduceLevelBtn.setAttribute("data-reduce", section.sectionTitleId);
-      reduceLevelBtn.setAttribute("role", "listitem");
+      reduceLevelBtn.setAttribute("data-section", section.sectionTitleId);
+      reduceLevelBtn.setAttribute("data-action", "decrease-level");
+      reduceLevelBtn.type = "button";
       reduceLevelBtn.title = `Reduce level of section "${section.sectionTitle}"`;
       reduceLevelBtn.innerHTML = `<span class="codicon codicon-arrow-left"></span>`;
-      sectionItem.appendChild(reduceLevelBtn);
 
       const increaseLevelBtn = document.createElement("button");
       increaseLevelBtn.className = "action-item";
-      increaseLevelBtn.style.opacity = "0.6";
       increaseLevelBtn.setAttribute("data-level", String(section.sectionLevel));
-      increaseLevelBtn.setAttribute("data-increase", section.sectionTitleId);
-      increaseLevelBtn.setAttribute("role", "listitem");
+      increaseLevelBtn.setAttribute("data-section", section.sectionTitleId);
+      increaseLevelBtn.setAttribute("data-action", "increase-level");
+      increaseLevelBtn.type = "button";
       increaseLevelBtn.title = `Increase level of section "${section.sectionTitle}"`;
       increaseLevelBtn.innerHTML = `<span class="codicon codicon-arrow-right"></span>`;
-      sectionItem.appendChild(increaseLevelBtn);
+
+      actions.append(reduceLevelBtn, increaseLevelBtn, delBtn);
+      sectionItem.append(title, actions);
 
       // TODO: Support dragging sections up and down to re-order them.
       this._outlineElement.appendChild(sectionItem);

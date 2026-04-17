@@ -7,7 +7,6 @@ import { DocumentManager, IDocumentService } from "./lib/document/document-manag
 import { FileSystemDocumentStore } from "./lib/document/file-system-document-store.js";
 import { IChatStream } from "./lib/platform/chat-stream.js";
 import { IPlatformService } from "./lib/platform/platform-service.js";
-import { IToolService } from "./lib/tools/tool-service.js";
 import { LocalStorageDocumentStore } from "./lib/document/local-storage-document-store.js";
 import { Logger } from "./lib/logging/logger.js";
 import { LoggerFactory } from "./lib/logging/logger-factory.js";
@@ -47,6 +46,11 @@ import { RemoveDocumentSectionTool } from "./tools/remove-document-section.js";
 import { InsertDocumentSectionTool } from "./tools/insert-document-section.js";
 import { ReplaceDocumentSectionTool } from "./tools/replace-document-section.js";
 import { MoveDocumentSectionTool } from "./tools/move-document-section.js";
+import { CreateDocumentTool } from "./tools/create-document.js";
+import { RenameDocumentTool } from "./tools/rename-document.js";
+import { ListDocumentsTool } from "./tools/list-documents.js";
+import { OpenDocumentTool } from "./tools/open-document.js";
+import { IDocumentToolContext } from "./tools/document-tool-context.js";
 
 type AppOptions = {
   documentService: IDocumentService;
@@ -56,7 +60,7 @@ type AppOptions = {
   componentInstanceResolver: ComponentInstanceResolver,
   chatSession: ChatSession;
   platformService: IPlatformService;
-  toolService: IToolService;
+  toolService: ToolRegistry;
 }
 
 export class App {
@@ -68,6 +72,7 @@ export class App {
   private _componentInstanceResolver: ComponentInstanceResolver;
   private _chatStream: IChatStream;
   private _documentService: IDocumentService;
+  private _toolService: ToolRegistry;
 
   // UI Components
   private _chatPanel?: ChatPanel;
@@ -86,6 +91,7 @@ export class App {
     this._platformService = options.platformService;
     this._chatStream = options.chatStream;
     this._documentService = options.documentService;
+    this._toolService = options.toolService;
   }
 
   // The create method initializes the App instance and performs asynchronous setup.
@@ -110,8 +116,6 @@ export class App {
 
     const componentInstanceResolver = new ComponentInstanceResolver(_document, _customElementsRegistry, loggerFactory);
 
-    const markdownEditor = componentInstanceResolver.resolve(MarkdownEditor, "ui-markdown-editor");
-
     // Use local proxy
     const OLLAMA_ENDPOINT = "/ollama";
     const ANTHROPIC_ENDPOINT = "/anthropic";
@@ -127,18 +131,7 @@ export class App {
       new MistralPlatform(loggerFactory, fetchFunction, getApiKey("mistral_api_key"), () => new MistralStreamReader()),
     ]);
 
-    // Register tools in the tool registry so that they can be used by the ChatSession and invoked by the assistant in its responses.
     const toolRegistry = new ToolRegistry();
-    toolRegistry.registerMany([
-      new TaskCompleteTool(loggerFactory),
-      new ReplaceSelectionTool(loggerFactory, markdownEditor),
-      new ReadDocumentOutlineTool(loggerFactory, markdownEditor),
-      new ReadDocumentSectionTool(loggerFactory, markdownEditor),
-      new InsertDocumentSectionTool(loggerFactory, markdownEditor),
-      new ReplaceDocumentSectionTool(loggerFactory, markdownEditor),
-      new MoveDocumentSectionTool(loggerFactory, markdownEditor),
-      new RemoveDocumentSectionTool(loggerFactory, markdownEditor),
-    ]);
 
     // Chat history is saved to local storage under the "chat_history" key.
     const history = new BrowserChatHistory("chat_history");
@@ -180,7 +173,13 @@ export class App {
     this._markdownEditor = this._componentInstanceResolver.resolve(MarkdownEditor, "ui-markdown-editor");
     this._markdownEditor.addEventListener("change", this._handleEditorChange);
 
+    this._registerTools();
+
     this._outlinePanel = this._componentInstanceResolver.resolve(DocumentOutlinePanel, "ui-outline-panel");
+    this._outlinePanel.addEventListener("select", this._handleOutlineSelect);
+    this._outlinePanel.addEventListener("delete", this._handleOutlineDelete);
+    this._outlinePanel.addEventListener("decrease-level", this._handleOutlineDecreaseLevel);
+    this._outlinePanel.addEventListener("increase-level", this._handleOutlineIncreaseLevel);
 
     this._documentPanel = this._componentInstanceResolver.resolve(DocumentPanel, "ui-document-panel");
     this._documentPanel.addEventListener("select", this._handleDocumentSelect);
@@ -259,19 +258,86 @@ export class App {
     this._documentPanel?.setDocuments(docs, this._activeDocumentId);
   }
 
+  private _createDocument = async (title: string, store?: string): Promise<{ id: string; title: string }> => {
+    const targetStore = store ?? this._documentService.getStoreNamespaces()[0];
+    if (!targetStore) {
+      throw new Error("No document store is configured.");
+    }
+
+    const id = await this._documentService.createDocument(title, targetStore);
+    this._activeDocumentId = id;
+    this._markdownEditor?.setMarkdown("");
+    await this._refreshDocumentPanel();
+    this._refreshOutlinePanel();
+
+    return { id, title };
+  }
+
+  private _openDocument = async (id: string): Promise<{ id: string; title: string; content: string }> => {
+    const documents = await this._documentService.listDocuments();
+    const document = documents.find(doc => doc.id === id);
+    const content = await this._documentService.readDocument(id);
+
+    this._activeDocumentId = id;
+    this._markdownEditor?.setMarkdown(content);
+    await this._refreshDocumentPanel();
+    this._refreshOutlinePanel();
+
+    return {
+      id,
+      title: document?.title || "Untitled",
+      content
+    };
+  }
+
+  private _renameDocument = async (id: string, title: string): Promise<void> => {
+    await this._documentService.renameDocument(id, title);
+    await this._refreshDocumentPanel();
+  }
+
+  private _buildDocumentToolContext(): IDocumentToolContext {
+    return {
+      getActiveDocumentId: () => this._activeDocumentId,
+      getStoreNamespaces: () => this._documentService.getStoreNamespaces(),
+      listDocuments: () => this._documentService.listDocuments(),
+      createDocument: (title: string, store?: string) => this._createDocument(title, store),
+      renameDocument: (id: string, title: string) => this._renameDocument(id, title),
+      openDocument: (id: string) => this._openDocument(id)
+    };
+  }
+
+  private _registerTools(): void {
+    if (!this._markdownEditor) {
+      return;
+    }
+
+    const loggerFactory: LoggerFactory = (componentName: string) => new ConsoleLogger(componentName);
+    const documentToolContext = this._buildDocumentToolContext();
+
+    this._toolService.registerMany([
+      new TaskCompleteTool(loggerFactory),
+      new ListDocumentsTool(loggerFactory, documentToolContext),
+      new OpenDocumentTool(loggerFactory, documentToolContext),
+      new CreateDocumentTool(loggerFactory, documentToolContext),
+      new RenameDocumentTool(loggerFactory, documentToolContext),
+      new ReplaceSelectionTool(loggerFactory, this._markdownEditor),
+      new ReadDocumentOutlineTool(loggerFactory, this._markdownEditor),
+      new ReadDocumentSectionTool(loggerFactory, this._markdownEditor),
+      new InsertDocumentSectionTool(loggerFactory, this._markdownEditor),
+      new ReplaceDocumentSectionTool(loggerFactory, this._markdownEditor),
+      new MoveDocumentSectionTool(loggerFactory, this._markdownEditor),
+      new RemoveDocumentSectionTool(loggerFactory, this._markdownEditor),
+    ]);
+  }
+
   private _handleDocumentSelect = async (event: Event): Promise<void> => {
     const { id } = (event as CustomEvent<{ id: string }>).detail;
-    this._activeDocumentId = id;
-    const content = await this._documentService.readDocument(id);
-    this._markdownEditor?.setMarkdown(content);
-    this._refreshDocumentPanel();
-    this._refreshOutlinePanel();
+    await this._openDocument(id);
   }
 
   private _handleDocumentRename = async (event: Event): Promise<void> => {
     const { id, title } = (event as CustomEvent<{ id: string; title: string }>).detail;
-    await this._documentService.renameDocument(id, title);
-    await this._refreshDocumentPanel();
+    await this._renameDocument(id, title);
   }
 
   private _handleDocumentDelete = async (event: Event): Promise<void> => {
@@ -288,12 +354,27 @@ export class App {
   }
 
   private _handleDocumentCreate = async (): Promise<void> => {
-    const defaultStore = this._documentService.getStoreNamespaces()[0];
-    if (!defaultStore) return;
-    const id = await this._documentService.createDocument("Untitled", defaultStore);
-    this._activeDocumentId = id;
-    this._markdownEditor?.setMarkdown("");
-    await this._refreshDocumentPanel();
+    await this._createDocument("Untitled");
+  }
+
+  private _handleOutlineSelect = (event: Event): void => {
+    const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+    this._markdownEditor?.focusSection(sectionId);
+  }
+
+  private _handleOutlineDelete = (event: Event): void => {
+    const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+    this._markdownEditor?.removeSection(sectionId);
+  }
+
+  private _handleOutlineDecreaseLevel = (event: Event): void => {
+    const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+    this._markdownEditor?.decreaseSectionLevel(sectionId);
+  }
+
+  private _handleOutlineIncreaseLevel = (event: Event): void => {
+    const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+    this._markdownEditor?.increaseSectionLevel(sectionId);
   }
 
   private _handleEditorChange = (event: Event): void => {
