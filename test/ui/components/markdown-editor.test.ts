@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MarkdownEditor } from "../../../src/ui/components/markdown-editor.js";
 
 if (!customElements.get("ui-markdown-editor")) {
@@ -31,5 +31,35 @@ describe("MarkdownEditor section operations", () => {
     editor.replaceSection("root", "Rewritten");
 
     expect(editor.markdown).toBe("Rewritten");
+  });
+
+  it("flushes pending debounced edits on blur", () => {
+    vi.useFakeTimers();
+
+    const editor = document.createElement("ui-markdown-editor") as MarkdownEditor;
+    document.body.appendChild(editor);
+
+    const updates: string[] = [];
+    editor.addEventListener("change", (event: Event) => {
+      const detail = (event as CustomEvent<{ markdown: string }>).detail;
+      updates.push(detail.markdown);
+    });
+
+    const contentEditable = editor.shadowRoot!.querySelector("#editor") as HTMLDivElement;
+    contentEditable.textContent = "Draft content";
+    contentEditable.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+
+    expect(updates).toHaveLength(0);
+
+    contentEditable.dispatchEvent(new FocusEvent("blur", { bubbles: true, composed: true }));
+
+    expect(updates).toEqual(["Draft content"]);
+    expect(editor.markdown).toBe("Draft content");
+
+    vi.runAllTimers();
+    expect(updates).toHaveLength(1);
+
+    document.body.removeChild(editor);
+    vi.useRealTimers();
   });
 });

@@ -11,19 +11,24 @@
 <div class="app">
   <header class="app-header">
     <img class="app-icon" src="/assets/favicon-32x32.png" alt="Markdown AI Editor" width="18" height="18" />
-    <ui-menu-bar class="app-header-menu"></ui-menu-bar>
+    
+    <ui-menu-bar class="app-header-menu">
+      <button type="button" data-app-action="save">Save</button>
+      <button type="button" data-app-action="save-as">Save As</button>
+    </ui-menu-bar>
   </header>
   <ui-settings-panel id="ui-settings-panel" popover></ui-settings-panel>
   <main class="app-main">
     <ui-pane-view class="pane-view left">
-      <ui-pane title="Outline">
-        <ui-outline-panel></ui-outline-panel>
-      </ui-pane>
       <ui-pane title="Documents">
         <ui-document-panel></ui-document-panel>
       </ui-pane>
+      <ui-pane title="Outline">
+        <ui-outline-panel></ui-outline-panel>
+      </ui-pane>
     </ui-pane-view>
     <section class="workspace center">
+      <ui-tab-bar class="workspace-tabs"></ui-tab-bar>
       <ui-markdown-editor></ui-markdown-editor>
     </section>
     <ui-pane-view class="pane-view right">

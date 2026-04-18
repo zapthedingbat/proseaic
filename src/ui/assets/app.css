@@ -102,6 +102,15 @@ header.app-header {
   gap: var(--gap);
 }
 
+.app-header-tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-header-menu {
+  flex-shrink: 0;
+}
+
 footer.app-footer {
   height: 24px;
   display: flex;
@@ -121,6 +130,7 @@ main.app-main {
   flex: 1;
   display: flex;
   min-width: 0;
+  flex-direction: column;
 }
 
 .pane-view {
@@ -142,6 +152,7 @@ main.app-main {
 
 .workspace {
   background-color: var(--workspace-bg-color);
+
 }
 
 .selection {

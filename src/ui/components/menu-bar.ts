@@ -39,6 +39,11 @@ export class MenuBar extends BaseHtmlElement {
     background: rgba(255, 255, 255, 0.14);
   }
 
+  ::slotted(button:disabled) {
+    opacity: 0.35;
+    cursor: default;
+  }
+
   ::slotted(.menu-bar-sep) {
     width: 1px;
     height: 16px;

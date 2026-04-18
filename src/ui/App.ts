@@ -34,6 +34,7 @@ import { ChatPanel } from "./components/chat-panel.js";
 import { DocumentPanel } from "./components/document-panel.js";
 import { DocumentOutlinePanel } from "./components/outline-panel.js";
 import { SettingsPanel } from "./components/settings-panel.js";
+import { UiTabBar } from "./components/tab-bar.js";
 import { UiPane } from "./components/pane.js";
 import { UiPaneView } from "./components/pane-view.js";
 
@@ -78,8 +79,13 @@ export class App {
   private _chatPanel?: ChatPanel;
   private _documentPanel?: DocumentPanel;
   private _outlinePanel?: DocumentOutlinePanel;
+  private _tabBar?: UiTabBar;
   private _markdownEditor?: MarkdownEditor;
+  private _saveButton?: HTMLButtonElement;
+  private _saveAsButton?: HTMLButtonElement;
   private _activeDocumentId: string | null = null;
+  private _isDocumentDirty = false;
+  private _openDocumentIds: string[] = [];
 
   // The constructor is private to enforce the use of the async create() method for initialization.
   private constructor(options: AppOptions) {
@@ -148,8 +154,8 @@ export class App {
 
     const documentManager = new DocumentManager();
     documentManager.registerMany([
-      new LocalStorageDocumentStore("localStorage"),
-      new FileSystemDocumentStore(() => navigator.storage.getDirectory())
+      new FileSystemDocumentStore(() => navigator.storage.getDirectory()),
+      //new LocalStorageDocumentStore("localStorage"),
     ]);
 
     return {
@@ -169,6 +175,12 @@ export class App {
 
     this._componentInstanceResolver.resolve(UiPaneView, "ui-pane-view");
     this._componentInstanceResolver.resolve(UiPane, "ui-pane");
+    this._tabBar = this._componentInstanceResolver.resolve(UiTabBar, "ui-tab-bar");
+    this._tabBar.addEventListener("select", this._handleTabSelect);
+    this._tabBar.addEventListener("close", this._handleTabClose);
+
+    this._wireAppMenu();
+    this._global.document.addEventListener("keydown", this._handleKeyDown);
 
     this._markdownEditor = this._componentInstanceResolver.resolve(MarkdownEditor, "ui-markdown-editor");
     this._markdownEditor.addEventListener("change", this._handleEditorChange);
@@ -255,10 +267,15 @@ export class App {
 
   private _refreshDocumentPanel = async (): Promise<void> => {
     const docs = await this._documentService.listDocuments();
-    this._documentPanel?.setDocuments(docs, this._activeDocumentId);
+    const dirtyId = this._isDocumentDirty ? this._activeDocumentId : null;
+    this._documentPanel?.setDocuments(docs, this._activeDocumentId, dirtyId);
+    this._refreshTabBar(docs);
+    this._updateSaveButtonState();
   }
 
   private _createDocument = async (title: string, store?: string): Promise<{ id: string; title: string }> => {
+    this._markdownEditor?.flushPendingChanges();
+
     const targetStore = store ?? this._documentService.getStoreNamespaces()[0];
     if (!targetStore) {
       throw new Error("No document store is configured.");
@@ -266,7 +283,9 @@ export class App {
 
     const id = await this._documentService.createDocument(title, targetStore);
     this._activeDocumentId = id;
+    this._rememberOpenDocument(id);
     this._markdownEditor?.setMarkdown("");
+    this._setDirty(false);
     await this._refreshDocumentPanel();
     this._refreshOutlinePanel();
 
@@ -274,12 +293,16 @@ export class App {
   }
 
   private _openDocument = async (id: string): Promise<{ id: string; title: string; content: string }> => {
+    this._markdownEditor?.flushPendingChanges();
+
     const documents = await this._documentService.listDocuments();
     const document = documents.find(doc => doc.id === id);
     const content = await this._documentService.readDocument(id);
 
     this._activeDocumentId = id;
+    this._rememberOpenDocument(id);
     this._markdownEditor?.setMarkdown(content);
+    this._setDirty(false);
     await this._refreshDocumentPanel();
     this._refreshOutlinePanel();
 
@@ -332,6 +355,9 @@ export class App {
 
   private _handleDocumentSelect = async (event: Event): Promise<void> => {
     const { id } = (event as CustomEvent<{ id: string }>).detail;
+    if (id !== this._activeDocumentId && !this._canDiscardUnsavedChanges()) {
+      return;
+    }
     await this._openDocument(id);
   }
 
@@ -342,19 +368,72 @@ export class App {
 
   private _handleDocumentDelete = async (event: Event): Promise<void> => {
     const { id } = (event as CustomEvent<{ id: string }>).detail;
+    if (id === this._activeDocumentId && !this._canDiscardUnsavedChanges()) {
+      return;
+    }
     await this._documentService.deleteDocument(id);
 
     if (this._activeDocumentId === id) {
       this._activeDocumentId = null;
       this._markdownEditor?.setMarkdown("");
+      this._setDirty(false);
       this._refreshOutlinePanel();
     }
+
+    this._openDocumentIds = this._openDocumentIds.filter(openId => openId !== id);
 
     await this._refreshDocumentPanel();
   }
 
   private _handleDocumentCreate = async (): Promise<void> => {
+    if (!this._canDiscardUnsavedChanges()) {
+      return;
+    }
     await this._createDocument("Untitled");
+  }
+
+  private _handleTabSelect = async (event: Event): Promise<void> => {
+    const { id } = (event as CustomEvent<{ id: string }>).detail;
+    if (!id || id === this._activeDocumentId) {
+      return;
+    }
+    if (!this._canDiscardUnsavedChanges()) {
+      return;
+    }
+    await this._openDocument(id);
+  }
+
+  private _handleTabClose = async (event: Event): Promise<void> => {
+    const { id } = (event as CustomEvent<{ id: string }>).detail;
+    if (!id) {
+      return;
+    }
+
+    const closingActive = id === this._activeDocumentId;
+    if (closingActive && !this._canDiscardUnsavedChanges()) {
+      return;
+    }
+
+    const closingIndex = this._openDocumentIds.indexOf(id);
+    this._openDocumentIds = this._openDocumentIds.filter(openId => openId !== id);
+
+    if (!closingActive) {
+      await this._refreshDocumentPanel();
+      return;
+    }
+
+    const nextId = this._openDocumentIds[Math.min(closingIndex, this._openDocumentIds.length - 1)] ?? null;
+    if (nextId) {
+      this._setDirty(false);
+      await this._openDocument(nextId);
+      return;
+    }
+
+    this._activeDocumentId = null;
+    this._markdownEditor?.setMarkdown("");
+    this._setDirty(false);
+    this._refreshOutlinePanel();
+    await this._refreshDocumentPanel();
   }
 
   private _handleOutlineSelect = (event: Event): void => {
@@ -379,9 +458,8 @@ export class App {
 
   private _handleEditorChange = (event: Event): void => {
     this._refreshOutlinePanel();
-    if (!this._activeDocumentId) return;
-    const { markdown } = (event as CustomEvent<{ markdown: string }>).detail;
-    this._documentService.updateDocument(this._activeDocumentId, markdown);
+    void event;
+    this._setDirty(true);
   }
 
   private _refreshOutlinePanel(): void {
@@ -398,6 +476,16 @@ export class App {
 
   private _handleSettingsChanged = (): void => {
     this._refreshModels();
+  }
+
+  private _handleKeyDown = (event: KeyboardEvent): void => {
+    const isSaveShortcut = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "s";
+    if (!isSaveShortcut) {
+      return;
+    }
+
+    event.preventDefault();
+    void this._saveActiveDocument();
   }
 
   private async _refreshModels(): Promise<void> {
@@ -418,6 +506,118 @@ export class App {
         }
       });
     });
+  }
+
+  private _wireAppMenu(): void {
+    this._saveButton = this._global.document.querySelector("button[data-app-action=\"save\"]") as HTMLButtonElement | null || undefined;
+    this._saveAsButton = this._global.document.querySelector("button[data-app-action=\"save-as\"]") as HTMLButtonElement | null || undefined;
+
+    this._saveButton?.addEventListener("click", this._handleSaveClick);
+    this._saveAsButton?.addEventListener("click", this._handleSaveAsClick);
+    this._updateSaveButtonState();
+  }
+
+  private _handleSaveClick = async (): Promise<void> => {
+    await this._saveActiveDocument();
+  }
+
+  private _handleSaveAsClick = async (): Promise<void> => {
+    await this._saveActiveDocumentAs();
+  }
+
+  private async _saveActiveDocument(): Promise<void> {
+    this._markdownEditor?.flushPendingChanges();
+    if (!this._activeDocumentId || !this._markdownEditor) {
+      return;
+    }
+
+    await this._documentService.updateDocument(this._activeDocumentId, this._markdownEditor.markdown);
+    this._setDirty(false);
+  }
+
+  private async _saveActiveDocumentAs(): Promise<void> {
+    this._markdownEditor?.flushPendingChanges();
+    if (!this._markdownEditor) {
+      return;
+    }
+
+    const currentTitle = await this._getCurrentDocumentTitle();
+    const input = this._global.prompt("Save as", currentTitle);
+    if (input === null) {
+      return;
+    }
+
+    const title = input.trim() || "Untitled";
+    const targetStore = this._activeDocumentId?.split("/")[0] || this._documentService.getStoreNamespaces()[0];
+    if (!targetStore) {
+      throw new Error("No document store is configured.");
+    }
+
+    const id = await this._documentService.createDocument(title, targetStore);
+    await this._documentService.updateDocument(id, this._markdownEditor.markdown);
+    this._activeDocumentId = id;
+    this._rememberOpenDocument(id);
+    this._setDirty(false);
+    await this._refreshDocumentPanel();
+  }
+
+  private async _getCurrentDocumentTitle(): Promise<string> {
+    if (!this._activeDocumentId) {
+      return "Untitled";
+    }
+
+    const docs = await this._documentService.listDocuments();
+    return docs.find(doc => doc.id === this._activeDocumentId)?.title || "Untitled";
+  }
+
+  private _setDirty(value: boolean): void {
+    if (this._isDocumentDirty === value) {
+      return;
+    }
+    this._isDocumentDirty = value;
+    void this._refreshDocumentPanel();
+  }
+
+  private _updateSaveButtonState(): void {
+    if (this._saveButton) {
+      this._saveButton.disabled = !this._activeDocumentId || !this._isDocumentDirty;
+    }
+    if (this._saveAsButton) {
+      this._saveAsButton.disabled = !this._markdownEditor;
+    }
+  }
+
+  private _canDiscardUnsavedChanges(): boolean {
+    if (!this._isDocumentDirty) {
+      return true;
+    }
+    return this._global.confirm("You have unsaved changes. Continue without saving?");
+  }
+
+  private _rememberOpenDocument(id: string): void {
+    if (!this._openDocumentIds.includes(id)) {
+      this._openDocumentIds.push(id);
+    }
+  }
+
+  private _refreshTabBar(docs: { id: string; title: string }[]): void {
+    if (!this._tabBar) {
+      return;
+    }
+
+    const documentById = new Map(docs.map(doc => [doc.id, doc]));
+    this._openDocumentIds = this._openDocumentIds.filter(id => documentById.has(id));
+
+    const tabs = this._openDocumentIds.map(id => {
+      const doc = documentById.get(id);
+      return {
+        id,
+        title: doc?.title || "Untitled"
+      };
+    });
+
+    const dirtyId = this._isDocumentDirty ? this._activeDocumentId : null;
+    this._tabBar.setTabs(tabs, this._activeDocumentId, dirtyId);
   }
 }
 

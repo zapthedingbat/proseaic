@@ -290,10 +290,13 @@ function buildModel(lines: MdLine[]): MdSection {
  */
 export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IStructuredDocument {
 
-  private _editor!: HTMLDivElement;
+  private static readonly DOM_CHANGE_DEBOUNCE_MS = 250;
+
+  private _editorPage!: HTMLDivElement;
   private _markdown = "";
   private _model: MdSection = { id: "root", level: 0, headingLine: null, bodyLines: [], children: [] };
   private _processing = false;
+  private _pendingProcessTimer: ReturnType<typeof setTimeout> | null = null;
   private _activeDiv: HTMLElement | null = null;
   private _overlay: HTMLDivElement;
   // Saved selection offsets (character positions in the markdown string), kept up-to-date on blur
@@ -309,29 +312,37 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
           --editor-line-height: 1.6;
           flex: 1;
           display: flex;
-          flex-direction: column;
-          max-width: 1024px;
-          justify-self: center;
-          margin: 0 auto;
-          overflow-y: auto;
+          justify-content: center;
+          overflow: auto;
+          align-items: start;
         }
+
         #editor {
+          display: flex;
           flex: 1 0 auto;
-          margin: 16px;
+          margin: 0 16px;
+          max-width: 1024px;
+          min-height: 100%;
+          padding: 16px 0;
+        }
+
+        #editor-page {
+          background-color: var(--editor-bg-color, #fff);
+          box-shadow: var(--editor-box-shadow, 0 0 8px -4px rgba(0,0,0,0.5));
+          color: var(--editor-text-color, #000);
+          cursor: text;
+          flex-grow: 1;
           font-family: var(--editor-font-family, Georgia, serif);
           font-size: var(--editor-font-size, 1rem);
           line-height: var(--editor-line-height, 1.6);
-          padding: 2em 32px;
-          color: var(--editor-text-color, #000);
-          background-color: var(--editor-bg-color, #fff);
-          box-shadow: var(--editor-box-shadow, 0 0 8px -4px rgba(0,0,0,0.5));
+          margin: 0;
           outline: none;
-          cursor: text;
+          padding: 2em 32px;
         }
 
         .selection,
-        #editor::selection,
-        #editor *::selection {
+        #editor-page::selection,
+        #editor-page *::selection {
           background-color: var(--editor-selection-bg);
           color: var(--editor-selection-text-color);
           border-radius: var(--editor-selection-radius);
@@ -488,10 +499,14 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
         }
 
       </style>
-      <div id="editor" contenteditable="true" spellcheck="true"></div>
+
+      <div id="editor">
+        <div id="editor-page" contenteditable="true" spellcheck="true"></div>
+      </div>
+
       <div id="overlay"></div>
     `;
-    this._editor = this.shadowRoot!.getElementById("editor") as HTMLDivElement;
+    this._editorPage = this.shadowRoot!.getElementById("editor-page") as HTMLDivElement;
     this._overlay = this.shadowRoot!.getElementById("overlay") as HTMLDivElement;
     this._initEmptyLine();
   }
@@ -578,7 +593,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     this._savedStart = lineStart;
     this._savedEnd = lineStart;
 
-    this._editor.focus();
+    this._editorPage.focus();
     this._restoreCaretPos({ lineIndex, charOffset: 0 });
   }
 
@@ -715,20 +730,21 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   // ---- Lifecycle ----
 
   connectedCallback(): void {
-    this._editor.addEventListener("beforeinput", this._onBeforeInput);
-    this._editor.addEventListener("input", this._onInput);
-    this._editor.addEventListener("paste", this._onPaste);
-    this._editor.addEventListener("focus", this._onFocus);
-    this._editor.addEventListener("blur",  this._onBlur);
+    this._editorPage.addEventListener("beforeinput", this._onBeforeInput);
+    this._editorPage.addEventListener("input", this._onInput);
+    this._editorPage.addEventListener("paste", this._onPaste);
+    this._editorPage.addEventListener("focus", this._onFocus);
+    this._editorPage.addEventListener("blur",  this._onBlur);
     document.addEventListener("selectionchange", this._onSelectionChange);
   }
 
   disconnectedCallback(): void {
-    this._editor.removeEventListener("beforeinput", this._onBeforeInput);
-    this._editor.removeEventListener("input", this._onInput);
-    this._editor.removeEventListener("paste", this._onPaste);
-    this._editor.removeEventListener("focus", this._onFocus);
-    this._editor.removeEventListener("blur",  this._onBlur);
+    this._clearPendingDomProcessing();
+    this._editorPage.removeEventListener("beforeinput", this._onBeforeInput);
+    this._editorPage.removeEventListener("input", this._onInput);
+    this._editorPage.removeEventListener("paste", this._onPaste);
+    this._editorPage.removeEventListener("focus", this._onFocus);
+    this._editorPage.removeEventListener("blur",  this._onBlur);
     document.removeEventListener("selectionchange", this._onSelectionChange);
   }
 
@@ -737,11 +753,23 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   get markdown(): string { return this._markdown; }
 
   setMarkdown(md: string): void {
+    this._clearPendingDomProcessing();
     this._markdown = md;
     const lines = this._classifyLines(md.split("\n"));
     this._model = buildModel(lines);
     this._processing = true;
     this._renderDom(lines, null);
+    this._processing = false;
+  }
+
+  // Flush pending debounced updates so callers can safely switch documents.
+  flushPendingChanges(): void {
+    if (this._pendingProcessTimer === null) {
+      return;
+    }
+    this._clearPendingDomProcessing();
+    this._processing = true;
+    this._processDomChange();
     this._processing = false;
   }
 
@@ -756,7 +784,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     // Compute absolute offsets over the full markdown string
     let start = 0;
     let end   = 0;
-    const divs = Array.from(this._editor.children);
+    const divs = Array.from(this._editorPage.children);
     let pos = 0;
     for (let i = 0; i < divs.length; i++) {
       if (i > 0) pos++; // newline between lines
@@ -794,7 +822,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     const sel = document.getSelection();
     const liveRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
 
-    if (liveRange && this._editor.contains(liveRange.startContainer)) {
+    if (liveRange && this._editorPage.contains(liveRange.startContainer)) {
       liveRange.deleteContents();
       liveRange.insertNode(document.createTextNode(text));
       liveRange.collapse(false);
@@ -821,6 +849,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   };
 
   private _onBlur = (_e: FocusEvent): void => {
+    this.flushPendingChanges();
     this._renderSelectionMarkers();
     this._setActiveLineDivs(null);
   };
@@ -840,14 +869,14 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     const anchor = composedRange.startContainer;
 
     // Update saved selection offsets whenever the selection is inside the editor
-    if (this._editor.contains(anchor) && this._editor.contains(composedRange.endContainer)) {
+    if (this._editorPage.contains(anchor) && this._editorPage.contains(composedRange.endContainer)) {
       const start = this._offsetFromDomPosition(composedRange.startContainer, composedRange.startOffset);
       const end   = this._offsetFromDomPosition(composedRange.endContainer,   composedRange.endOffset);
       this._savedStart = Math.min(start, end);
       this._savedEnd   = Math.max(start, end);
     }
 
-    const divs = Array.from(this._editor.children) as HTMLElement[];
+    const divs = Array.from(this._editorPage.children) as HTMLElement[];
     const active = divs.find(d => d.contains(anchor)) ?? null;
     // Skip if the active line div hasn't changed — avoids redundant DOM writes
     // on every keystroke (the caret stays in the same div as the user types).
@@ -858,7 +887,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   /** Apply mde-active to the line(s) that should show their syntax markers. */
   private _setActiveLineDivs(
     activeDiv: HTMLElement | null,
-    divs: HTMLElement[] = Array.from(this._editor.children) as HTMLElement[],
+    divs: HTMLElement[] = Array.from(this._editorPage.children) as HTMLElement[],
   ): void {
     this._activeDiv = activeDiv;
     divs.forEach(d => d.classList.remove("mde-active"));
@@ -894,16 +923,16 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     // Debounce DOM changes until the user stops typing for a moment, to avoid
     // excessive re-processing on every keystroke.
 
-    const DEBOUNCE_DELAY = 250; // ms
-    if (this._processing){
+    if (this._processing || this._pendingProcessTimer !== null) {
       return; // already scheduled or processing
     }
 
-    this._processing = true;
-    setTimeout(() => {
+    this._pendingProcessTimer = setTimeout(() => {
+      this._pendingProcessTimer = null;
+      this._processing = true;
       this._processDomChange();
       this._processing = false;
-    }, DEBOUNCE_DELAY);
+    }, MarkdownEditor.DOM_CHANGE_DEBOUNCE_MS);
   };
 
   private _onPaste = (e: ClipboardEvent): void => {
@@ -944,7 +973,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     // line never loses its class between the innerHTML wipe and the next
     // selectionchange event (which is async and would cause a flash).
     if (caretPos !== null) {
-      const divs = Array.from(this._editor.children) as HTMLElement[];
+      const divs = Array.from(this._editorPage.children) as HTMLElement[];
       const activeDiv = divs[caretPos.lineIndex] ?? null;
       this._setActiveLineDivs(activeDiv, divs);
     }
@@ -966,7 +995,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
    * Rule: every \n — regardless of where it appears — is a line separator.
    */
   private _extractRawLines(): string[] {
-    const children = Array.from(this._editor.childNodes);
+    const children = Array.from(this._editorPage.childNodes);
     if (children.length === 0) return [""];
 
     const hasDivs = children.some(n => n.nodeName === "DIV");
@@ -974,7 +1003,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     if (!hasDivs) {
       // Before the first Enter: editor has only text/inline nodes.
       // Split on \n so pasted multi-line content is handled correctly.
-      return splitOnNewlines(this._editor.textContent ?? "");
+      return splitOnNewlines(this._editorPage.textContent ?? "");
     }
 
     const lines: string[] = [];
@@ -1016,13 +1045,13 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
    * textContent of each div equals the raw markdown line.
    */
   private _renderDom(lines: MdLine[], caretPos: CaretPos | null): void {
-    const doc = this._editor.ownerDocument;
+    const doc = this._editorPage.ownerDocument;
     
     // Note: Ideally I would like to reuse existing divs and just update their content to avoid disrupting the caret,
     // but in practice it's simpler and more robust to just wipe and rebuild the whole DOM on every change, since we save and restore the caret separately.
     // Modern browsers can handle this without noticeable performance issues for typical document sizes.
 
-    this._editor.innerHTML = "";
+    this._editorPage.innerHTML = "";
 
     // Tracks ordered-list counter per nesting depth across consecutive ol items.
     // Truncated when depth decreases; reset entirely on any non-list line.
@@ -1078,7 +1107,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
         if (!div.firstChild) div.appendChild(doc.createElement("br"));
       }
 
-      this._editor.appendChild(div);
+      this._editorPage.appendChild(div);
     }
 
     if (caretPos) this._restoreCaretPos(caretPos);
@@ -1094,7 +1123,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     const sel = document.getSelection();
     if (!sel || sel.rangeCount === 0) return null;
     const range = sel.getRangeAt(0);
-    const divs = Array.from(this._editor.children);
+    const divs = Array.from(this._editorPage.children);
 
     for (let i = 0; i < divs.length; i++) {
       if (divs[i].contains(range.startContainer)) {
@@ -1111,7 +1140,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
    * Restore the caret from a saved CaretPos after the DOM has been rebuilt.
    */
   private _restoreCaretPos(pos: CaretPos): void {
-    const divs = Array.from(this._editor.children);
+    const divs = Array.from(this._editorPage.children);
     const div  = divs[Math.min(pos.lineIndex, divs.length - 1)];
     if (!div) return;
 
@@ -1137,7 +1166,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
     const range = this._domRangeFromSelection();
     const textNodes = this._getTextNodesInRange(range);
     textNodes.forEach(node => {
-      const span = this._editor.ownerDocument.createElement("span");
+      const span = this._editorPage.ownerDocument.createElement("span");
       span.className = "selection";
       node.parentNode!.insertBefore(span, node);
       span.appendChild(node);
@@ -1145,7 +1174,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   }
 
   private _clearSelectionMarkers(): void {
-    this._editor.querySelectorAll("span.selection").forEach(span => {
+    this._editorPage.querySelectorAll("span.selection").forEach(span => {
       const parent = span.parentNode;
       if (!parent) return;
       while (span.firstChild) parent.insertBefore(span.firstChild, span);
@@ -1156,9 +1185,9 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   /** Build a DOM Range from the saved character-offset selection. */
   private _domRangeFromSelection(): Range {
     const { _savedStart: start, _savedEnd: end } = this;
-    const walker = document.createTreeWalker(this._editor, NodeFilter.SHOW_TEXT, null);
+    const walker = document.createTreeWalker(this._editorPage, NodeFilter.SHOW_TEXT, null);
     let pos = 0;
-    const range = this._editor.ownerDocument.createRange();
+    const range = this._editorPage.ownerDocument.createRange();
     let startSet = false;
     let node: Node | null;
     while ((node = walker.nextNode())) {
@@ -1180,7 +1209,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   /** Return the text nodes intersecting `range`, split so they exactly cover the selection. */
   private _getTextNodesInRange(range: Range): Text[] {
     const nodes: Text[] = [];
-    const walker = document.createTreeWalker(this._editor, NodeFilter.SHOW_TEXT, null);
+    const walker = document.createTreeWalker(this._editorPage, NodeFilter.SHOW_TEXT, null);
     let node: Node | null;
     while ((node = walker.nextNode())) {
       if (range.intersectsNode(node as Text)) nodes.push(node as Text);
@@ -1201,9 +1230,9 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
 
   /** Character offset of a DOM position from the start of the editor content. */
   private _offsetFromDomPosition(node: Node, offset: number): number {
-    if (!this._editor.contains(node)) return 0;
+    if (!this._editorPage.contains(node)) return 0;
     const range = document.createRange();
-    range.setStart(this._editor, 0);
+    range.setStart(this._editorPage, 0);
     range.setEnd(node, offset);
     return range.toString().length;
   }
@@ -1211,9 +1240,9 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   // ---- Misc ----
 
   private _initEmptyLine(): void {
-    const div = this._editor.ownerDocument.createElement("div");
-    div.appendChild(this._editor.ownerDocument.createElement("br"));
-    this._editor.appendChild(div);
+    const div = this._editorPage.ownerDocument.createElement("div");
+    div.appendChild(this._editorPage.ownerDocument.createElement("br"));
+    this._editorPage.appendChild(div);
   }
 
   private _emitChange(): void {
@@ -1222,5 +1251,13 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
       bubbles: true,
       composed: true,
     }));
+  }
+
+  private _clearPendingDomProcessing(): void {
+    if (this._pendingProcessTimer === null) {
+      return;
+    }
+    clearTimeout(this._pendingProcessTimer);
+    this._pendingProcessTimer = null;
   }
 }

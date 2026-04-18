@@ -6,6 +6,7 @@ export class DocumentPanel extends BaseHtmlElement {
   private _listEl: HTMLUListElement;
   private _documents: Array<{ id: string; title?: string }>;
   private _activeId: string | null;
+  private _dirtyId: string | null;
 
   constructor() {
     super();
@@ -20,6 +21,7 @@ export class DocumentPanel extends BaseHtmlElement {
     this._listEl = this.shadowRoot!.querySelector(".list") as HTMLUListElement;
     this._documents = [];
     this._activeId = null;
+    this._dirtyId = null;
   }
 
   connectedCallback(): void {
@@ -42,9 +44,10 @@ export class DocumentPanel extends BaseHtmlElement {
     }
   }
 
-  setDocuments(documents: Array<{ id: string; title?: string }>, activeId: string | null): void {
+  setDocuments(documents: Array<{ id: string; title?: string }>, activeId: string | null, dirtyId: string | null = null): void {
     this._documents = Array.isArray(documents) ? documents : [];
     this._activeId = activeId || null;
+    this._dirtyId = dirtyId || null;
     this._render();
     this.dispatchEvent(new CustomEvent("pane-actions-changed", {
       bubbles: false,
@@ -55,7 +58,7 @@ export class DocumentPanel extends BaseHtmlElement {
   private _handleListClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement | null;
     if (target?.tagName === "INPUT") return;
-    const btn = target?.closest("button[data-action]") as HTMLButtonElement | null;
+    const btn = target?.closest("[data-action]") as HTMLElement | null;
     if (!btn) return;
     const docId = btn.dataset.docId;
     const action = btn.dataset.action;
@@ -139,15 +142,17 @@ export class DocumentPanel extends BaseHtmlElement {
 
   private _makeItemRow(docId: string, title: string): HTMLLIElement {
     const row = document.createElement("li");
-    row.className = `action-item list-item${docId === this._activeId ? " active" : ""}`;
+    const isActive = docId === this._activeId;
+    const isDirty = docId === this._dirtyId;
+    row.className = `action-item list-item${isActive ? " active" : ""}${isDirty ? " dirty" : ""}`;
     row.dataset.docId = docId;
 
     const titleBtn = document.createElement("div");
     titleBtn.className = "list-item-title";
     titleBtn.dataset.docId = docId;
     titleBtn.dataset.action = "select";
-    titleBtn.title = title;
-    titleBtn.textContent = title;
+    titleBtn.title = isDirty ? `${title} (unsaved)` : title;
+    titleBtn.textContent = isDirty ? `${title} *` : title;
 
     const actions = document.createElement("div");
     actions.className = "list-item-actions";

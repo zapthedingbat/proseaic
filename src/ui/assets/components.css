@@ -75,6 +75,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-grow: 1;
 }
 
 .list .list-item .list-item-actions {
@@ -297,4 +298,108 @@ select.action-item option {
 /* Document panel */
 .panel ul.list.document-list {
   margin: var(--gap);
+}
+
+/* Tabs */
+:host(.workspace-tabs) {
+  display: block;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.tabs {
+  display: flex;
+  background-color: var(--pane-bg-color);
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tabs::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 1px;
+  left: 0;
+  z-index: 9;
+  width: 100%;
+  background-color: var(--pane-border-color);
+}
+
+.tabs > .tab {
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-right: var(--pane-border);
+  background: transparent;
+  padding: 0 0 0 18px;
+  cursor: pointer;
+  color: var(--text-color);
+  min-height: 32px;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+
+.tabs > .tab > .tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab.active {
+  background-color: var(--workspace-bg-color);
+}
+
+.tab.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  border-top: 2px solid var(--primary-color);
+}
+
+.tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 1px;
+  left: 0;
+  width: 100%;
+  z-index: 10;
+  background-color: var(--workspace-bg-color);
+}
+
+.tabs > .tab > .icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0 2px;
+}
+
+.tabs > .tab[data-dirty="true"] .dirty-indicator {
+  visibility: visible;
+}
+
+.tabs > .tab .dirty-indicator {
+  visibility: hidden;
+}
+
+.tabs > .tab:hover .dirty-indicator {
+  visibility: hidden;
+  display: none;
+}
+
+.tabs > .tab .action-item.close {
+  display: none;
+}
+
+.tabs > .tab:hover .action-item.close {
+  display: flex;
 }
