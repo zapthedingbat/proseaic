@@ -9,17 +9,26 @@ type TabState = {
 export class UiTabBar extends BaseHtmlElement {
   private _tabs: TabState[];
   private _activeId: string | null;
-  private _dirtyId: string | null;
+  private _dirtyIds: Set<string>;
 
   constructor() {
     super();
     this._tabs = [];
     this._activeId = null;
-    this._dirtyId = null;
+    this._dirtyIds = new Set();
 
     this.shadowRoot!.innerHTML = `<div class="tabs" role="tablist"></div>`;
   }
   
+  get ActiveTabId(): string | null {
+    return this._activeId;
+  }
+
+  set ActiveTabId(value: string | null) {
+    this._activeId = value;
+    this._render();
+  }
+
   connectedCallback(): void {
     this.shadowRoot!.addEventListener("click", this._onTabClick);
     this.shadowRoot!.addEventListener("click", this._onTabCloseClick);
@@ -35,10 +44,10 @@ export class UiTabBar extends BaseHtmlElement {
     this.shadowRoot!.removeEventListener("keydown", this._onTabKeyDown);
   }
 
-  setTabs(tabs: TabState[], activeId: string | null, dirtyId: string | null = null): void {
+  setTabs(tabs: TabState[], activeId: string | null, dirtyIds: string[] = []): void {
     this._tabs = Array.isArray(tabs) ? tabs : [];
     this._activeId = activeId;
-    this._dirtyId = dirtyId;
+    this._dirtyIds = new Set(dirtyIds);
     this._render();
   }
 
@@ -72,15 +81,16 @@ export class UiTabBar extends BaseHtmlElement {
     }));
   }
 
-  private _onTabAuxClick = (event: MouseEvent): void => {
-    if (event.button !== 1) {
+  private _onTabAuxClick = (event: Event): void => {
+    const mouseEvent = event as MouseEvent;
+    if (mouseEvent.button !== 1) {
       return;
     }
 
-    const target = event.target as HTMLElement;
+    const target = mouseEvent.target as HTMLElement;
     const closeTarget = target.closest<HTMLElement>("[data-tab-close-id]");
     if (closeTarget) {
-      event.preventDefault();
+      mouseEvent.preventDefault();
       this.dispatchEvent(new CustomEvent("close", {
         detail: { id: closeTarget.dataset.tabCloseId },
         bubbles: true,
@@ -102,15 +112,16 @@ export class UiTabBar extends BaseHtmlElement {
     }));
   }
 
-  private _onTabKeyDown = (event: KeyboardEvent): void => {
-    const target = event.target as HTMLElement;
+  private _onTabKeyDown = (event: Event): void => {
+    const keyboardEvent = event as KeyboardEvent;
+    const target = keyboardEvent.target as HTMLElement;
     const tabEl = target.closest<HTMLElement>("[data-tab-id]");
     if (!tabEl) {
       return;
     }
 
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
+    if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+      keyboardEvent.preventDefault();
       this.dispatchEvent(new CustomEvent("select", {
         detail: { id: tabEl.dataset.tabId },
         bubbles: true,
@@ -119,8 +130,8 @@ export class UiTabBar extends BaseHtmlElement {
       return;
     }
 
-    if (event.key === "Delete" || event.key === "Backspace") {
-      event.preventDefault();
+    if (keyboardEvent.key === "Delete" || keyboardEvent.key === "Backspace") {
+      keyboardEvent.preventDefault();
       this.dispatchEvent(new CustomEvent("close", {
         detail: { id: tabEl.dataset.tabId },
         bubbles: true,
@@ -135,7 +146,7 @@ export class UiTabBar extends BaseHtmlElement {
 
     for (const tab of this._tabs) {
       const isActive = tab.id === this._activeId;
-      const isDirty = tab.id === this._dirtyId;
+      const isDirty = this._dirtyIds.has(tab.id);
       const tabElement = document.createElement("div");
       tabElement.className = `tab${isActive ? " active" : ""}`;
       tabElement.dataset.tabId = tab.id;

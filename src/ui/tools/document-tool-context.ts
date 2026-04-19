@@ -8,6 +8,6 @@ export interface IDocumentToolContext {
   getStoreNamespaces(): string[];
   listDocuments(): Promise<DocumentSummary[]>;
   createDocument(title: string, store?: string): Promise<DocumentSummary>;
-  renameDocument(id: string, title: string): Promise<void>;
+  renameDocument(id: string, title: string): Promise<string>;
   openDocument(id: string): Promise<{ id: string; title: string; content: string }>;
 }

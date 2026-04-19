@@ -1,68 +1,105 @@
-import { IDocumentStore } from "./document-manager";
+import { DocumentConcurrencyError, IDocumentStore } from "./document-store";
 
 type FileSystemDirectoryHandleFactory = () => Promise<FileSystemDirectoryHandle>;
 
 export class FileSystemDocumentStore implements IDocumentStore {
   namespace: string = "fileSystem";
   private _directoryHandleFactory: FileSystemDirectoryHandleFactory;
+  
   constructor(directoryHandleFactory: FileSystemDirectoryHandleFactory) {
     this._directoryHandleFactory = directoryHandleFactory;
+  }
+
+  private _getVersionFromFile(file: File): string {
+    return String(file.lastModified);
   }
 
   private async _getDirectoryHandle(): Promise<FileSystemDirectoryHandle> {
     return this._directoryHandleFactory();
   }
 
-  async createDocument(title: string, content?: string): Promise<string> {
-    const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase().slice(0, 20);
-    const id = safeTitle;
+  async read(filename: string): Promise<{ content: string; version: string; }> {
     const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(`${id}.md`, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(content || "");
-    await writable.close();
-    return id;
-  }
-
-  async readDocument(id: string): Promise<{ title: string; content: string; }> {
-    const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(`${id}.md`);
+    const fileHandle = await directoryHandle.getFileHandle(filename);
     const file = await fileHandle.getFile();
     const content = await file.text();
     return {
-      title: id,
-      content
+      content,
+      version: this._getVersionFromFile(file)
     };
   }
 
-  async updateDocument(id: string, content: string): Promise<void> {
+  async write(filename: string, content: string, expectedVersion?: string): Promise<string> {
     const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(`${id}.md`);
+    const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+
+    if (expectedVersion !== undefined) {
+      const currentFile = await fileHandle.getFile();
+      const currentVersion = this._getVersionFromFile(currentFile);
+      if (currentVersion !== expectedVersion) {
+        throw new DocumentConcurrencyError();
+      }
+    }
+
     const writable = await fileHandle.createWritable();
     await writable.write(content);
     await writable.close();
+
+    const updatedFile = await fileHandle.getFile();
+    return this._getVersionFromFile(updatedFile);
   }
 
-  async renameDocument(_id: string, _title: string): Promise<void> {
-    // File system documents use the filename as their identity; renaming is not supported.
-    throw new Error("Renaming is not supported by the file system document store.");
-  }
+  async mv(fromFilename: string, toFilename: string): Promise<string> {
+    if (fromFilename === toFilename) {
+      return fromFilename;
+    }
 
-  async deleteDocument(id: string): Promise<void> {
     const directoryHandle = await this._getDirectoryHandle();
-    await directoryHandle.removeEntry(`${id}.md`);
+    try {
+      const fileHandle = await directoryHandle.getFileHandle(fromFilename);
+      const file = await fileHandle.getFile();
+      const content = await file.text();
+
+      const existingTarget = await directoryHandle.getFileHandle(toFilename).then(
+        () => true,
+        () => false
+      );
+      if (existingTarget) {
+        throw new Error("File already exists");
+      }
+
+      const newFileHandle = await directoryHandle.getFileHandle(toFilename, { create: true });
+      const writable = await newFileHandle.createWritable();
+      await writable.write(content);
+      await writable.close();
+
+      await directoryHandle.removeEntry(fromFilename);
+
+      return toFilename;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to move file "${fromFilename}" to "${toFilename}": ${message}`);
+    }
   }
 
-  async listDocuments(): Promise<{ id: string; title: string; }[]> {
-    const docs: { id: string; title: string; }[] = [];
+  async rm(filename: string): Promise<void> {
+    const directoryHandle = await this._getDirectoryHandle();
+    await directoryHandle.removeEntry(filename);
+  }
+
+  async ls(): Promise<{ filename: string; version: string; }[]> {
+    const files: { filename: string; version: string; }[] = [];
     const directoryHandle = await this._getDirectoryHandle();
     const handles = directoryHandle as unknown as AsyncIterable<[string, FileSystemHandle]>;
     for await (const [, entry] of handles) {
       if (entry.kind === "file" && entry.name.endsWith(".md")) {
-        const id = entry.name.slice(0, -5);
-        docs.push({ id, title: id });
+        const file = await (entry as FileSystemFileHandle).getFile();
+        files.push({
+          filename: entry.name,
+          version: this._getVersionFromFile(file)
+        });
       }
     }
-    return docs;
+    return files;
   }
 }

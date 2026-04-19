@@ -98,14 +98,14 @@ describe("document tools", () => {
       getStoreNamespaces: () => ["localStorage"],
       listDocuments: vi.fn(),
       createDocument: vi.fn(),
-      renameDocument: vi.fn().mockResolvedValue(undefined),
+      renameDocument: vi.fn().mockResolvedValue("localStorage/renamed-doc"),
       openDocument: vi.fn()
     };
 
     const tool = new RenameDocumentTool(loggerFactory, context);
 
     await expect(tool.execute({ id: "localStorage/doc-4", title: "Renamed" })).resolves.toEqual({
-      id: "localStorage/doc-4",
+      id: "localStorage/renamed-doc",
       title: "Renamed"
     });
 

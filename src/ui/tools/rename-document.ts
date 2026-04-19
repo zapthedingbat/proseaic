@@ -41,10 +41,10 @@ export class RenameDocumentTool {
     const id = args.id as string;
     const title = args.title as string;
 
-    await this._context.renameDocument(id, title);
+    const newId = await this._context.renameDocument(id, title);
 
     return {
-      id,
+      id: newId,
       title
     };
   };

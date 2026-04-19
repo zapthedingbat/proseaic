@@ -3,18 +3,22 @@ import { ChatMessageContext } from "./lib/chat/chat-message-context.js";
 import { ChatSession } from "./lib/chat/chat-session.js";
 import { ComponentInstanceResolver } from "./lib/ui/component-instance-resolver.js";
 import { ConsoleLogger } from "./lib/logging/console-logger.js";
-import { DocumentManager, IDocumentService } from "./lib/document/document-manager.js";
-import { FileSystemDocumentStore } from "./lib/document/file-system-document-store.js";
+import { DocumentManager } from "./lib/document/document-manager.js";
+import { IDocumentService } from "./lib/document/document-service.js";
 import { IChatStream } from "./lib/platform/chat-stream.js";
 import { IPlatformService } from "./lib/platform/platform-service.js";
-import { LocalStorageDocumentStore } from "./lib/document/local-storage-document-store.js";
 import { Logger } from "./lib/logging/logger.js";
 import { LoggerFactory } from "./lib/logging/logger-factory.js";
 import { PlatformRegistry } from "./lib/platform/platform-registry.js";
 import { SubmitPromptEvent } from "./lib/events.js";
 import { TaskCompleteTool } from "./tools/task-complete.js";
-import { TEMPLATES } from "./templates.js";
 import { ToolRegistry } from "./lib/tools/tools-registry.js";
+import { DocumentConcurrencyError } from "./lib/document/document-store.js";
+
+// Document persistence layers
+import { FileSystemDocumentStore } from "./lib/document/file-system-document-store.js";
+import { LocalStorageDocumentStore } from "./lib/document/local-storage-document-store.js";
+import { WebDavDocumentStore } from "./lib/document/webdav-document-store.js";
 
 // Platforms
 import { AnthropicPlatform } from "./platform/anthropic/anthropic-platform.js";
@@ -65,7 +69,6 @@ type AppOptions = {
 }
 
 export class App {
-
   private _global: typeof globalThis;
   private _logger: Logger;
   private _chatSession: ChatSession;
@@ -84,7 +87,6 @@ export class App {
   private _saveButton?: HTMLButtonElement;
   private _saveAsButton?: HTMLButtonElement;
   private _activeDocumentId: string | null = null;
-  private _isDocumentDirty = false;
   private _openDocumentIds: string[] = [];
 
   // The constructor is private to enforce the use of the async create() method for initialization.
@@ -154,7 +156,8 @@ export class App {
 
     const documentManager = new DocumentManager();
     documentManager.registerMany([
-      new FileSystemDocumentStore(() => navigator.storage.getDirectory()),
+      new WebDavDocumentStore(window.location.origin),
+      //new FileSystemDocumentStore(() => navigator.storage.getDirectory()),
       //new LocalStorageDocumentStore("localStorage"),
     ]);
 
@@ -233,8 +236,6 @@ export class App {
 
     this._chatSession.addEventListener("message", this._updateChatPanel);
 
-    this._wireTemplateButtons();
-
     this._updateChatPanel();
   }
 
@@ -267,10 +268,99 @@ export class App {
 
   private _refreshDocumentPanel = async (): Promise<void> => {
     const docs = await this._documentService.listDocuments();
-    const dirtyId = this._isDocumentDirty ? this._activeDocumentId : null;
-    this._documentPanel?.setDocuments(docs, this._activeDocumentId, dirtyId);
+    this._documentPanel?.setDocuments(docs, this._activeDocumentId, this._documentService.getDirtyDocumentIds());
     this._refreshTabBar(docs);
     this._updateSaveButtonState();
+  }
+
+  private _isFilenameConflictError(err: unknown): boolean {
+    const message = err instanceof Error ? err.message.toLowerCase() : "";
+    return message.includes("already exists") || message.includes("destination file already exists");
+  }
+
+  private async _getUniqueDocumentTitle(baseTitle: string, store: string): Promise<string> {
+    const docs = await this._documentService.listDocuments();
+    const existingTitles = new Set(
+      docs
+        .filter(doc => doc.id.startsWith(`${store}/`))
+        .map(doc => doc.title)
+    );
+
+    let candidate = baseTitle;
+    let index = 1;
+    while (existingTitles.has(candidate)) {
+      candidate = `${baseTitle} (${index})`;
+      index += 1;
+    }
+    return candidate;
+  }
+
+  private async _promptForAvailableTitle(initialTitle: string, store: string, promptLabel: string): Promise<string | null> {
+    let suggestedTitle = initialTitle;
+    while (true) {
+      const input = this._global.prompt(promptLabel, suggestedTitle);
+      if (input === null) {
+        return null;
+      }
+
+      const trimmed = input.trim() || "Untitled";
+      const unique = await this._getUniqueDocumentTitle(trimmed, store);
+      if (unique !== trimmed) {
+        this._global.alert(`\"${trimmed}\" already exists. Please choose a different name.`);
+        suggestedTitle = unique;
+        continue;
+      }
+
+      return trimmed;
+    }
+  }
+
+  private async _createDocumentFromEditorContent(title: string, store: string): Promise<void> {
+    if (!this._markdownEditor) {
+      return;
+    }
+
+    const id = await this._documentService.createDocument(title, store);
+    await this._documentService.updateDocument(id, this._markdownEditor.markdown);
+    this._activeDocumentId = id;
+    this._rememberOpenDocument(id);
+    await this._refreshDocumentPanel();
+  }
+
+  private async _handleDocumentUpdateConflict(): Promise<void> {
+    if (!this._activeDocumentId) {
+      return;
+    }
+
+    const shouldDiscard = this._global.confirm(
+      "This document has changed in the store. Click OK to discard your local changes and reload, or click Cancel to save your changes as a new file."
+    );
+
+    if (shouldDiscard) {
+      this._documentService.discardUnsavedDocumentChanges(this._activeDocumentId);
+      await this._openDocument(this._activeDocumentId);
+      return;
+    }
+
+    const targetStore = this._activeDocumentId.split("/")[0] || this._documentService.getStoreNamespaces()[0];
+    if (!targetStore) {
+      this._global.alert("No document store is configured.");
+      return;
+    }
+
+    const currentTitle = await this._getCurrentDocumentTitle();
+    const copyBaseName = `${currentTitle} (copy)`;
+    const suggestedTitle = await this._getUniqueDocumentTitle(copyBaseName, targetStore);
+    const title = await this._promptForAvailableTitle(
+      suggestedTitle,
+      targetStore,
+      "Choose a file name to save your local changes as a new document"
+    );
+    if (!title) {
+      return;
+    }
+
+    await this._createDocumentFromEditorContent(title, targetStore);
   }
 
   private _createDocument = async (title: string, store?: string): Promise<{ id: string; title: string }> => {
@@ -285,7 +375,6 @@ export class App {
     this._activeDocumentId = id;
     this._rememberOpenDocument(id);
     this._markdownEditor?.setMarkdown("");
-    this._setDirty(false);
     await this._refreshDocumentPanel();
     this._refreshOutlinePanel();
 
@@ -302,7 +391,6 @@ export class App {
     this._activeDocumentId = id;
     this._rememberOpenDocument(id);
     this._markdownEditor?.setMarkdown(content);
-    this._setDirty(false);
     await this._refreshDocumentPanel();
     this._refreshOutlinePanel();
 
@@ -313,9 +401,19 @@ export class App {
     };
   }
 
-  private _renameDocument = async (id: string, title: string): Promise<void> => {
-    await this._documentService.renameDocument(id, title);
+  private _renameDocument = async (id: string, title: string): Promise<string> => {
+    const newId = await this._documentService.renameDocument(id, title);
+    
+    // If the renamed document is currently active, switch to the new ID
+    if (id === this._activeDocumentId) {
+      this._activeDocumentId = newId;
+      if (this._tabBar) {
+        this._tabBar.ActiveTabId = newId;
+      }
+    }
+    
     await this._refreshDocumentPanel();
+    return newId;
   }
 
   private _buildDocumentToolContext(): IDocumentToolContext {
@@ -355,7 +453,7 @@ export class App {
 
   private _handleDocumentSelect = async (event: Event): Promise<void> => {
     const { id } = (event as CustomEvent<{ id: string }>).detail;
-    if (id !== this._activeDocumentId && !this._canDiscardUnsavedChanges()) {
+    if (id === this._activeDocumentId) {
       return;
     }
     await this._openDocument(id);
@@ -363,7 +461,32 @@ export class App {
 
   private _handleDocumentRename = async (event: Event): Promise<void> => {
     const { id, title } = (event as CustomEvent<{ id: string; title: string }>).detail;
-    await this._renameDocument(id, title);
+    try {
+      await this._renameDocument(id, title);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      if (this._isFilenameConflictError(err)) {
+        const store = id.split("/")[0];
+        const retryTitle = await this._promptForAvailableTitle(
+          title,
+          store,
+          "A document with that name already exists. Enter a different name"
+        );
+        if (retryTitle) {
+          try {
+            await this._renameDocument(id, retryTitle);
+            return;
+          } catch (retryErr) {
+            const retryMessage = retryErr instanceof Error ? retryErr.message : "Unknown error";
+            this._global.alert(`Failed to rename document: ${retryMessage}`);
+          }
+        }
+      } else {
+        this._global.alert(`Failed to rename document: ${message}`);
+      }
+      console.error(`Failed to rename document: ${message}`);
+      await this._refreshDocumentPanel();
+    }
   }
 
   private _handleDocumentDelete = async (event: Event): Promise<void> => {
@@ -371,33 +494,52 @@ export class App {
     if (id === this._activeDocumentId && !this._canDiscardUnsavedChanges()) {
       return;
     }
-    await this._documentService.deleteDocument(id);
+    try {
+      await this._documentService.deleteDocument(id);
 
-    if (this._activeDocumentId === id) {
-      this._activeDocumentId = null;
-      this._markdownEditor?.setMarkdown("");
-      this._setDirty(false);
-      this._refreshOutlinePanel();
+      if (this._activeDocumentId === id) {
+        this._activeDocumentId = null;
+        this._markdownEditor?.setMarkdown("");
+        this._refreshOutlinePanel();
+      }
+
+      this._openDocumentIds = this._openDocumentIds.filter(openId => openId !== id);
+
+      await this._refreshDocumentPanel();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error(`Failed to delete document: ${message}`);
+      this._global.alert(`Failed to delete document: ${message}`);
+      // Revert UI by refreshing document panel with actual data
+      await this._refreshDocumentPanel();
     }
-
-    this._openDocumentIds = this._openDocumentIds.filter(openId => openId !== id);
-
-    await this._refreshDocumentPanel();
   }
 
   private _handleDocumentCreate = async (): Promise<void> => {
     if (!this._canDiscardUnsavedChanges()) {
       return;
     }
-    await this._createDocument("Untitled");
+    try {
+      const targetStore = this._documentService.getStoreNamespaces()[0];
+      if (!targetStore) {
+        throw new Error("No document store is configured.");
+      }
+
+      const uniqueTitle = await this._getUniqueDocumentTitle("Untitled", targetStore);
+      const created = await this._createDocument(uniqueTitle, targetStore);
+      this._documentPanel?.startRename(created.id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      console.error(`Failed to create document: ${message}`);
+      this._global.alert(`Failed to create document: ${message}`);
+      // Revert UI by refreshing document panel with actual data
+      await this._refreshDocumentPanel();
+    }
   }
 
   private _handleTabSelect = async (event: Event): Promise<void> => {
     const { id } = (event as CustomEvent<{ id: string }>).detail;
     if (!id || id === this._activeDocumentId) {
-      return;
-    }
-    if (!this._canDiscardUnsavedChanges()) {
       return;
     }
     await this._openDocument(id);
@@ -424,14 +566,12 @@ export class App {
 
     const nextId = this._openDocumentIds[Math.min(closingIndex, this._openDocumentIds.length - 1)] ?? null;
     if (nextId) {
-      this._setDirty(false);
       await this._openDocument(nextId);
       return;
     }
 
     this._activeDocumentId = null;
     this._markdownEditor?.setMarkdown("");
-    this._setDirty(false);
     this._refreshOutlinePanel();
     await this._refreshDocumentPanel();
   }
@@ -459,7 +599,10 @@ export class App {
   private _handleEditorChange = (event: Event): void => {
     this._refreshOutlinePanel();
     void event;
-    this._setDirty(true);
+    if (this._activeDocumentId) {
+      this._documentService.setDocumentDraft(this._activeDocumentId, this._markdownEditor?.markdown ?? "");
+      void this._refreshDocumentPanel();
+    }
   }
 
   private _refreshOutlinePanel(): void {
@@ -485,27 +628,12 @@ export class App {
     }
 
     event.preventDefault();
-    void this._saveActiveDocument();
+    void this._handleSaveClick();
   }
 
   private async _refreshModels(): Promise<void> {
     const models = await this._platformService.getModels();
     this._chatPanel?.setModels(models);
-  }
-
-  private _wireTemplateButtons(): void {
-    const buttons = this._global.document.querySelectorAll<HTMLButtonElement>("button[data-template-id]");
-    buttons.forEach(btn => {
-      // Prevent mousedown from stealing focus so the editor selection is preserved
-      btn.addEventListener("mousedown", e => e.preventDefault());
-      btn.addEventListener("click", () => {
-        const id = btn.dataset.templateId ?? "";
-        const template = TEMPLATES[id];
-        if (template !== undefined) {
-          this._markdownEditor?.replaceSelection(template);
-        }
-      });
-    });
   }
 
   private _wireAppMenu(): void {
@@ -518,11 +646,25 @@ export class App {
   }
 
   private _handleSaveClick = async (): Promise<void> => {
-    await this._saveActiveDocument();
+    try {
+      await this._saveActiveDocument();
+    } catch (err) {
+      if (err instanceof DocumentConcurrencyError) {
+        await this._handleDocumentUpdateConflict();
+        return;
+      }
+      const message = err instanceof Error ? err.message : "Unknown error";
+      this._global.alert(`Failed to save document: ${message}`);
+    }
   }
 
   private _handleSaveAsClick = async (): Promise<void> => {
-    await this._saveActiveDocumentAs();
+    try {
+      await this._saveActiveDocumentAs();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      this._global.alert(`Failed to save document as: ${message}`);
+    }
   }
 
   private async _saveActiveDocument(): Promise<void> {
@@ -532,7 +674,7 @@ export class App {
     }
 
     await this._documentService.updateDocument(this._activeDocumentId, this._markdownEditor.markdown);
-    this._setDirty(false);
+    await this._refreshDocumentPanel();
   }
 
   private async _saveActiveDocumentAs(): Promise<void> {
@@ -541,23 +683,42 @@ export class App {
       return;
     }
 
-    const currentTitle = await this._getCurrentDocumentTitle();
-    const input = this._global.prompt("Save as", currentTitle);
-    if (input === null) {
-      return;
-    }
-
-    const title = input.trim() || "Untitled";
     const targetStore = this._activeDocumentId?.split("/")[0] || this._documentService.getStoreNamespaces()[0];
     if (!targetStore) {
       throw new Error("No document store is configured.");
     }
 
-    const id = await this._documentService.createDocument(title, targetStore);
+    const currentTitle = await this._getCurrentDocumentTitle();
+    const title = await this._promptForAvailableTitle(currentTitle, targetStore, "Save as");
+    if (title === null) {
+      return;
+    }
+
+    let resolvedTitle = title;
+    let id: string;
+    while (true) {
+      try {
+        id = await this._documentService.createDocument(resolvedTitle, targetStore);
+        break;
+      } catch (err) {
+        if (!this._isFilenameConflictError(err)) {
+          throw err;
+        }
+        const retry = await this._promptForAvailableTitle(
+          resolvedTitle,
+          targetStore,
+          "A document with that name already exists. Enter a different name"
+        );
+        if (retry === null) {
+          return;
+        }
+        resolvedTitle = retry;
+      }
+    }
+
     await this._documentService.updateDocument(id, this._markdownEditor.markdown);
     this._activeDocumentId = id;
     this._rememberOpenDocument(id);
-    this._setDirty(false);
     await this._refreshDocumentPanel();
   }
 
@@ -570,17 +731,13 @@ export class App {
     return docs.find(doc => doc.id === this._activeDocumentId)?.title || "Untitled";
   }
 
-  private _setDirty(value: boolean): void {
-    if (this._isDocumentDirty === value) {
-      return;
-    }
-    this._isDocumentDirty = value;
-    void this._refreshDocumentPanel();
+  private _isActiveDocumentDirty(): boolean {
+    return !!this._activeDocumentId && this._documentService.isDocumentDirty(this._activeDocumentId);
   }
 
   private _updateSaveButtonState(): void {
     if (this._saveButton) {
-      this._saveButton.disabled = !this._activeDocumentId || !this._isDocumentDirty;
+      this._saveButton.disabled = !this._activeDocumentId || !this._isActiveDocumentDirty();
     }
     if (this._saveAsButton) {
       this._saveAsButton.disabled = !this._markdownEditor;
@@ -588,10 +745,15 @@ export class App {
   }
 
   private _canDiscardUnsavedChanges(): boolean {
-    if (!this._isDocumentDirty) {
+    if (!this._isActiveDocumentDirty()) {
       return true;
     }
-    return this._global.confirm("You have unsaved changes. Continue without saving?");
+    const shouldDiscard = this._global.confirm("You have unsaved changes. Continue without saving?");
+    if (shouldDiscard && this._activeDocumentId) {
+      this._documentService.discardUnsavedDocumentChanges(this._activeDocumentId);
+      void this._refreshDocumentPanel();
+    }
+    return shouldDiscard;
   }
 
   private _rememberOpenDocument(id: string): void {
@@ -616,8 +778,7 @@ export class App {
       };
     });
 
-    const dirtyId = this._isDocumentDirty ? this._activeDocumentId : null;
-    this._tabBar.setTabs(tabs, this._activeDocumentId, dirtyId);
+    this._tabBar.setTabs(tabs, this._activeDocumentId, this._documentService.getDirtyDocumentIds());
   }
 }
 

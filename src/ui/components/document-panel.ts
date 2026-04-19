@@ -6,7 +6,7 @@ export class DocumentPanel extends BaseHtmlElement {
   private _listEl: HTMLUListElement;
   private _documents: Array<{ id: string; title?: string }>;
   private _activeId: string | null;
-  private _dirtyId: string | null;
+  private _dirtyIds: Set<string>;
 
   constructor() {
     super();
@@ -21,7 +21,7 @@ export class DocumentPanel extends BaseHtmlElement {
     this._listEl = this.shadowRoot!.querySelector(".list") as HTMLUListElement;
     this._documents = [];
     this._activeId = null;
-    this._dirtyId = null;
+    this._dirtyIds = new Set();
   }
 
   connectedCallback(): void {
@@ -44,15 +44,23 @@ export class DocumentPanel extends BaseHtmlElement {
     }
   }
 
-  setDocuments(documents: Array<{ id: string; title?: string }>, activeId: string | null, dirtyId: string | null = null): void {
+  setDocuments(documents: Array<{ id: string; title?: string }>, activeId: string | null, dirtyIds: string[] = []): void {
     this._documents = Array.isArray(documents) ? documents : [];
     this._activeId = activeId || null;
-    this._dirtyId = dirtyId || null;
+    this._dirtyIds = new Set(dirtyIds);
     this._render();
     this.dispatchEvent(new CustomEvent("pane-actions-changed", {
       bubbles: false,
       composed: false
     }));
+  }
+
+  public startRename(id: string): void {
+    const row = this._listEl.querySelector<HTMLLIElement>(`.list-item[data-doc-id="${CSS.escape(id)}"]`);
+    if (!row) {
+      return;
+    }
+    this._startRename(row);
   }
 
   private _handleListClick = (event: MouseEvent): void => {
@@ -143,7 +151,7 @@ export class DocumentPanel extends BaseHtmlElement {
   private _makeItemRow(docId: string, title: string): HTMLLIElement {
     const row = document.createElement("li");
     const isActive = docId === this._activeId;
-    const isDirty = docId === this._dirtyId;
+    const isDirty = this._dirtyIds.has(docId);
     row.className = `action-item list-item${isActive ? " active" : ""}${isDirty ? " dirty" : ""}`;
     row.dataset.docId = docId;
 
