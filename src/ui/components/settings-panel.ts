@@ -165,11 +165,11 @@ export class SettingsPanel extends BaseHtmlElement {
     `;
 
     // Wire up inputs and show/hide toggles
-    for (const input of this.shadowRoot!.querySelectorAll<HTMLInputElement>("input[data-storage-key]")) {
+    this.shadowRoot!.querySelectorAll<HTMLInputElement>("input[data-storage-key]").forEach(input => {
       input.addEventListener("change", () => this._save(input));
-    }
+    });
 
-    for (const btn of this.shadowRoot!.querySelectorAll<HTMLButtonElement>(".show-btn")) {
+    this.shadowRoot!.querySelectorAll<HTMLButtonElement>(".show-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const key = btn.dataset.storageKey!;
         const input = this.shadowRoot!.querySelector<HTMLInputElement>(`input[data-storage-key="${key}"]`)!;
@@ -177,14 +177,14 @@ export class SettingsPanel extends BaseHtmlElement {
         input.type = isHidden ? "text" : "password";
         btn.textContent = isHidden ? "Hide" : "Show";
       });
-    }
+    });
   }
 
   private _loadFromStorage(): void {
-    for (const input of this.shadowRoot!.querySelectorAll<HTMLInputElement>("input[data-storage-key]")) {
+    this.shadowRoot!.querySelectorAll<HTMLInputElement>("input[data-storage-key]").forEach(input => {
       input.value = localStorage.getItem(input.dataset.storageKey!) ?? "";
       input.classList.remove("saved");
-    }
+    });
   }
 
   private _save(input: HTMLInputElement): void {
