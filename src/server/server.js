@@ -4,6 +4,7 @@ import cors from "cors";
 
 import { staticRoutes } from "./routes/static.js";
 import { proxy } from "./routes/proxy.js";
+import { storeRoutes } from "./routes/store.js";
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "https://ollama.com";
 const ANTHROPIC_HOST = process.env.ANTHROPIC_HOST || "https://api.anthropic.com";
@@ -17,6 +18,10 @@ export function startServer(){
   // Proxy requests to the appropriate upstream host based on the path prefix
   app.use(proxy("/ollama", OLLAMA_HOST, { streamResponse: true }));
   app.use(proxy("/anthropic", ANTHROPIC_HOST, { streamResponse: true }));
+
+  // Document store endpoints (WebDAV-like interface)
+  const storeDir = process.env.STORE_DIR || "../../store";
+  app.use("/store", storeRoutes(import.meta.url, storeDir));
 
   // Static file serving for the web UI
   app.use(staticRoutes(import.meta.url, "../../dist/ui"));
