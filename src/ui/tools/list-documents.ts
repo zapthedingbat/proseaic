@@ -2,13 +2,13 @@ import { JSONValue } from "../lib/JSONValue.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
-import { IDocumentToolContext } from "./document-tool-context.js";
+import { IWorkspace } from "../lib/workspace.js";
 
 const schema: ToolSchema = {
   type: "function",
   function: {
     name: "list_documents",
-    description: "List available documents and their IDs. Use this before open_document or rename_document when you need to identify the right document.",
+    description: "List all available documents and their IDs. Use this before open_document or rename_document when you need to identify the right document.",
     parameters: {
       type: "object",
       properties: {},
@@ -19,32 +19,28 @@ const schema: ToolSchema = {
 
 export class ListDocumentsTool {
   schema = schema;
-  private _context: IDocumentToolContext;
   private _logger: Logger;
+  private _workspace: IWorkspace;
 
-  constructor(loggerFactory: LoggerFactory, context: IDocumentToolContext) {
+
+  constructor(loggerFactory: LoggerFactory, workspace: IWorkspace) {
     this._logger = loggerFactory("List Documents Tool");
-    this._context = context;
+    this._workspace = workspace;
   }
 
-  addContext = (): Record<string, unknown> => ({
-    document_management: {
-      active_document_id: this._context.getActiveDocumentId(),
-      available_stores: this._context.getStoreNamespaces()
-    }
-  });
+  addContext = async (): Promise<Record<string, unknown>> => {
+    const allDocuments = await this._workspace.listDocuments();
+    const openDocuments = allDocuments.filter(doc => doc.isOpen).map(doc => ({ id: doc.id, title: doc.title }));
+    return ({document_management: {
+      open_documents: openDocuments,
+    }});
+  };
 
   execute = async (_args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Listing documents");
-    const activeDocumentId = this._context.getActiveDocumentId();
-    const documents = await this._context.listDocuments();
-
+    const documents = await this._workspace.listDocuments();
     return {
-      active_document_id: activeDocumentId,
-      documents: documents.map(document => ({
-        ...document,
-        is_active: document.id === activeDocumentId
-      }))
+      documents: documents.map(doc => ({ id: doc.id, title: doc.title }))
     };
   };
 }

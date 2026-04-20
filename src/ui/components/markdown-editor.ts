@@ -750,12 +750,14 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
 
   // ---- Public API ----
 
-  get markdown(): string { return this._markdown; }
+  getTextContent(): string {
+    return this._markdown;
+  }
 
-  setMarkdown(md: string): void {
+  setTextContent(content: string): void {
     this._clearPendingDomProcessing();
-    this._markdown = md;
-    const lines = this._classifyLines(md.split("\n"));
+    this._markdown = content;
+    const lines = this._classifyLines(content.split("\n"));
     this._model = buildModel(lines);
     this._processing = true;
     this._renderDom(lines, null);
@@ -838,7 +840,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
       const after = this._markdown.slice(this._savedEnd);
       this._savedStart = this._savedStart + text.length;
       this._savedEnd = this._savedStart;
-      this.setMarkdown(before + text + after);
+      this.setTextContent(before + text + after);
     }
   }
 
