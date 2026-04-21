@@ -37,10 +37,10 @@ type ActiveMessageStateBuffer = {
 // <chat-panel> WebComponent
 export class ChatPanel extends BaseHtmlElement {
 
-  private modelsSelect: HTMLSelectElement;
-  private textarea: HTMLTextAreaElement;
-  private sendButton: HTMLButtonElement;
-  private historyDiv: HTMLDivElement;
+  private modelsSelect!: HTMLSelectElement;
+  private textarea!: HTMLTextAreaElement;
+  private sendButton!: HTMLButtonElement;
+  private historyDiv!: HTMLDivElement;
   private _models: Array<Model>;
   private _state: {
     history: ChatMessage[];
@@ -52,11 +52,6 @@ export class ChatPanel extends BaseHtmlElement {
 
   constructor() {
     super();
-    this.shadowRoot!.innerHTML = html;
-    this.modelsSelect = this.shadowRoot!.getElementById("chat-model-select") as HTMLSelectElement;
-    this.textarea = this.shadowRoot!.getElementById("chat-textarea") as HTMLTextAreaElement;
-    this.sendButton = this.shadowRoot!.getElementById("chat-send") as HTMLButtonElement;
-    this.historyDiv = this.shadowRoot!.getElementById("chat-history") as HTMLDivElement;
     this._models = [];
     this._state = {
       history: [],
@@ -78,6 +73,20 @@ export class ChatPanel extends BaseHtmlElement {
   }
 
   connectedCallback(): void {
+    if (!this.sendButton) {
+      this.innerHTML = html;
+      this.modelsSelect = this.querySelector("#chat-model-select") as HTMLSelectElement;
+      this.textarea = this.querySelector("#chat-textarea") as HTMLTextAreaElement;
+      this.sendButton = this.querySelector("#chat-send") as HTMLButtonElement;
+      this.historyDiv = this.querySelector("#chat-history") as HTMLDivElement;
+      this._renderModels();
+      if (this._state.history.length > 0) {
+        this.setHistory(this._state.history);
+      }
+      if (this._state.active?.message?.role === "assistant") {
+        this.setAssistantMessage(this._state.active.message);
+      }
+    }
     this.sendButton.addEventListener("click", this._handleSendButtonClick);
     this.textarea.addEventListener("keydown", this._handleTextareaKeydown);
     this.textarea.addEventListener("input", this._handleTextareaInput);
@@ -120,6 +129,9 @@ export class ChatPanel extends BaseHtmlElement {
   // So the history won't include messages that are still being generated.
   setHistory(history: ChatMessage[]): void {
     this._state.history = history;
+    if (!this.historyDiv) {
+      return;
+    }
     this.historyDiv.innerHTML = "";
     for (const message of history) {
       const messageElement = this._createMessageElement(message);
@@ -133,6 +145,20 @@ export class ChatPanel extends BaseHtmlElement {
   setAssistantMessage(entry: AssistantChatMessage | null): void {
     this._logger.debug("Setting active assistant message:", entry);
     this._activeMessageElement = null;
+    if (!this.historyDiv) {
+      this._state.active = entry ? {
+        message: entry,
+        think: {
+          markdown: this._renderMarkdown(entry.thinking ?? ""),
+          line: []
+        },
+        response: {
+          markdown: this._renderMarkdown(this._extractTextContent(entry?.content || [])),
+          line: []
+        }
+      } : null;
+      return;
+    }
     if(entry !== null) {
 
       // Reset active message rendering buffers
@@ -221,6 +247,9 @@ export class ChatPanel extends BaseHtmlElement {
 
   setModels(models: Array<Model>): void {
     this._models = models;
+    if (!this.modelsSelect) {
+      return;
+    }
     this._renderModels();
   }
 
@@ -232,7 +261,7 @@ export class ChatPanel extends BaseHtmlElement {
     const button = (event.target as HTMLElement)?.closest<HTMLButtonElement>("button[data-action]");
     if (!button) return;
     const contentId = button.dataset.contentSrc ?? "";
-    const contentElement = this.shadowRoot!.querySelector(`[data-content-id="${contentId}"]`) as HTMLDivElement | null;
+    const contentElement = this.querySelector(`[data-content-id="${contentId}"]`) as HTMLDivElement | null;
     if (!contentElement) return;
     const content = contentElement.textContent || "";
     if (button.dataset.action === "insert") {

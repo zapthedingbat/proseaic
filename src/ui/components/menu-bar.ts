@@ -4,10 +4,17 @@ import { BaseHtmlElement } from "./base-html-element";
 export class MenuBar extends BaseHtmlElement {
   constructor() {
     super();
-    this.shadowRoot!.innerHTML = `
+  }
+
+  connectedCallback(): void {
+    if (this.querySelector(".menu-bar")) {
+      return;
+    }
+
+    this.innerHTML = `
 <link rel="stylesheet" href="/codicon.css" />
 <style>
-  :host {
+  ui-menu-bar {
     display: flex;
     align-items: center;
     gap: 2px;
@@ -17,7 +24,14 @@ export class MenuBar extends BaseHtmlElement {
     height: 100%;
   }
 
-  ::slotted(button) {
+  ui-menu-bar .action-items {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  ui-menu-bar .action-items > button {
     background: transparent;
     border: none;
     color: var(--menu-bar-text-color);
@@ -30,28 +44,28 @@ export class MenuBar extends BaseHtmlElement {
     white-space: nowrap;
   }
 
-  ::slotted(button:hover) {
+  ui-menu-bar .action-items > button:hover {
     background: rgba(255, 255, 255, 0.08);
     opacity: 1;
   }
 
-  ::slotted(button:active) {
+  ui-menu-bar .action-items > button:active {
     background: rgba(255, 255, 255, 0.14);
   }
 
-  ::slotted(button:disabled) {
+  ui-menu-bar .action-items > button:disabled {
     opacity: 0.35;
     cursor: default;
   }
 
-  ::slotted(.menu-bar-sep) {
+  ui-menu-bar .action-items > .menu-bar-sep {
     width: 1px;
     height: 16px;
     background: rgba(255, 255, 255, 0.15);
     margin: 0 4px;
   }
 
-  ::slotted(.app-icon) {
+  ui-menu-bar .action-items > .app-icon {
     display: block;
     width: 18px;
     height: 18px;
@@ -60,9 +74,7 @@ export class MenuBar extends BaseHtmlElement {
   }
 </style>
 <div class="menu-bar">
-  <div class="action-items">
-    <slot></slot>
-  </div>
+  <div class="action-items"></div>
 </div>
 `;
   }

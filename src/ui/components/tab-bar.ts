@@ -16,8 +16,6 @@ export class UiTabBar extends BaseHtmlElement {
     this._tabs = [];
     this._activeId = null;
     this._dirtyIds = new Set();
-
-    this.shadowRoot!.innerHTML = `<div class="tabs" role="tablist"></div>`;
   }
   
   get ActiveTabId(): string | null {
@@ -30,18 +28,21 @@ export class UiTabBar extends BaseHtmlElement {
   }
 
   connectedCallback(): void {
-    this.shadowRoot!.addEventListener("click", this._onTabClick);
-    this.shadowRoot!.addEventListener("click", this._onTabCloseClick);
-    this.shadowRoot!.addEventListener("auxclick", this._onTabAuxClick);
-    this.shadowRoot!.addEventListener("keydown", this._onTabKeyDown);
+    if (!this.querySelector(".tabs")) {
+      this.innerHTML = `<div class="tabs" role="tablist"></div>`;
+    }
+    this.addEventListener("click", this._onTabClick);
+    this.addEventListener("click", this._onTabCloseClick);
+    this.addEventListener("auxclick", this._onTabAuxClick);
+    this.addEventListener("keydown", this._onTabKeyDown);
     this._render();
   }
 
   disconnectedCallback(): void {
-    this.shadowRoot!.removeEventListener("click", this._onTabClick);
-    this.shadowRoot!.removeEventListener("click", this._onTabCloseClick);
-    this.shadowRoot!.removeEventListener("auxclick", this._onTabAuxClick);
-    this.shadowRoot!.removeEventListener("keydown", this._onTabKeyDown);
+    this.removeEventListener("click", this._onTabClick);
+    this.removeEventListener("click", this._onTabCloseClick);
+    this.removeEventListener("auxclick", this._onTabAuxClick);
+    this.removeEventListener("keydown", this._onTabKeyDown);
   }
 
   setTabs(tabs: TabState[], activeId: string | null, dirtyIds: string[] = []): void {
@@ -141,7 +142,7 @@ export class UiTabBar extends BaseHtmlElement {
   }
 
   private _render(): void {
-    const tabsRoot = this.shadowRoot!.querySelector(".tabs") as HTMLDivElement;
+    const tabsRoot = this.querySelector(".tabs") as HTMLDivElement;
     tabsRoot.textContent = "";
 
     for (const tab of this._tabs) {

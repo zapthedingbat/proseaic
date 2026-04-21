@@ -4,12 +4,16 @@ import { BaseHtmlElement } from "./base-html-element";
 
 export class DocumentOutlinePanel extends BaseHtmlElement {
 
-  private _outlineElement: HTMLUListElement;
+  private _outlineElement!: HTMLUListElement;
   private _outline: DocumentOutline | undefined;
 
   constructor() {
     super();
-    this.shadowRoot!.innerHTML = `
+  }
+
+  connectedCallback(): void {
+    if (!this._outlineElement) {
+      this.innerHTML = `
 <style>
   .outline-list {
     margin: var(--gap);
@@ -44,11 +48,10 @@ export class DocumentOutlinePanel extends BaseHtmlElement {
   <ul class="outline-list list" role="list"></ul>
   <div class="cover empty" aria-hidden="true">No headings.</div>
 </div>
-    `;
-    this._outlineElement = this.shadowRoot!.querySelector(".outline-list") as HTMLUListElement;
-  }
-
-  connectedCallback(): void {
+      `;
+      this._outlineElement = this.querySelector(".outline-list") as HTMLUListElement;
+      this._render();
+    }
     this._outlineElement.addEventListener("click", this._handleClick);
   }
 
@@ -78,7 +81,7 @@ export class DocumentOutlinePanel extends BaseHtmlElement {
   };
 
   private _render(): void {
-    const empty = this.shadowRoot!.querySelector(".empty") as HTMLDivElement;
+    const empty = this.querySelector(".empty") as HTMLDivElement;
     if (!this._outline || this._outline.length === 0) {
       empty.style.display = "";
       this._outlineElement.style.display = "none";

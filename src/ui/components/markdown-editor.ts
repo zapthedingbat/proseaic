@@ -1,8 +1,8 @@
 import { IEditableText } from "../lib/document/editable-text.js";
-import { BaseHtmlElement } from "./base-html-element.js";
 import { LineType, MdLine, MdSection } from "../lib/markdown/markdown.js";
 import { IStructuredDocument } from "../lib/document/structured-document.js";
 import { DocumentOutline } from "../lib/document/document-outline.js";
+import { IEditorComponent } from "../lib/editor-component.js";
 
 /**
  * I didn't set out to build a markdown editor, but I needed a way to edit markdown content with a decent UX and some structure (e.g. to support an outline view), so here we are.
@@ -288,17 +288,15 @@ function buildModel(lines: MdLine[]): MdSection {
  * before the browser mutates the DOM.
  *
  */
-export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IStructuredDocument {
+export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEditableText, IStructuredDocument {
 
   private static readonly DOM_CHANGE_DEBOUNCE_MS = 250;
 
-  private _editorPage!: HTMLDivElement;
   private _markdown = "";
   private _model: MdSection = { id: "root", level: 0, headingLine: null, bodyLines: [], children: [] };
   private _processing = false;
   private _pendingProcessTimer: ReturnType<typeof setTimeout> | null = null;
   private _activeDiv: HTMLElement | null = null;
-  private _overlay: HTMLDivElement;
   // Saved selection offsets (character positions in the markdown string), kept up-to-date on blur
   // so that replaceSelection works even when the editor doesn't have focus.
   private _savedStart = 0;
@@ -306,211 +304,9 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
 
   constructor() {
     super();
-    this.shadowRoot!.innerHTML = `
-      <style>
-        :host {
-          --editor-line-height: 1.6;
-          flex: 1;
-          display: flex;
-          justify-content: center;
-          overflow: auto;
-          align-items: start;
-        }
-
-        #editor {
-          display: flex;
-          flex: 1 0 auto;
-          margin: 0 16px;
-          max-width: 1024px;
-          min-height: 100%;
-          padding: 16px 0;
-        }
-
-        #editor-page {
-          background-color: var(--editor-bg-color, #fff);
-          box-shadow: var(--editor-box-shadow, 0 0 8px -4px rgba(0,0,0,0.5));
-          color: var(--editor-text-color, #000);
-          cursor: text;
-          flex-grow: 1;
-          font-family: var(--editor-font-family, Georgia, serif);
-          font-size: var(--editor-font-size, 1rem);
-          line-height: var(--editor-line-height, 1.6);
-          margin: 0;
-          outline: none;
-          padding: 2em 32px;
-        }
-
-        .selection,
-        #editor-page::selection,
-        #editor-page *::selection {
-          background-color: var(--editor-selection-bg);
-          color: var(--editor-selection-text-color);
-          border-radius: var(--editor-selection-radius);
-        }
-
-        #overlay {
-          position: absolute;
-          top: 0; left: 0; right: 0; bottom: 0;
-          pointer-events: none;
-        }
-
-        .mde {
-          min-height: calc(var(--editor-line-height) * 1em);
-        }
-
-        /* Line-level types */
-
-        /* Headings */
-        .mde-h1 { 
-          border-bottom: 2px solid var(--editor-hr-color, #09f);
-          font-size: 2em;
-          font-weight: bold;
-          line-height: 1.2;
-          margin-block: 0.25em;
-        }
-
-        .mde-h2 { font-size: 1.5em; font-weight: bold; line-height: 1.3; margin-block: 0.25em; }
-        .mde-h3 { font-size: 1.25em; font-weight: bold; margin-block: 0.2em; }
-        .mde-h4, .mde-h5, .mde-h6 { font-weight: bold; }
-        
-        /* Blockquote */
-        .mde-blockquote {
-          border-left: 3px solid #bbb;
-          padding-left: 0.75em;
-          color: #555;
-          font-style: italic;
-        }
-        
-        /* Horizontal rule */
-        .mde-hr {
-          color: transparent;
-          text-align: center;
-          position: relative;
-        }
-        .mde-hr::before {
-          content: "";
-          border-top: 2px solid var(--editor-hr-color, #09f);
-          opacity: 1;
-          width: 100%;
-          position: absolute;
-          top: 50%;
-          display: block;
-        }
-        .mde-active.mde-hr {
-          color: inherit;
-        }
-        .mde-active.mde-hr::before {
-          opacity: 0;
-        }
-
-        /* Lists */
-        .mde-list-ul,
-        .mde-list-ol {
-          margin-left: 2em;
-          display: list-item;
-          margin-inline-start: calc(var(--mde-list-depth, 0) * 1em);
-        }
-        .mde-list-ul::marker,
-        .mde-list-ol::marker {
-        }
-        .mde-list-ul::marker {
-          content: var(--mde-list-bullet, "•");
-        }
-        
-        .mde-list-ol::marker {
-          content: attr(data-list-index) ".";
-        }
-
-        .mde-active.mde-list-ul,
-        .mde-active.mde-list-ol {
-          
-        }
-
-
-        /* Fenced code blocks */
-        .mde-fence-marker {
-          color: transparent;
-          min-height: 20px;
-          background-repeat: repeat-x;
-          background-size: 100px 20px;
-        }
-        .mde-fence-marker.mde-active {
-          color: inherit;
-        }
-        .mde-fence-marker:not(:has(+ .mde-fence-body)) {
-          background-position: top;
-          background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'><path d='M0,10 Q10,7 20,10 T40,9 T60,11 T80,10 T100,10 V0 H0 Z' fill='%23eee'/></svg>");
-          border-radius: 4px 4px 0 0;
-        }
-        .mde-fence-marker:has(+ .mde-fence-body) {
-          background-position: bottom;
-          background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'><path d='M0,10 Q10,7 20,10 T40,9 T60,11 T80,10 T100,10 V20 H0 Z' fill='%23eee'/></svg>");
-          border-radius: 0 0 4px 4px;
-        }
-        .mde-fence-body {
-          font-family: monospace;
-          font-size: 0.88em;
-          background: #eee;
-          padding: 0 1em;
-          white-space: pre;
-          overflow-x: auto;
-        }
-        .mde-fence-body:not(.mde-fence-body + .mde-fence-body) {
-          padding-top: 0.5em;
-        }
-        .mde-fence-body:not(:has(+ .mde-fence-body)) {
-          padding-bottom: 0.5em;
-        }
-
-        /* Inline types */
-        .mde-bold   { font-weight: bold; }
-        .mde-italic { font-style: italic; }
-        .mde-strike { text-decoration: line-through; }
-        .mde-code   {
-          display: inline-block;
-          font-family: monospace;
-          font-size: 0.88em;
-          background: #eee;
-          border-radius: 3px;
-          padding: 0 0.25em;
-        }
-
-        .mde-active .mde-code {
-          display: inline;
-        }
-
-        .mde-indent {
-          /* invisible spacer spans used to preserve indentation in nested lists */
-          white-space: pre;
-          white-space-collapse: preserve;
-        }
-
-        /* Syntax characters: hidden by default, revealed on the active line */
-        .mde-syn {
-          display: inline-block;
-          opacity: 0;
-          max-width: 0;
-        }
-        
-        .mde-active .mde-syn {
-          display: inline;
-          opacity: 0.5;
-          max-width: none;
-        }
-
-      </style>
-
-      <div id="editor">
-        <div id="editor-page" contenteditable="true" spellcheck="true"></div>
-      </div>
-
-      <div id="overlay"></div>
-    `;
-    this._editorPage = this.shadowRoot!.getElementById("editor-page") as HTMLDivElement;
-    this._overlay = this.shadowRoot!.getElementById("overlay") as HTMLDivElement;
-    this._initEmptyLine();
+    this.attachShadow({ mode: "open" });
   }
-  
+
   insertSection(
     sectionTitle: string,
     sectionContent: string,
@@ -730,42 +526,273 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   // ---- Lifecycle ----
 
   connectedCallback(): void {
-    this._editorPage.addEventListener("beforeinput", this._onBeforeInput);
-    this._editorPage.addEventListener("input", this._onInput);
-    this._editorPage.addEventListener("paste", this._onPaste);
-    this._editorPage.addEventListener("focus", this._onFocus);
-    this._editorPage.addEventListener("blur",  this._onBlur);
+
+    this.shadowRoot!.innerHTML = `
+      <style>
+        :host {
+          --editor-line-height: 1.6;
+          flex: 1;
+          display: flex;
+          justify-content: center;
+          overflow: auto;
+          align-items: start;
+        }
+
+        #editor {
+          display: flex;
+          flex: 1 0 auto;
+          margin: 0 16px;
+          max-width: 1024px;
+          min-height: 100%;
+          padding: 16px 0;
+        }
+
+        #editor-page {
+          background-color: var(--editor-bg-color, #fff);
+          box-shadow: var(--editor-box-shadow, 0 0 8px -4px rgba(0,0,0,0.5));
+          color: var(--editor-text-color, #000);
+          cursor: text;
+          flex-grow: 1;
+          font-family: var(--editor-font-family, Georgia, serif);
+          font-size: var(--editor-font-size, 1rem);
+          line-height: var(--editor-line-height, 1.6);
+          margin: 0;
+          outline: none;
+          padding: 2em 32px;
+        }
+
+        .selection,
+        #editor-page::selection,
+        #editor-page *::selection {
+          background-color: var(--editor-selection-bg);
+          color: var(--editor-selection-text-color);
+          border-radius: var(--editor-selection-radius);
+        }
+
+        #overlay {
+          position: absolute;
+          top: 0; left: 0; right: 0; bottom: 0;
+          pointer-events: none;
+        }
+
+        .mde {
+          min-height: calc(var(--editor-line-height) * 1em);
+        }
+
+        /* Line-level types */
+
+        /* Headings */
+        .mde-h1 { 
+          border-bottom: 2px solid var(--editor-hr-color, #09f);
+          font-size: 2em;
+          font-weight: bold;
+          line-height: 1.2;
+          margin-block: 0.25em;
+        }
+
+        .mde-h2 { font-size: 1.5em; font-weight: bold; line-height: 1.3; margin-block: 0.25em; }
+        .mde-h3 { font-size: 1.25em; font-weight: bold; margin-block: 0.2em; }
+        .mde-h4, .mde-h5, .mde-h6 { font-weight: bold; }
+        
+        /* Blockquote */
+        .mde-blockquote {
+          border-left: 3px solid #bbb;
+          padding-left: 0.75em;
+          color: #555;
+          font-style: italic;
+        }
+        
+        /* Horizontal rule */
+        .mde-hr {
+          color: transparent;
+          text-align: center;
+          position: relative;
+        }
+        .mde-hr::before {
+          content: "";
+          border-top: 2px solid var(--editor-hr-color, #09f);
+          opacity: 1;
+          width: 100%;
+          position: absolute;
+          top: 50%;
+          display: block;
+        }
+        .mde-active.mde-hr {
+          color: inherit;
+        }
+        .mde-active.mde-hr::before {
+          opacity: 0;
+        }
+
+        /* Lists */
+        .mde-list-ul,
+        .mde-list-ol {
+          margin-left: 2em;
+          display: list-item;
+          margin-inline-start: calc(var(--mde-list-depth, 0) * 1em);
+        }
+        .mde-list-ul::marker,
+        .mde-list-ol::marker {
+        }
+        .mde-list-ul::marker {
+          content: var(--mde-list-bullet, "•");
+        }
+        
+        .mde-list-ol::marker {
+          content: attr(data-list-index) ".";
+        }
+
+        .mde-active.mde-list-ul,
+        .mde-active.mde-list-ol {
+          
+        }
+
+
+        /* Fenced code blocks */
+        .mde-fence-marker {
+          color: transparent;
+          min-height: 20px;
+          background-repeat: repeat-x;
+          background-size: 100px 20px;
+        }
+        .mde-fence-marker.mde-active {
+          color: inherit;
+        }
+        .mde-fence-marker:not(:has(+ .mde-fence-body)) {
+          background-position: top;
+          background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'><path d='M0,10 Q10,7 20,10 T40,9 T60,11 T80,10 T100,10 V0 H0 Z' fill='%23eee'/></svg>");
+          border-radius: 4px 4px 0 0;
+        }
+        .mde-fence-marker:has(+ .mde-fence-body) {
+          background-position: bottom;
+          background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'><path d='M0,10 Q10,7 20,10 T40,9 T60,11 T80,10 T100,10 V20 H0 Z' fill='%23eee'/></svg>");
+          border-radius: 0 0 4px 4px;
+        }
+        .mde-fence-body {
+          font-family: monospace;
+          font-size: 0.88em;
+          background: #eee;
+          padding: 0 1em;
+          white-space: pre;
+          overflow-x: auto;
+        }
+        .mde-fence-body:not(.mde-fence-body + .mde-fence-body) {
+          padding-top: 0.5em;
+        }
+        .mde-fence-body:not(:has(+ .mde-fence-body)) {
+          padding-bottom: 0.5em;
+        }
+
+        /* Inline types */
+        .mde-bold   { font-weight: bold; }
+        .mde-italic { font-style: italic; }
+        .mde-strike { text-decoration: line-through; }
+        .mde-code   {
+          display: inline-block;
+          font-family: monospace;
+          font-size: 0.88em;
+          background: #eee;
+          border-radius: 3px;
+          padding: 0 0.25em;
+        }
+
+        .mde-active .mde-code {
+          display: inline;
+        }
+
+        .mde-indent {
+          /* invisible spacer spans used to preserve indentation in nested lists */
+          white-space: pre;
+          white-space-collapse: preserve;
+        }
+
+        /* Syntax characters: hidden by default, revealed on the active line */
+        .mde-syn {
+          display: inline-block;
+          opacity: 0;
+          max-width: 0;
+        }
+        
+        .mde-active .mde-syn {
+          display: inline;
+          opacity: 0.5;
+          max-width: none;
+        }
+
+      </style>
+
+      <div id="editor">
+        <div id="editor-page" contenteditable="true" spellcheck="true"></div>
+      </div>
+
+      <div id="overlay"></div>
+    `;
+
+    const editorPage = this._editorPage;
+    if (!editorPage) {
+      return;
+    }
+    editorPage.addEventListener("beforeinput", this._onBeforeInput);
+    editorPage.addEventListener("input", this._onInput);
+    editorPage.addEventListener("paste", this._onPaste);
+    editorPage.addEventListener("focus", this._onFocus);
+    editorPage.addEventListener("blur",  this._onBlur);
     document.addEventListener("selectionchange", this._onSelectionChange);
+
+    // If content was set before connect, render it now that the editor page exists.
+    if (this._markdown) {
+      this.setContent(this._markdown);
+    } else {
+      this._initEmptyLine();
+    }
   }
 
   disconnectedCallback(): void {
     this._clearPendingDomProcessing();
-    this._editorPage.removeEventListener("beforeinput", this._onBeforeInput);
-    this._editorPage.removeEventListener("input", this._onInput);
-    this._editorPage.removeEventListener("paste", this._onPaste);
-    this._editorPage.removeEventListener("focus", this._onFocus);
-    this._editorPage.removeEventListener("blur",  this._onBlur);
+    const editorPage = this._editorPage;
+    if (!editorPage) {
+      document.removeEventListener("selectionchange", this._onSelectionChange);
+      return;
+    }
+    editorPage.removeEventListener("beforeinput", this._onBeforeInput);
+    editorPage.removeEventListener("input", this._onInput);
+    editorPage.removeEventListener("paste", this._onPaste);
+    editorPage.removeEventListener("focus", this._onFocus);
+    editorPage.removeEventListener("blur",  this._onBlur);
     document.removeEventListener("selectionchange", this._onSelectionChange);
   }
 
   // ---- Public API ----
 
-  getTextContent(): string {
-    return this._markdown;
-  }
-
-  setTextContent(content: string): void {
+  setContent(content: string): void {
     this._clearPendingDomProcessing();
     this._markdown = content;
     const lines = this._classifyLines(content.split("\n"));
     this._model = buildModel(lines);
+
+    if (!this._editorPage) {
+      return;
+    }
+
     this._processing = true;
     this._renderDom(lines, null);
     this._processing = false;
   }
 
+  getContent(): string {
+    return this._markdown;
+  }
+  
+  protected get _editorPage(): HTMLDivElement {
+    return this.shadowRoot?.querySelector("#editor-page") as HTMLDivElement;
+  }
+
+  protected get _overlay(): HTMLDivElement {
+    return this.shadowRoot?.querySelector("#overlay") as HTMLDivElement;
+  }
+
   // Flush pending debounced updates so callers can safely switch documents.
-  flushPendingChanges(): void {
+  private _flushPendingChanges(): void {
     if (this._pendingProcessTimer === null) {
       return;
     }
@@ -840,7 +867,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
       const after = this._markdown.slice(this._savedEnd);
       this._savedStart = this._savedStart + text.length;
       this._savedEnd = this._savedStart;
-      this.setTextContent(before + text + after);
+      this.setContent(before + text + after);
     }
   }
 
@@ -851,7 +878,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   };
 
   private _onBlur = (_e: FocusEvent): void => {
-    this.flushPendingChanges();
+    this._flushPendingChanges();
     this._renderSelectionMarkers();
     this._setActiveLineDivs(null);
   };
@@ -1047,13 +1074,18 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
    * textContent of each div equals the raw markdown line.
    */
   private _renderDom(lines: MdLine[], caretPos: CaretPos | null): void {
-    const doc = this._editorPage.ownerDocument;
+    const editorPage = this._editorPage;
+    if (!editorPage) {
+      return;
+    }
+
+    const doc = editorPage.ownerDocument;
     
     // Note: Ideally I would like to reuse existing divs and just update their content to avoid disrupting the caret,
     // but in practice it's simpler and more robust to just wipe and rebuild the whole DOM on every change, since we save and restore the caret separately.
     // Modern browsers can handle this without noticeable performance issues for typical document sizes.
 
-    this._editorPage.innerHTML = "";
+    editorPage.innerHTML = "";
 
     // Tracks ordered-list counter per nesting depth across consecutive ol items.
     // Truncated when depth decreases; reset entirely on any non-list line.
@@ -1109,7 +1141,7 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
         if (!div.firstChild) div.appendChild(doc.createElement("br"));
       }
 
-      this._editorPage.appendChild(div);
+      editorPage.appendChild(div);
     }
 
     if (caretPos) this._restoreCaretPos(caretPos);
@@ -1242,9 +1274,12 @@ export class MarkdownEditor extends BaseHtmlElement implements IEditableText, IS
   // ---- Misc ----
 
   private _initEmptyLine(): void {
-    const div = this._editorPage.ownerDocument.createElement("div");
-    div.appendChild(this._editorPage.ownerDocument.createElement("br"));
-    this._editorPage.appendChild(div);
+    const editorPage = this._editorPage;
+    if (editorPage && editorPage.childNodes.length === 0) {
+      const div = editorPage.ownerDocument.createElement("div");
+      div.appendChild(editorPage.ownerDocument.createElement("br"));
+      editorPage.appendChild(div);
+    }
   }
 
   private _emitChange(): void {

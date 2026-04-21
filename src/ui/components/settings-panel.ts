@@ -8,7 +8,7 @@ const PLATFORM_KEYS: Array<{ label: string; storageKey: string; placeholder: str
 ];
 
 const css = `
-:host {
+ui-settings-panel {
   background: #252526;
   border: 1px solid #555;
   border-radius: 8px;
@@ -22,7 +22,7 @@ const css = `
   margin: auto;
 }
 
-:host::backdrop {
+ui-settings-panel::backdrop {
   background: rgba(0, 0, 0, 0.45);
 }
 
@@ -124,10 +124,12 @@ const css = `
 export class SettingsPanel extends BaseHtmlElement {
   constructor() {
     super();
-    this._render();
   }
 
   connectedCallback(): void {
+    if (!this.querySelector(".panel-header")) {
+      this._render();
+    }
     // Reload values from storage each time the popover is shown
     this.addEventListener("toggle", (e: Event) => {
       if ((e as ToggleEvent).newState === "open") {
@@ -135,7 +137,7 @@ export class SettingsPanel extends BaseHtmlElement {
       }
     });
 
-    this.shadowRoot!.querySelector(".close-btn")!.addEventListener("click", () => {
+    this.querySelector(".close-btn")!.addEventListener("click", () => {
       (this as HTMLElement & { hidePopover(): void }).hidePopover();
     });
   }
@@ -153,7 +155,7 @@ export class SettingsPanel extends BaseHtmlElement {
       </div>
     `).join("");
 
-    this.shadowRoot!.innerHTML = `
+    this.innerHTML = `
       <style>${css}</style>
       <div class="panel-header">
         <span class="panel-title">Settings</span>
@@ -165,14 +167,14 @@ export class SettingsPanel extends BaseHtmlElement {
     `;
 
     // Wire up inputs and show/hide toggles
-    this.shadowRoot!.querySelectorAll<HTMLInputElement>("input[data-storage-key]").forEach(input => {
+    this.querySelectorAll<HTMLInputElement>("input[data-storage-key]").forEach(input => {
       input.addEventListener("change", () => this._save(input));
     });
 
-    this.shadowRoot!.querySelectorAll<HTMLButtonElement>(".show-btn").forEach(btn => {
+    this.querySelectorAll<HTMLButtonElement>(".show-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const key = btn.dataset.storageKey!;
-        const input = this.shadowRoot!.querySelector<HTMLInputElement>(`input[data-storage-key="${key}"]`)!;
+        const input = this.querySelector<HTMLInputElement>(`input[data-storage-key="${key}"]`)!;
         const isHidden = input.type === "password";
         input.type = isHidden ? "text" : "password";
         btn.textContent = isHidden ? "Hide" : "Show";
@@ -181,7 +183,7 @@ export class SettingsPanel extends BaseHtmlElement {
   }
 
   private _loadFromStorage(): void {
-    this.shadowRoot!.querySelectorAll<HTMLInputElement>("input[data-storage-key]").forEach(input => {
+    this.querySelectorAll<HTMLInputElement>("input[data-storage-key]").forEach(input => {
       input.value = localStorage.getItem(input.dataset.storageKey!) ?? "";
       input.classList.remove("saved");
     });

@@ -3,28 +3,29 @@ import { PaneAction } from "./pane.js";
 
 // <document-panel> WebComponent
 export class DocumentPanel extends BaseHtmlElement {
-  private _listEl: HTMLUListElement;
+  private _listEl!: HTMLUListElement;
   private _documents: Array<{ id: string; title?: string }>;
   private _activeId: string | null;
   private _dirtyIds: Set<string>;
 
   constructor() {
     super();
-
-    this.shadowRoot!.innerHTML = `
-<div class="panel">
-  <ul class="document-list list" role="list"></ul>
-  <div class="cover empty" aria-hidden="true">No documents yet.</div>
-</div>
-`;
-
-    this._listEl = this.shadowRoot!.querySelector(".list") as HTMLUListElement;
     this._documents = [];
     this._activeId = null;
     this._dirtyIds = new Set();
   }
 
   connectedCallback(): void {
+    if (!this._listEl) {
+      this.innerHTML = `
+<div class="panel">
+  <ul class="document-list list" role="list"></ul>
+  <div class="cover empty" aria-hidden="true">No documents yet.</div>
+</div>
+`;
+      this._listEl = this.querySelector(".list") as HTMLUListElement;
+      this._render();
+    }
     this._listEl.addEventListener("click", this._handleListClick);
   }
 
@@ -189,7 +190,7 @@ export class DocumentPanel extends BaseHtmlElement {
       this._listEl.removeChild(this._listEl.firstChild);
     }
 
-    const empty = this.shadowRoot!.querySelector(".empty") as HTMLDivElement;
+    const empty = this.querySelector(".empty") as HTMLDivElement;
     if (this._documents.length === 0) {
       empty.style.display = "";
       this._listEl.style.display = "none";

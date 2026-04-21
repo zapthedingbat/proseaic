@@ -26,7 +26,7 @@ export class TextEditor extends BaseHtmlElement {
     super();
     
     // Initialize shadow DOM with editor styles and structure
-    this.shadowRoot!.innerHTML = `
+    this.innerHTML = `
       <style>
         :host {
           flex: 1;

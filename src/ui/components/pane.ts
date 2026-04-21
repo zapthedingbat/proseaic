@@ -22,101 +22,14 @@ type PaneActionProvider = Element & {
 export class UiPane extends BaseHtmlElement {
   static observedAttributes = ["title"];
 
-  private _twisty: HTMLButtonElement;
-  private _titleEl: HTMLElement;
-  private _actionsEl: HTMLElement;
-  private _contentSlot: HTMLSlotElement;
   private _provider: PaneActionProvider | null = null;
+  private _childObserver: MutationObserver | null = null;
 
-  constructor() {
-    super();
-    this.shadowRoot!.innerHTML = `
-<style>
-  :host {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    flex: 1;
-    min-height: 0;
-  }
-  :host([collapsed]) {
-    flex: 0 0 auto;
-  }
+  connectedCallback(): void {
+    // Capture pre-existing children (e.g. panel components from HTML) before innerHTML clears them.
+    const children = Array.from(this.childNodes);
 
-  :host(:not(:first-child)) {
-    border-top: var(--pane-border);
-  }
-
-  .header {
-    display: flex;
-    align-items: center;
-    gap: var(--gap);
-    padding: 0 var(--gap);
-    height: 28px;
-    flex-shrink: 0;
-    user-select: none;
-  }
-  .twisty {
-    border: none;
-    background: transparent;
-    color: var(--text-color, inherit);
-    cursor: pointer;
-    padding: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.7;
-    flex-shrink: 0;
-    border-radius: var(--ui-border-radius);
-  }
-  .twisty:hover {
-    background: var(--action-item-bg-color);
-    opacity: 1;
-  }
-  .twisty-icon {
-    transition: transform 0.2s ease;
-  }
-  :host([collapsed]) .twisty-icon {
-    transform: rotate(-90deg);
-  }
-  .title {
-    flex: 1;
-    font-size: 1rem;
-    font-weight: 600;
-    opacity: 0.9;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: var(--gap);
-    flex-shrink: 0;
-  }
-  .body {
-    flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  #content-slot {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-  }
-  #content-slot::slotted(*) {
-    display: block;
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 100%;
-    overflow: hidden;
-  }
-  :host([collapsed]) .body {
-    display: none;
-  }
-</style>
+    this.innerHTML = `
 <div class="header">
   <button class="twisty" type="button" aria-label="Toggle pane">
     <i class="twisty-icon codicon codicon-chevron-down"></i>
@@ -125,44 +38,61 @@ export class UiPane extends BaseHtmlElement {
   <div class="actions" part="actions"></div>
 </div>
 <div class="body">
-  <slot id="content-slot"></slot>
+  <div class="pane-body-content"></div>
 </div>
 `;
-    this._twisty = this.shadowRoot!.querySelector(".twisty") as HTMLButtonElement;
-    this._titleEl = this.shadowRoot!.querySelector(".title") as HTMLElement;
-    this._actionsEl = this.shadowRoot!.querySelector(".actions") as HTMLElement;
-    this._contentSlot = this.shadowRoot!.querySelector("#content-slot") as HTMLSlotElement;
-  }
 
-  connectedCallback(): void {
-    this._twisty.addEventListener("click", this._handleTwistyClick);
-    this._contentSlot.addEventListener("slotchange", this._handleContentSlotChange);
+    // Move captured children into the body content area.
+    const bodyContent = this._bodyContent;
+    for (const child of children) {
+      bodyContent.appendChild(child);
+    }
+
+    // Apply title from attribute (attributeChangedCallback may fire before connectedCallback).
+    const title = this.getAttribute("title");
+    if (title) {
+      this._titleEl.textContent = title;
+    }
+
+    const twisty = this.querySelector(".twisty") as HTMLButtonElement;
+    twisty.addEventListener("click", this._handleTwistyClick);
     this._actionsEl.addEventListener("click", this._handleActionClick);
-    this._applyCollapsed(this._loadCollapsed());
-    this._titleEl.textContent = this.getAttribute("title") ?? "";
+
+    this._childObserver = new MutationObserver(this._handleContentChange);
+    this._childObserver.observe(bodyContent, { childList: true });
+
     this._refreshProvider();
     this._renderActions();
   }
 
   disconnectedCallback(): void {
-    this._twisty.removeEventListener("click", this._handleTwistyClick);
-    this._contentSlot.removeEventListener("slotchange", this._handleContentSlotChange);
-    this._actionsEl.removeEventListener("click", this._handleActionClick);
+    const twisty = this.querySelector(".twisty") as HTMLButtonElement;
+    twisty?.removeEventListener("click", this._handleTwistyClick);
+    this._actionsEl?.removeEventListener("click", this._handleActionClick);
+    this._childObserver?.disconnect();
+    this._childObserver = null;
     this._detachProviderListener();
   }
 
   attributeChangedCallback(_name: string, _old: string | null, value: string | null): void {
-    this._titleEl.textContent = value ?? "";
+    switch (_name) {
+      case "title":
+        // _titleEl may be null if this fires before connectedCallback; title is also applied there.
+        if (this._titleEl) this._titleEl.textContent = value ?? "";
+        break;
+    }
   }
 
-  private get _storageKey(): string {
-    return `ui-pane:${this.getAttribute("title") ?? ""}:collapsed`;
+  protected get _bodyContent(): HTMLElement {
+    return this.querySelector(".pane-body-content") as HTMLElement;
   }
 
-  private _loadCollapsed(): boolean {
-    const saved = localStorage.getItem(this._storageKey);
-    if (saved !== null) return saved === "true";
-    return this.hasAttribute("collapsed");
+  protected get _actionsEl(): HTMLElement {
+    return this.querySelector(".actions") as HTMLElement;
+  }
+
+  protected get _titleEl(): HTMLElement {
+    return this.querySelector(".title") as HTMLElement;
   }
 
   private _applyCollapsed(collapsed: boolean): void {
@@ -175,11 +105,10 @@ export class UiPane extends BaseHtmlElement {
 
   private _handleTwistyClick = (): void => {
     const collapsed = !this.hasAttribute("collapsed");
-    localStorage.setItem(this._storageKey, String(collapsed));
     this._applyCollapsed(collapsed);
   };
 
-  private _handleContentSlotChange = (): void => {
+  private _handleContentChange = (): void => {
     this._refreshProvider();
     this._renderActions();
   };
@@ -196,8 +125,8 @@ export class UiPane extends BaseHtmlElement {
   }
 
   private _refreshProvider(): void {
-    const assigned = this._contentSlot.assignedElements({ flatten: true });
-    const nextProvider = (assigned[0] ?? null) as PaneActionProvider | null;
+    const children = Array.from(this._bodyContent?.children ?? []);
+    const nextProvider = (children[0] ?? null) as PaneActionProvider | null;
     if (nextProvider === this._provider) {
       return;
     }
@@ -249,8 +178,4 @@ export class UiPane extends BaseHtmlElement {
       composed: true
     }));
   };
-}
-
-if (!customElements.get("ui-pane")) {
-  customElements.define("ui-pane", UiPane);
 }
