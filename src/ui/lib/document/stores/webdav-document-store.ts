@@ -1,4 +1,5 @@
-import { DocumentConcurrencyError, IDocumentStore } from "./document-store";
+import { IDocumentStore } from "../document-store.ts";
+import { DocumentConcurrencyError } from "../errors.ts";
 
 export class WebDavDocumentStore implements IDocumentStore {
   namespace: string = "webdav";
