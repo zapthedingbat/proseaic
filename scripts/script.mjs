@@ -241,7 +241,9 @@ const result = script.apply(null, [abortController.signal, ...args]);
 if (result instanceof Promise) {
   result.then(() => {
     console.log(`Script for mode '${mode}' completed successfully.`);
-    process.exit(0);
+    if (mode === "build") {
+      process.exit(0);
+    }
   })
   .catch(err => {
     console.error(`Error running script for mode '${mode}':`, err);

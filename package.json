@@ -7,7 +7,9 @@
     "build": "node -r dotenv/config scripts/script.mjs",
     "watch": "node -r dotenv/config scripts/script.mjs",
     "start": "node -r dotenv/config scripts/script.mjs",
-    "test": "vitest run --environment jsdom"
+    "test": "vitest run --environment jsdom",
+    "test:smoke": "playwright test -c playwright.smoke.config.ts",
+    "test:smoke:headed": "playwright test -c playwright.smoke.config.ts --headed"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +22,7 @@
     "marked": "^18.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "dotenv": "^17.4.0",
     "esbuild": "^0.25.4",
     "jsdom": "^27.0.1",
