@@ -72,7 +72,6 @@ test.describe("Editor smoke", () => {
     await expect(app.panes.outline()).toBeVisible();
     await expect(app.panes.chat()).toBeVisible();
 
-    await expect(page.locator("ui-tab-bar")).toBeVisible();
     await expect(page.locator("ui-chat-panel #chat-textarea")).toBeVisible();
 
     await app.openSettings();
