@@ -24,17 +24,21 @@ const schema: ToolSchema = {
 
 export class ReadDocumentSectionTool {
   schema = schema;
-  private _doc: IStructuredDocument;
+  private _getDoc: () => IStructuredDocument | null;
   private _logger: Logger;
 
-  constructor(loggerFactory: LoggerFactory, doc: IStructuredDocument) {
+  constructor(loggerFactory: LoggerFactory, getDoc: () => IStructuredDocument | null) {
     this._logger = loggerFactory("Read Document Section Tool");
-    this._doc = doc;
+    this._getDoc = getDoc;
   }
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
+    const doc = this._getDoc();
+    if (!doc) {
+      throw new Error("No focused editor is available.");
+    }
     const sectionId = args.section_id as string;
-    const sectionContent = this._doc.getSectionContent(sectionId);
+    const sectionContent = doc.getSectionContent(sectionId);
     return {
         section: sectionContent
     };

@@ -2,7 +2,7 @@ import { JSONValue } from "../lib/JSONValue.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
-import { IDocumentToolContext } from "./document-tool-context.js";
+import { IWorkbench } from "../lib/workbench.js";
 
 const schema: ToolSchema = {
   type: "function",
@@ -12,46 +12,35 @@ const schema: ToolSchema = {
     parameters: {
       type: "object",
       properties: {
-        title: {
+        filename: {
           type: "string",
-          description: "Title for the new document."
+          description: "filename for the new document, including path if desired. If not provided, a default name will be generated."
         },
-        store: {
-          type: "string",
-          description: "Optional document store namespace. Omit this to use the default store."
-        }
       },
-      required: ["title"]
+      required: []
     }
   }
 };
 
 export class CreateDocumentTool {
   schema = schema;
-  private _context: IDocumentToolContext;
+  private _workspace: IWorkbench;
   private _logger: Logger;
 
-  constructor(loggerFactory: LoggerFactory, context: IDocumentToolContext) {
+  constructor(loggerFactory: LoggerFactory, workspace: IWorkbench) {
     this._logger = loggerFactory("Create Document Tool");
-    this._context = context;
+    this._workspace = workspace;
   }
 
-  addContext = (): Record<string, unknown> => ({
-    document_management: {
-      active_document_id: this._context.getActiveDocumentId(),
-      available_stores: this._context.getStoreNamespaces()
-    }
-  });
+  addContext = () => ({});
 
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
-    const title = args.title as string;
-    const store = args.store as string | undefined;
-    const document = await this._context.createDocument(title, store);
+    const filename = args.filename as string | undefined;
+    const documentId = await this._workspace.createDocument(filename);
 
     return {
-      document,
-      active_document_id: document.id
+      new_document_id: documentId
     };
   };
 }

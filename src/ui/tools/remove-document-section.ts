@@ -24,19 +24,23 @@ const schema: ToolSchema = {
 
 export class RemoveDocumentSectionTool {
   schema = schema;
-  private _doc: IStructuredDocument;
+  private _getDoc: () => IStructuredDocument | null;
   private _logger: Logger;
 
-  constructor(loggerFactory: LoggerFactory, doc: IStructuredDocument) {
+  constructor(loggerFactory: LoggerFactory, getDoc: () => IStructuredDocument | null) {
     this._logger = loggerFactory("Remove Document Section Tool");
-    this._doc = doc;
+    this._getDoc = getDoc;
   }
 
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
+    const doc = this._getDoc();
+    if (!doc) {
+      throw new Error("No focused editor is available.");
+    }
     const sectionId = args.section_id as string;
 
-    this._doc.removeSection(sectionId);
+    doc.removeSection(sectionId);
 
     return {
       section_id: sectionId,

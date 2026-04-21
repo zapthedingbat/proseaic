@@ -29,18 +29,22 @@ const schema: ToolSchema = {
 
 export class ReplaceSelectionTool {
   schema = schema;
-  private _editor: IEditableText;
+  private _getEditor: () => IEditableText | null;
   private _logger: Logger;
 
-  constructor(loggerFactory: LoggerFactory, editor: IEditableText) {
+  constructor(loggerFactory: LoggerFactory, getEditor: () => IEditableText | null) {
     this._logger = loggerFactory("Replace Selection Tool");
-    this._editor = editor;
+    this._getEditor = getEditor;
   }
   
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
+    const editor = this._getEditor();
+    if (!editor) {
+      throw new Error("No focused editor is available.");
+    }
     const text = args.text as string;
-    this._editor.replaceSelection(text);
+    editor.replaceSelection(text);
     return {};
   }
 }

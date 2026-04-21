@@ -32,20 +32,24 @@ const schema: ToolSchema = {
 
 export class InsertDocumentSectionTool {
   schema = schema;
-  private _doc: IStructuredDocument;
+  private _getDoc: () => IStructuredDocument | null;
   private _logger: Logger;
 
-  constructor(loggerFactory: LoggerFactory, doc: IStructuredDocument) {
+  constructor(loggerFactory: LoggerFactory, getDoc: () => IStructuredDocument | null) {
     this._logger = loggerFactory("Insert Document Section Tool");
-    this._doc = doc;
+    this._getDoc = getDoc;
   }
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
+    const doc = this._getDoc();
+    if (!doc) {
+      throw new Error("No focused editor is available.");
+    }
     const sectionTitle = args.section_title as string;
     const sectionContent = args.section_content as string;
     const insertBeforeSectionId = args.insert_before_section_id as string | undefined;
 
-    this._doc.insertSection(sectionTitle, sectionContent, insertBeforeSectionId);
+    doc.insertSection(sectionTitle, sectionContent, insertBeforeSectionId);
 
     return {
     };
