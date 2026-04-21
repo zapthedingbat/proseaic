@@ -1,3 +1,4 @@
+import { DocumentId } from "../workbench";
 import { IDocumentService } from "./document-service";
 import { FileVersionToken, IDocumentStore } from "./document-store";
 
@@ -8,7 +9,6 @@ type DraftRecord = {
 
 export class DocumentManager implements IDocumentService {
   private static readonly DRAFT_KEY_PREFIX = "document_draft:";
-  private static readonly FILE_EXTENSION = ".md";
   private _stores: Map<string, IDocumentStore>;
   private _dirtyDocumentIds: Set<string>;
   private _documentVersions: Map<string, FileVersionToken | undefined>;
@@ -19,7 +19,31 @@ export class DocumentManager implements IDocumentService {
     this._documentVersions = new Map();
   }
 
-  private _parseDocumentId(id: string): { store: string; docId: string } {
+  toDocumentId(filename: string): string {
+    const escapedId = encodeURIComponent(filename);
+    const storeInstance = this._getDefaultStore();
+    return `${storeInstance.namespace}/${escapedId}`;
+  }
+
+  private _getStoreForDocumentId(id: DocumentId): IDocumentStore {
+    const [storeNamespace] = id.split("/");
+    const store = this._stores.get(storeNamespace);
+    if (!store) {
+      throw new Error(`Document store with namespace ${storeNamespace} not found`);
+    }
+    return store;
+  }
+
+  private _getDefaultStore(): IDocumentStore {
+    const store = this._stores.values().next().value;
+    if (!store) {
+      throw new Error("No document stores registered");
+    }
+    return store;
+  }
+
+
+  private _parseDocumentId(id: DocumentId): { store: string; docId: string } {
     const [store, docId] = id.split("/");
     return {
       store,
@@ -27,21 +51,11 @@ export class DocumentManager implements IDocumentService {
     };
   }
 
-  private _toFilename(title: string): string {
-    return `${title}${DocumentManager.FILE_EXTENSION}`;
-  }
-
-  private _toTitle(filename: string): string {
-    return filename.endsWith(DocumentManager.FILE_EXTENSION)
-      ? filename.slice(0, -DocumentManager.FILE_EXTENSION.length)
-      : filename;
-  }
-
-  private _getDraftStorageKey(id: string): string {
+  private _getDraftStorageKey(id: DocumentId): string {
     return `${DocumentManager.DRAFT_KEY_PREFIX}${id}`;
   }
 
-  private _readDraft(id: string): DraftRecord | null {
+  private _readDraft(id: DocumentId): DraftRecord | null {
     const raw = globalThis.localStorage.getItem(this._getDraftStorageKey(id));
     if (raw === null) {
       return null;
@@ -66,7 +80,7 @@ export class DocumentManager implements IDocumentService {
     }
   }
 
-  private _writeDraft(id: string, content: string, baseVersion?: FileVersionToken): void {
+  private _writeDraft(id: DocumentId, content: string, baseVersion?: FileVersionToken): void {
     const draft: DraftRecord = {
       content,
       baseVersion
@@ -74,11 +88,11 @@ export class DocumentManager implements IDocumentService {
     globalThis.localStorage.setItem(this._getDraftStorageKey(id), JSON.stringify(draft));
   }
 
-  private _clearDraft(id: string): void {
+  private _clearDraft(id: DocumentId): void {
     globalThis.localStorage.removeItem(this._getDraftStorageKey(id));
   }
 
-  private _setDirty(id: string, value: boolean): void {
+  private _setDirty(id: DocumentId, value: boolean): void {
     if (value) {
       this._dirtyDocumentIds.add(id);
       return;
@@ -86,11 +100,11 @@ export class DocumentManager implements IDocumentService {
     this._dirtyDocumentIds.delete(id);
   }
 
-  private _setDocumentVersion(id: string, version?: FileVersionToken): void {
+  private _setDocumentVersion(id: DocumentId, version?: FileVersionToken): void {
     this._documentVersions.set(id, version);
   }
 
-  private _getDocumentVersion(id: string): FileVersionToken | undefined {
+  private _getDocumentVersion(id: DocumentId): FileVersionToken | undefined {
     return this._documentVersions.get(id);
   }
 
@@ -106,24 +120,25 @@ export class DocumentManager implements IDocumentService {
     return Array.from(this._stores.keys());
   }
 
-  async createDocument(title: string, store: string): Promise<string> {
-    const storeInstance = this._stores.get(store);
+  async createDocument(filename: string, content?: string): Promise<string> {
+    // TODO: We should allow specifying the store/namespace when creating a document. 
+    // For now we will just use the first registered store.
+    const storeInstance = this._stores.values().next().value;
     if (!storeInstance) {
-      throw new Error(`Document store with namespace ${store} not found`);
+      throw new Error("No document stores registered");
     }
-    const filename = this._toFilename(title);
     const existingFiles = await storeInstance.ls();
     if (existingFiles.some(file => file.filename === filename)) {
-      throw new Error(`Failed to create document "${title}": File already exists`);
+      throw new Error(`Failed to create document "${filename}": File already exists`);
     }
-    await storeInstance.write(filename, "");
-    const escapedId = encodeURIComponent(filename);
-    const fullId = `${store}/${escapedId}`;
-    this.discardUnsavedDocumentChanges(fullId);
+    const fullId = this.toDocumentId(filename);
+
+    await storeInstance.write(filename, content);
+
     return fullId;
   }
 
-  async readDocument(id: string): Promise<string> {
+  async readDocument(id: DocumentId): Promise<string> {
     const { store, docId } = this._parseDocumentId(id);
     const storeInstance = this._stores.get(store);
     if (!storeInstance) {
@@ -142,7 +157,7 @@ export class DocumentManager implements IDocumentService {
     return draftContent.content;
   }
 
-  async updateDocument(id: string, content: string): Promise<void> {
+  async updateDocument(id: DocumentId, content: string): Promise<void> {
     const { store, docId } = this._parseDocumentId(id);
     const storeInstance = this._stores.get(store);
     if (!storeInstance) {
@@ -155,40 +170,39 @@ export class DocumentManager implements IDocumentService {
     this.discardUnsavedDocumentChanges(id);
   }
 
-  async renameDocument(id: string, title: string): Promise<string> {
-    const { store, docId } = this._parseDocumentId(id);
+  async renameDocument(fromId: DocumentId, toId: DocumentId): Promise<string> {
+    const { store, docId } = this._parseDocumentId(fromId);
     const storeInstance = this._stores.get(store);
     if (!storeInstance) {
       throw new Error(`Document store with namespace ${store} not found`);
     }
-    const newFilename = this._toFilename(title);
-    const movedFilename = await storeInstance.mv(docId, newFilename);
+    const movedFilename = await storeInstance.mv(docId, toId);
     const newFullId = `${store}/${encodeURIComponent(movedFilename)}`;
 
     // Migrate draft to new ID if it exists
-    const draft = this._readDraft(id);
+    const draft = this._readDraft(newFullId);
     if (draft) {
       this._writeDraft(newFullId, draft.content, draft.baseVersion);
-      this._clearDraft(id);
+      this._clearDraft(fromId);
     }
 
     // Migrate version
-    const version = this._getDocumentVersion(id);
+    const version = this._getDocumentVersion(fromId);
     if (version !== undefined) {
       this._setDocumentVersion(newFullId, version);
-      this._documentVersions.delete(id);
+      this._documentVersions.delete(fromId);
     }
 
     // Migrate dirty state
-    if (this._dirtyDocumentIds.has(id)) {
-      this._dirtyDocumentIds.delete(id);
+    if (this._dirtyDocumentIds.has(fromId)) {
+      this._dirtyDocumentIds.delete(fromId);
       this._setDirty(newFullId, true);
     }
 
     return newFullId;
   }
 
-  async deleteDocument(id: string): Promise<void> {
+  async deleteDocument(id: DocumentId): Promise<void> {
     const { store, docId } = this._parseDocumentId(id);
     const storeInstance = this._stores.get(store);
     if (!storeInstance) {
@@ -199,34 +213,31 @@ export class DocumentManager implements IDocumentService {
     this.discardUnsavedDocumentChanges(id);
   }
 
-  async listDocuments(): Promise<{ id: string; title: string }[]> {
-    const allDocs: { id: string; title: string }[] = [];
+  async listDocuments(): Promise<DocumentId[]> {
+    const allDocs: DocumentId[] = [];
     for (const [namespace, storeInstance] of this._stores.entries()) {
       const files = await storeInstance.ls();
-      allDocs.push(...files.map(file => ({
-        id: `${namespace}/${encodeURIComponent(file.filename)}`,
-        title: this._toTitle(file.filename)
-      })));
+      allDocs.push(...files.map(file => `${namespace}/${encodeURIComponent(file.filename)}`));
     }
     return allDocs;
   }
 
-  getDirtyDocumentIds(): string[] {
+  getDirtyDocumentIds(): DocumentId[] {
     return Array.from(this._dirtyDocumentIds);
   }
 
-  isDocumentDirty(id: string): boolean {
+  isDocumentDirty(id: DocumentId): boolean {
     return this._dirtyDocumentIds.has(id);
   }
 
-  setDocumentDraft(id: string, content: string): void {
+  setDocumentDraft(id: DocumentId, content: string): void {
     const existingDraft = this._readDraft(id);
     const baseVersion = existingDraft?.baseVersion ?? this._getDocumentVersion(id);
     this._writeDraft(id, content, baseVersion);
     this._setDirty(id, true);
   }
 
-  discardUnsavedDocumentChanges(id: string): void {
+  discardUnsavedDocumentChanges(id: DocumentId): void {
     this._clearDraft(id);
     this._setDirty(id, false);
   }
