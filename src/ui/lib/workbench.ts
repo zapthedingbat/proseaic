@@ -483,8 +483,15 @@ export class Workbench implements IWorkbench {
 
   private async _syncUI(): Promise<void> {
     this._syncTabBar();
+    this._syncEditorArea();
     await this._syncDocumentPanel();
     this._syncOutlinePanel();
+  }
+
+  private _syncEditorArea(): void {
+    const pane = this._editorGroups[0];
+    if (!pane) return;
+    pane.canvasElement.style.display = pane.activeTabId !== null ? "" : "none";
   }
 
   private _syncTabBar(): void {
