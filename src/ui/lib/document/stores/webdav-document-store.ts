@@ -1,4 +1,4 @@
-import { IDocumentStore } from "../document-store.ts";
+import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store.ts";
 import { DocumentConcurrencyError } from "../errors.ts";
 
 export class WebDavDocumentStore implements IDocumentStore {
@@ -9,6 +9,10 @@ export class WebDavDocumentStore implements IDocumentStore {
     this._baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
   }
 
+  private _toFileVersionToken(etag: string): FileVersionToken {
+    return etag.slice(1, -1) as FileVersionToken;
+  }
+
   private _getUrl(filename: string): string {
     const encoded = filename
       .split("/")
@@ -17,7 +21,7 @@ export class WebDavDocumentStore implements IDocumentStore {
     return `${this._baseUrl}/store/${encoded}`;
   }
 
-  async read(filename: string): Promise<{ content: string; version: string; }> {
+  async read(filename: string): Promise<FileContent> {
     const response = await fetch(this._getUrl(filename), {
       method: "GET",
       credentials: "include"
@@ -38,11 +42,11 @@ export class WebDavDocumentStore implements IDocumentStore {
 
     return {
       content,
-      version: etag.slice(1, -1)
+      version: this._toFileVersionToken(etag)
     };
   }
 
-  async write(filename: string, content: string, expectedVersion?: string): Promise<string> {
+  async write(filename: string, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
     const headers: Record<string, string> = {
       "Content-Type": "text/markdown"
     };
@@ -73,12 +77,12 @@ export class WebDavDocumentStore implements IDocumentStore {
       throw new Error("No ETag in response");
     }
 
-    return etag.slice(1, -1);
+    return this._toFileVersionToken(etag);
   }
 
-  async mv(fromFilename: string, toFilename: string): Promise<string> {
+  async mv(fromFilename: string, toFilename: string): Promise<void> {
     if (fromFilename === toFilename) {
-      return fromFilename;
+      return;
     }
 
     const destination = this._getUrl(toFilename);
@@ -98,7 +102,7 @@ export class WebDavDocumentStore implements IDocumentStore {
       throw new Error(`Failed to move file: ${response.statusText}`);
     }
 
-    return toFilename;
+    return;
   }
 
   async rm(filename: string): Promise<void> {
@@ -116,7 +120,7 @@ export class WebDavDocumentStore implements IDocumentStore {
     }
   }
 
-  async ls(): Promise<{ filename: string; version: string; }[]> {
+  async ls(): Promise<FileEntry[]> {
     const response = await fetch(`${this._baseUrl}/store/`, {
       method: "PROPFIND",
       credentials: "include"

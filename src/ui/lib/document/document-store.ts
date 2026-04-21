@@ -1,4 +1,4 @@
-export type FileVersionToken = string;
+export type FileVersionToken = string & { readonly __brand: unique symbol };
 
 export type FileContent = {
   content: string;
@@ -13,8 +13,8 @@ export type FileEntry = {
 export interface IDocumentStore {
   namespace: string;
   read(filename: string): Promise<FileContent>;
-  write(filename: string, content?: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken | undefined>;
-  mv(fromFilename: string, toFilename: string): Promise<string>;
+  write(filename: string, content?: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken>;
+  mv(fromFilename: string, toFilename: string): Promise<void>;
   rm(filename: string): Promise<void>;
   ls(): Promise<FileEntry[]>;
 }

@@ -1,4 +1,5 @@
-import { DocumentConcurrencyError, IDocumentStore } from "./document-store";
+import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store";
+import { DocumentConcurrencyError } from "../errors";
 
 type FileSystemDirectoryHandleFactory = () => Promise<FileSystemDirectoryHandle>;
 
@@ -10,15 +11,16 @@ export class FileSystemDocumentStore implements IDocumentStore {
     this._directoryHandleFactory = directoryHandleFactory;
   }
 
-  private _getVersionFromFile(file: File): string {
-    return String(file.lastModified);
+  private _getVersionFromFile(file: File): FileVersionToken {
+    const lastModified = String(file.lastModified);
+    return lastModified as FileVersionToken;
   }
 
   private async _getDirectoryHandle(): Promise<FileSystemDirectoryHandle> {
     return this._directoryHandleFactory();
   }
 
-  async read(filename: string): Promise<{ content: string; version: string; }> {
+  async read(filename: string): Promise<FileContent> {
     const directoryHandle = await this._getDirectoryHandle();
     const fileHandle = await directoryHandle.getFileHandle(filename);
     const file = await fileHandle.getFile();
@@ -29,7 +31,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
     };
   }
 
-  async write(filename: string, content: string, expectedVersion?: string): Promise<string> {
+  async write(filename: string, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
     const directoryHandle = await this._getDirectoryHandle();
     const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
 
@@ -49,9 +51,9 @@ export class FileSystemDocumentStore implements IDocumentStore {
     return this._getVersionFromFile(updatedFile);
   }
 
-  async mv(fromFilename: string, toFilename: string): Promise<string> {
+  async mv(fromFilename: string, toFilename: string): Promise<void> {
     if (fromFilename === toFilename) {
-      return fromFilename;
+      return;
     }
 
     const directoryHandle = await this._getDirectoryHandle();
@@ -75,7 +77,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
 
       await directoryHandle.removeEntry(fromFilename);
 
-      return toFilename;
+      return;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(`Failed to move file "${fromFilename}" to "${toFilename}": ${message}`);
@@ -87,8 +89,8 @@ export class FileSystemDocumentStore implements IDocumentStore {
     await directoryHandle.removeEntry(filename);
   }
 
-  async ls(): Promise<{ filename: string; version: string; }[]> {
-    const files: { filename: string; version: string; }[] = [];
+  async ls(): Promise<FileEntry[]> {
+    const files: FileEntry[] = [];
     const directoryHandle = await this._getDirectoryHandle();
     const handles = directoryHandle as unknown as AsyncIterable<[string, FileSystemHandle]>;
     for await (const [, entry] of handles) {

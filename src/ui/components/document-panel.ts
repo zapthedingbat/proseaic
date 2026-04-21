@@ -122,8 +122,10 @@ export class DocumentPanel extends BaseHtmlElement {
       titleBtn.textContent = newTitle;
       titleBtn.title = newTitle;
       input.replaceWith(titleBtn);
+
+      // TODO: Use typed custom events instead of relying on the event detail having the expected shape.
       this.dispatchEvent(new CustomEvent("rename", {
-        detail: { fromId: docId, toId: newTitle },
+        detail: { fromId: docId, toFilepath: newTitle },
         bubbles: true,
         composed: true,
       }));
