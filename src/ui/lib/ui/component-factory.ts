@@ -51,7 +51,10 @@ export class ComponentFactory {
       throw new Error(`Constructor ${ctor.name} is not registered as a custom element and no tag prefix is configured for auto-registration.`);
     }
 
-    const baseName = ctor.name.replace(/^Ui(?=[A-Z])/, "");
+    // Strip leading underscores added by bundlers (e.g. esbuild renames classes
+    // with static fields from `MarkdownEditor` to `_MarkdownEditor`), then strip
+    // the "Ui" prefix used by our component naming convention.
+    const baseName = ctor.name.replace(/^_+/, "").replace(/^Ui(?=[A-Z])/, "");
     const kebabName = baseName
       .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
       .replace(/([A-Z])([A-Z][a-z])/g, "$1-$2")

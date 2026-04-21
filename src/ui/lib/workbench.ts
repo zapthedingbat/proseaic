@@ -316,7 +316,7 @@ export class Workbench implements IWorkbench {
     const documentTabId = this._openDocuments.find(doc => doc.documentId === documentId);
     if (documentTabId) {
       // Document is already open, just focus the existing tab.
-      this._selectTab(documentTabId.tabId);
+      await this._selectTab(documentTabId.tabId);
       return;
     }
 
@@ -347,13 +347,6 @@ export class Workbench implements IWorkbench {
       // Use the documentService to load the document content, then set it in the editor.
       const content = await this._documentService.readDocument(documentId);
       editor.setContent(content);
-      
-      // Set up an onChange listener for the editor to track when the document becomes dirty.
-      editor.addEventListener("change", (evt: Event) => {
-        const content = editor.getContent();
-        this._documentStateService.setDocumentDraft(documentId, content);
-        void this._syncUI();
-      });
     }
     await this._syncUI();
   }
@@ -366,6 +359,17 @@ export class Workbench implements IWorkbench {
       editor = await this._editorComponentFactory(format);
       pane.canvasElement.appendChild(editor);
       this._editors.set(pane, editor);
+
+      // A single change listener per editor instance. Always reads the currently
+      // focused document so that switching tabs cannot leak drafts into the wrong document.
+      const editorRef = editor;
+      editor.addEventListener("change", () => {
+        const focusedDocId = this._getFocusedDocumentId();
+        if (focusedDocId) {
+          this._documentStateService.setDocumentDraft(focusedDocId, editorRef.getContent());
+          void this._syncUI();
+        }
+      });
     }
     return editor;
   }
@@ -402,11 +406,6 @@ export class Workbench implements IWorkbench {
         const documentId = documentEntry.documentId;
         const content = await this._documentService.readDocument(documentId);
         editor.setContent(content);
-        editor.addEventListener("change", (evt: Event) => {
-          const content = editor.getContent();
-          this._documentStateService.setDocumentDraft(documentEntry.documentId, content);
-          void this._syncUI();
-        });
       }
     }
     await this._syncUI();
