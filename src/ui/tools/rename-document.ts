@@ -14,24 +14,24 @@ const schema: ToolSchema = {
       properties: {
         fromId: {
           type: "string",
-          description: "Original document filename."
+          description: "Original document ID."
         },
-        toId: {
+        toFilepath: {
           type: "string",
-          description: "New document filename."
+          description: "New document filename. Not the full ID, just the filename or path within the same store"
         }
       },
-      required: ["fromId", "toId"]
+      required: ["fromId", "toFilepath"]
     }
   }
 };
 
 export class RenameDocumentTool {
   schema = schema;
-  private _workspace: IWorkbench;
   private _logger: Logger;
+  private _workspace: IWorkbench;
 
-  constructor(loggerFactory: LoggerFactory, workspace: IWorkbench ) {
+  constructor(loggerFactory: LoggerFactory, workspace: IWorkbench) {
     this._logger = loggerFactory("Rename Document Tool");
     this._workspace = workspace;
   }
@@ -39,9 +39,8 @@ export class RenameDocumentTool {
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
     const fromId = args.fromId as string;
-    const toId = args.toId as string;
-
-    await this._workspace.renameDocument(fromId, toId);
+    const toFilepath = args.toFilepath as string;
+    await this._workspace.renameDocument(fromId, toFilepath);
 
     return {};
   };

@@ -22,13 +22,13 @@ export type TabId = string;
 export interface IWorkbench {
   closeDocument(documentId: StoreQualifiedDocumentId): Promise<void>;
   closeFocusedTab(): Promise<void>;
-  createDocument(filepath?: Filepath): Promise<StoreQualifiedDocumentId>;
+  createDocument(filepath?: Filepath | string): Promise<StoreQualifiedDocumentId>;
   deleteDocument(id: StoreQualifiedDocumentId): Promise<void>;
   getFocusedEditor(): IEditorComponent | null;
   listOpenDocuments(): Array<WorkbenchDocumentState>;
   mount(containerEl: HTMLElement): void;
-  openDocument(id: StoreQualifiedDocumentId): Promise<void>;
-  renameDocument(fromId: StoreQualifiedDocumentId, toFilepath: Filepath): Promise<void>;
+  openDocument(id: StoreQualifiedDocumentId | string): Promise<void>;
+  renameDocument(fromId: StoreQualifiedDocumentId | string, toFilepath: Filepath | string): Promise<void>;
   saveFocusedDocument(): Promise<void>;
   saveFocusedDocumentAs(): Promise<void>;
 }
