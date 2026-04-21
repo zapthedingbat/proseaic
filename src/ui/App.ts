@@ -287,62 +287,62 @@ export class App implements IUserInteraction {
     ]);
   }
 
-  private _handleDocumentSelect = async (event: Event): Promise<void> => {
-    const { id } = (event as CustomEvent<{ id: string }>).detail;
-    await this._workbench.openDocument(id);
-  }
+  // private _handleDocumentSelect = async (event: Event): Promise<void> => {
+  //   const { id } = (event as CustomEvent<{ id: string }>).detail;
+  //   await this._workbench.openDocument(id);
+  // }
 
-  private _handleDocumentRename = async (event: Event): Promise<void> => {
-    const { fromId, toId } = (event as CustomEvent<{ fromId: string; toId: string }>).detail;
-    await this._workbench.renameDocument(fromId, toId);
-  }
+  // private _handleDocumentRename = async (event: Event): Promise<void> => {
+  //   const { fromId, toId } = (event as CustomEvent<{ fromId: string; toId: string }>).detail;
+  //   await this._workbench.renameDocument(fromId, toId);
+  // }
 
-  private _handleDocumentDelete = async (event: Event): Promise<void> => {
-    const { id } = (event as CustomEvent<{ id: string }>).detail;
-    await this._workbench.deleteDocument(id);
-  }
+  // private _handleDocumentDelete = async (event: Event): Promise<void> => {
+  //   const { id } = (event as CustomEvent<{ id: string }>).detail;
+  //   await this._workbench.deleteDocument(id);
+  // }
 
-  private _handleDocumentCreate = async (): Promise<void> => {
-    await this._workbench.createDocument();
-  }
+  // private _handleDocumentCreate = async (): Promise<void> => {
+  //   await this._workbench.createDocument();
+  // }
 
-  private _handleTabSelect = async (event: Event): Promise<void> => {
-    const { id } = (event as CustomEvent<{ id: string }>).detail;
-    await this._workbench.openDocument(id);
-  }
+  // private _handleTabSelect = async (event: Event): Promise<void> => {
+  //   const { id } = (event as CustomEvent<{ id: string }>).detail;
+  //   await this._workbench.openDocument(id);
+  // }
 
-  private _handleTabClose = async (event: Event): Promise<void> => {
-    const { id } = (event as CustomEvent<{ id: string }>).detail;
-    if (!id) {
-      return;
-    }
+  // private _handleTabClose = async (event: Event): Promise<void> => {
+  //   const { id } = (event as CustomEvent<{ id: string }>).detail;
+  //   if (!id) {
+  //     return;
+  //   }
 
-    await this._workbench.closeDocument(id);
-  }
+  //   await this._workbench.closeDocument(id);
+  // }
 
-  private _handleOutlineSelect = (event: Event): void => {
-    const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
-    const editor = this._workbench.getFocusedEditor() as any;
-    editor?.focusSection(sectionId);
-  }
+  // private _handleOutlineSelect = (event: Event): void => {
+  //   const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+  //   const editor = this._workbench.getFocusedEditor() as any;
+  //   editor?.focusSection(sectionId);
+  // }
 
-  private _handleOutlineDelete = (event: Event): void => {
-    const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
-    const editor = this._workbench.getFocusedEditor() as any;
-    editor?.removeSection(sectionId);
-  }
+  // private _handleOutlineDelete = (event: Event): void => {
+  //   const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+  //   const editor = this._workbench.getFocusedEditor() as any;
+  //   editor?.removeSection(sectionId);
+  // }
 
-  private _handleOutlineDecreaseLevel = (event: Event): void => {
-    const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
-    const editor = this._workbench.getFocusedEditor() as any;
-    editor?.decreaseSectionLevel(sectionId);
-  }
+  // private _handleOutlineDecreaseLevel = (event: Event): void => {
+  //   const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+  //   const editor = this._workbench.getFocusedEditor() as any;
+  //   editor?.decreaseSectionLevel(sectionId);
+  // }
 
-  private _handleOutlineIncreaseLevel = (event: Event): void => {
-    const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
-    const editor = this._workbench.getFocusedEditor() as any;
-    editor?.increaseSectionLevel(sectionId);
-  }
+  // private _handleOutlineIncreaseLevel = (event: Event): void => {
+  //   const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+  //   const editor = this._workbench.getFocusedEditor() as any;
+  //   editor?.increaseSectionLevel(sectionId);
+  // }
 
   // private _handleEditorChange = (event: Event): void => {
   //   this._refreshOutlinePanel();

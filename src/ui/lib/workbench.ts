@@ -162,7 +162,7 @@ export class Workbench implements IWorkbench {
         return;
       }
       await this._ui.alert(`Failed to rename document: ${err instanceof Error ? err.message : String(err)}`);
-      return;
+      throw err;
     }
 
     // If the renamed document is currently open in a tab, we should also update the tab's title to reflect the new document name.

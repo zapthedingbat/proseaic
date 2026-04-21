@@ -123,7 +123,7 @@ export class DocumentPanel extends BaseHtmlElement {
       titleBtn.title = newTitle;
       input.replaceWith(titleBtn);
       this.dispatchEvent(new CustomEvent("rename", {
-        detail: { id: docId, title: newTitle },
+        detail: { fromId: docId, toId: newTitle },
         bubbles: true,
         composed: true,
       }));
