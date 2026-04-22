@@ -1,3 +1,4 @@
+import { DocumentId, DocumentPath } from "../lib/document/document-service.js";
 import { JSONValue } from "../lib/JSONValue.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
@@ -40,7 +41,18 @@ export class RenameDocumentTool {
     this._logger.debug("Executing with args:", args);
     const fromId = args.fromId as string;
     const toFilepath = args.toFilepath as string;
-    await this._workspace.renameDocument(fromId, toFilepath);
+
+    if(!DocumentId.isValidFormat(fromId)) {
+      throw new Error("fromId must be a valid DocumentId string");
+    }
+    const fromDocumentId = DocumentId.parse(fromId);
+    
+    if(!DocumentPath.isValidFormat(toFilepath)) {
+      throw new Error("toFilepath must be a valid DocumentPath string");
+    }
+    const toDocumentPath = DocumentPath.parse(toFilepath);
+
+    await this._workspace.renameDocument(fromDocumentId, toDocumentPath);
 
     return {};
   };

@@ -64,6 +64,13 @@ export function storeRoutes(moduleUrl, storeDir){
       fs.readFile(filePath, "utf8")
     ]);
 
+    if(filePath.endsWith(".md")){
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    }
+
+    // Set Content-Disposition header to suggest a filename when downloading the file. This allows 'Download' UX with a meaningful filename.
+    res.setHeader("Content-disposition", `attachment; filename="${path.basename(filePath)}"`);
+
     res.setHeader("ETag", `"${stats.mtime.getTime()}"`);
     res.status(200).send(content);
   };

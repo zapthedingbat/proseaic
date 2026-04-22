@@ -1,3 +1,4 @@
+import { DocumentPath } from "../lib/document/document-service.js";
 import { JSONValue } from "../lib/JSONValue.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
@@ -36,11 +37,14 @@ export class CreateDocumentTool {
 
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
-    const filename = args.filename as string | undefined;
-    const documentId = await this._workspace.createDocument(filename);
-
+    const filename = args.filename as string;
+    if(filename && typeof filename !== "string") {
+      throw new Error("filename must be a string");
+    }
+    const documentPath = DocumentPath.parse(filename);
+    const documentId = await this._workspace.createDocument(documentPath);
     return {
-      new_document_id: documentId
+      new_document_id: documentId.toString()
     };
   };
 }

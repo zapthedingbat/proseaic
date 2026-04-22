@@ -1,3 +1,4 @@
+import { DocumentPath } from "../document-service";
 import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store";
 import { DocumentConcurrencyError } from "../errors";
 
@@ -20,9 +21,9 @@ export class FileSystemDocumentStore implements IDocumentStore {
     return this._directoryHandleFactory();
   }
 
-  async read(filename: string): Promise<FileContent> {
+  async read(filepath: DocumentPath): Promise<FileContent> {
     const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(filename);
+    const fileHandle = await directoryHandle.getFileHandle(filepath.toString());
     const file = await fileHandle.getFile();
     const content = await file.text();
     return {
@@ -31,9 +32,9 @@ export class FileSystemDocumentStore implements IDocumentStore {
     };
   }
 
-  async write(filename: string, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
+  async write(filepath: DocumentPath, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
     const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+    const fileHandle = await directoryHandle.getFileHandle(filepath.toString(), { create: true });
 
     if (expectedVersion !== undefined) {
       const currentFile = await fileHandle.getFile();
@@ -51,18 +52,18 @@ export class FileSystemDocumentStore implements IDocumentStore {
     return this._getVersionFromFile(updatedFile);
   }
 
-  async mv(fromFilename: string, toFilename: string): Promise<void> {
-    if (fromFilename === toFilename) {
+  async mv(fromFilepath: DocumentPath, toFilepath: DocumentPath): Promise<void> {
+    if (fromFilepath.toString() === toFilepath.toString()) {
       return;
     }
 
     const directoryHandle = await this._getDirectoryHandle();
     try {
-      const fileHandle = await directoryHandle.getFileHandle(fromFilename);
+      const fileHandle = await directoryHandle.getFileHandle(fromFilepath.toString());
       const file = await fileHandle.getFile();
       const content = await file.text();
 
-      const existingTarget = await directoryHandle.getFileHandle(toFilename).then(
+      const existingTarget = await directoryHandle.getFileHandle(toFilepath.toString()).then(
         () => true,
         () => false
       );
@@ -70,23 +71,23 @@ export class FileSystemDocumentStore implements IDocumentStore {
         throw new Error("File already exists");
       }
 
-      const newFileHandle = await directoryHandle.getFileHandle(toFilename, { create: true });
+      const newFileHandle = await directoryHandle.getFileHandle(toFilepath.toString(), { create: true });
       const writable = await newFileHandle.createWritable();
       await writable.write(content);
       await writable.close();
 
-      await directoryHandle.removeEntry(fromFilename);
+      await directoryHandle.removeEntry(fromFilepath.toString());
 
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Failed to move file "${fromFilename}" to "${toFilename}": ${message}`);
+      throw new Error(`Failed to move file "${fromFilepath.toString()}" to "${toFilepath.toString()}": ${message}`);
     }
   }
 
-  async rm(filename: string): Promise<void> {
+  async rm(filepath: DocumentPath): Promise<void> {
     const directoryHandle = await this._getDirectoryHandle();
-    await directoryHandle.removeEntry(filename);
+    await directoryHandle.removeEntry(filepath.toString());
   }
 
   async ls(): Promise<FileEntry[]> {
@@ -97,7 +98,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
       if (entry.kind === "file" && entry.name.endsWith(".md")) {
         const file = await (entry as FileSystemFileHandle).getFile();
         files.push({
-          filename: entry.name,
+          filepath: DocumentPath.parse(entry.name),
           version: this._getVersionFromFile(file)
         });
       }

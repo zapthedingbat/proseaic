@@ -1,3 +1,4 @@
+import { DocumentId } from "../lib/document/document-service.js";
 import { JSONValue } from "../lib/JSONValue.js";
 import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
@@ -34,8 +35,18 @@ export class OpenDocumentTool {
 
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
-    const id = args.id as string;
-    await this._workspace.openDocument(id);
+    const id = args.id;
+    if (typeof id !== "string") {
+      throw new Error("id must be a string");
+    }
+
+    if(!DocumentId.isValidFormat(id)) {
+      throw new Error("id must be a valid DocumentId string");
+    }
+
+    const documentId = DocumentId.parse(id);
+
+    await this._workspace.openDocument(documentId);
     return {};
   };
 }

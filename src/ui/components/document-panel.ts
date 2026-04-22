@@ -1,11 +1,12 @@
+import { DocumentId } from "../lib/document/document-service.js";
 import { BaseHtmlElement } from "./base-html-element";
 import { PaneAction } from "./pane.js";
 
 // <document-panel> WebComponent
 export class DocumentPanel extends BaseHtmlElement {
   private _listEl!: HTMLUListElement;
-  private _documents: Array<{ id: string; title?: string }>;
-  private _activeId: string | null;
+  private _documents: Array<DocumentId>;
+  private _activeId: DocumentId | null;
   private _dirtyIds: Set<string>;
 
   constructor() {
@@ -45,10 +46,10 @@ export class DocumentPanel extends BaseHtmlElement {
     }
   }
 
-  setDocuments(documents: Array<{ id: string; title?: string }>, activeId: string | null, dirtyIds: string[] = []): void {
+  setDocuments(documents: Array<DocumentId>, activeId: DocumentId | null, dirtyIds: DocumentId[] = []): void {
     this._documents = Array.isArray(documents) ? documents : [];
     this._activeId = activeId || null;
-    this._dirtyIds = new Set(dirtyIds);
+    this._dirtyIds = new Set(dirtyIds.map(id => id.toString()));
     this._render();
     this.dispatchEvent(new CustomEvent("pane-actions-changed", {
       bubbles: false,
@@ -56,8 +57,8 @@ export class DocumentPanel extends BaseHtmlElement {
     }));
   }
 
-  public startRename(id: string): void {
-    const row = this._listEl.querySelector<HTMLLIElement>(`.list-item[data-doc-id="${CSS.escape(id)}"]`);
+  public startRename(id: DocumentId): void {
+    const row = this._listEl.querySelector<HTMLLIElement>(`.list-item[data-doc-id="${CSS.escape(id.toString())}"]`);
     if (!row) {
       return;
     }
@@ -73,21 +74,39 @@ export class DocumentPanel extends BaseHtmlElement {
     const action = btn.dataset.action;
     if (!docId || !action) return;
 
-    if (action === "select") {
-      this.dispatchEvent(new CustomEvent("select", {
-        detail: { id: docId },
-        bubbles: true,
-        composed: true,
-      }));
-    } else if (action === "rename") {
-      const row = btn.closest(".list-item") as HTMLLIElement | null;
-      if (row) this._startRename(row);
-    } else if (action === "delete") {
-      this.dispatchEvent(new CustomEvent("delete", {
-        detail: { id: docId },
-        bubbles: true,
-        composed: true,
-      }));
+    switch (action) {
+      case "select":
+        this.dispatchEvent(new CustomEvent("select", {
+          detail: { id: docId },
+          bubbles: true,
+          composed: true,
+        }));
+        break;
+      case "rename":
+        const row = btn.closest(".list-item") as HTMLLIElement | null;
+        if (row) this._startRename(row);
+        break;
+      case "delete":
+        this.dispatchEvent(new CustomEvent("delete", {
+          detail: { id: docId },
+          bubbles: true,
+          composed: true,
+        }));
+        break;
+      case "export":
+        this.dispatchEvent(new CustomEvent("export", {
+          detail: { id: docId },
+          bubbles: true,
+          composed: true,
+        }));
+        break;
+      case "duplicate":
+        this.dispatchEvent(new CustomEvent("duplicate", {
+          detail: { id: docId },
+          bubbles: true,
+          composed: true,
+        }));
+        break;
     }
   };
 
@@ -117,8 +136,6 @@ export class DocumentPanel extends BaseHtmlElement {
     const commit = () => {
       cleanup();
       const newTitle = input.value.trim() || "Untitled";
-      const doc = this._documents.find(d => d.id === docId);
-      if (doc) doc.title = newTitle;
       titleBtn.textContent = newTitle;
       titleBtn.title = newTitle;
       input.replaceWith(titleBtn);
@@ -151,33 +168,34 @@ export class DocumentPanel extends BaseHtmlElement {
     input.select();
   }
 
-  private _makeItemRow(docId: string, title: string): HTMLLIElement {
+  private _makeItemRow(documentId: DocumentId): HTMLLIElement {
     const row = document.createElement("li");
-    const isActive = docId === this._activeId;
-    const isDirty = this._dirtyIds.has(docId);
+    const isActive = this._activeId ? documentId.equals(this._activeId) : false;
+    const isDirty = this._dirtyIds.has(documentId.toString());
     row.className = `action-item list-item${isActive ? " active" : ""}${isDirty ? " dirty" : ""}`;
-    row.dataset.docId = docId;
+    row.dataset.docId = documentId.toString();
 
     const titleBtn = document.createElement("div");
     titleBtn.className = "list-item-title";
-    titleBtn.dataset.docId = docId;
+    titleBtn.classList.toggle("highlight", isDirty);
+    titleBtn.dataset.docId = documentId.toString();
     titleBtn.dataset.action = "select";
-    titleBtn.title = isDirty ? `${title} (unsaved)` : title;
-    titleBtn.textContent = isDirty ? `${title} *` : title;
+    titleBtn.title = documentId.path.filename;
+    titleBtn.textContent = documentId.path.filename;
 
     const actions = document.createElement("div");
     actions.className = "list-item-actions";
 
     const renameBtn = document.createElement("button");
     renameBtn.className = "action-item";
-    renameBtn.dataset.docId = docId;
+    renameBtn.dataset.docId = documentId.toString();
     renameBtn.dataset.action = "rename";
     renameBtn.title = "Rename";
     renameBtn.innerHTML = `<i class="codicon codicon-rename"></i>`;
 
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "action-item";
-    deleteBtn.dataset.docId = docId;
+    deleteBtn.dataset.docId = documentId.toString();
     deleteBtn.dataset.action = "delete";
     deleteBtn.title = "Delete";
     deleteBtn.innerHTML = `<i class="codicon codicon-trash"></i>`;
@@ -200,7 +218,7 @@ export class DocumentPanel extends BaseHtmlElement {
       empty.style.display = "none";
       this._listEl.style.display = "";
       for (const doc of this._documents) {
-        this._listEl.appendChild(this._makeItemRow(doc.id, doc.title || "Untitled"));
+        this._listEl.appendChild(this._makeItemRow(doc));
       }
     }
   }

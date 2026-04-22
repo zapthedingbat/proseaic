@@ -1,7 +1,8 @@
+import { DocumentId } from "./document-service";
 
 export interface IDocumentStateService {
-  getDirtyDocumentIds(): string[];
-  isDocumentDirty(id: string): boolean;
-  setDocumentDraft(id: string, content: string): void;
-  discardUnsavedDocumentChanges(id: string): void;
+  getDirtyDocumentIds(): DocumentId[];
+  isDocumentDirty(id: DocumentId): boolean;
+  setDocumentDraft(id: DocumentId, content: string): void;
+  discardUnsavedDocumentChanges(id: DocumentId): void;
 }

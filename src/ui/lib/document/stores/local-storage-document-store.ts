@@ -1,3 +1,4 @@
+import { DocumentPath } from "../document-service";
 import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store";
 import { DocumentConcurrencyError } from "../errors";
 
@@ -27,10 +28,10 @@ export class LocalStorageDocumentStore implements IDocumentStore {
     };
   }
 
-  async read(filename: string): Promise<FileContent> {
-    const raw = localStorage.getItem(this._getStorageKey(filename));
+  async read(filepath: DocumentPath): Promise<FileContent> {
+    const raw = localStorage.getItem(this._getStorageKey(filepath.toString()));
     if (!raw) {
-      throw new Error(`File not found: ${filename}`);
+      throw new Error(`File not found: ${filepath.toString()}`);
     }
     const doc = this._parseRecord(raw);
     return {
@@ -39,8 +40,8 @@ export class LocalStorageDocumentStore implements IDocumentStore {
     };
   }
 
-  async write(filename: string, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
-    const raw = localStorage.getItem(this._getStorageKey(filename));
+  async write(filepath: DocumentPath, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
+  const raw = localStorage.getItem(this._getStorageKey(filepath.toString()));
     const doc = raw ? this._parseRecord(raw) : { content: "", version: -1 };
     const currentVersion = this._getVersion(doc);
     if (expectedVersion !== undefined && expectedVersion !== currentVersion) {
@@ -48,31 +49,31 @@ export class LocalStorageDocumentStore implements IDocumentStore {
     }
 
     const nextVersion = doc.version + 1;
-    localStorage.setItem(this._getStorageKey(filename), JSON.stringify({ content, version: nextVersion }));
+    localStorage.setItem(this._getStorageKey(filepath.toString()), JSON.stringify({ content, version: nextVersion }));
     return this._getVersion({ content, version: nextVersion });
   }
 
-  async mv(fromFilename: string, toFilename: string): Promise<void> {
-    if (fromFilename === toFilename) {
+  async mv(fromFilepath: DocumentPath, toFilepath: DocumentPath): Promise<void> {
+    if (fromFilepath.toString() === toFilepath.toString()) {
       return;
     }
 
-    const sourceRaw = localStorage.getItem(this._getStorageKey(fromFilename));
+    const sourceRaw = localStorage.getItem(this._getStorageKey(fromFilepath.toString()));
     if (!sourceRaw) {
-      throw new Error(`File not found: ${fromFilename}`);
+      throw new Error(`File not found: ${fromFilepath}`);
     }
-    const targetRaw = localStorage.getItem(this._getStorageKey(toFilename));
+    const targetRaw = localStorage.getItem(this._getStorageKey(toFilepath.toString()));
     if (targetRaw !== null) {
       throw new Error("File already exists");
     }
 
-    localStorage.setItem(this._getStorageKey(toFilename), sourceRaw);
-    localStorage.removeItem(this._getStorageKey(fromFilename));
+    localStorage.setItem(this._getStorageKey(toFilepath.toString()), sourceRaw);
+    localStorage.removeItem(this._getStorageKey(fromFilepath.toString()));
     return;
   }
 
-  async rm(filename: string): Promise<void> {
-    localStorage.removeItem(this._getStorageKey(filename));
+  async rm(filepath: DocumentPath): Promise<void> {
+    localStorage.removeItem(this._getStorageKey(filepath.toString()));
   }
 
   async ls(): Promise<FileEntry[]> {
@@ -84,7 +85,7 @@ export class LocalStorageDocumentStore implements IDocumentStore {
         if (raw) {
           const doc = this._parseRecord(raw);
           const filename = key.slice(this._storageKeyPrefix.length + 1);
-          files.push({ filename, version: this._getVersion(doc) });
+          files.push({ filepath: DocumentPath.parse(filename), version: this._getVersion(doc) });
         }
       }
     }

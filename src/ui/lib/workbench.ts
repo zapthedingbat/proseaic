@@ -1,4 +1,4 @@
-import { IDocumentService, Filepath, StoreQualifiedDocumentId } from "./document/document-service";
+import { DocumentId, DocumentPath, IDocumentService} from "./document/document-service";
 import { IDocumentStateService } from "./document/document-state-service";
 import { DocumentIdConflictError } from "./document/errors";
 import { DocumentOutline } from "./document/document-outline";
@@ -12,7 +12,7 @@ import { UiPaneView } from "../components/pane-view";
 import { UiTabBar } from "../components/tab-bar";
 
 export type WorkbenchDocumentState = {
-  id: StoreQualifiedDocumentId;
+  id: DocumentId;
   isDirty?: boolean;
 };
 
@@ -20,15 +20,15 @@ export type WorkbenchDocumentState = {
 export type TabId = string;
 
 export interface IWorkbench {
-  closeDocument(documentId: StoreQualifiedDocumentId): Promise<void>;
+  closeDocument(documentId: DocumentId): Promise<void>;
   closeFocusedTab(): Promise<void>;
-  createDocument(filepath?: Filepath | string): Promise<StoreQualifiedDocumentId>;
-  deleteDocument(id: StoreQualifiedDocumentId): Promise<void>;
+  createDocument(filepath?: DocumentPath): Promise<DocumentId>;
+  deleteDocument(id: DocumentId): Promise<void>;
   getFocusedEditor(): IEditorComponent | null;
   listOpenDocuments(): Array<WorkbenchDocumentState>;
   mount(containerEl: HTMLElement): void;
-  openDocument(id: StoreQualifiedDocumentId | string): Promise<void>;
-  renameDocument(fromId: StoreQualifiedDocumentId | string, toFilepath: Filepath | string): Promise<void>;
+  openDocument(id: DocumentId): Promise<void>;
+  renameDocument(fromId: DocumentId, toFilepath: DocumentPath): Promise<void>;
   saveFocusedDocument(): Promise<void>;
   saveFocusedDocumentAs(): Promise<void>;
 }
@@ -52,7 +52,6 @@ type EditorComponentFactory = (format: string) => Promise<IEditorComponent>;
 // TODO: Implement a command/action system for the workspace, so that we can have a more flexible way of triggering actions like save, rename, delete, etc. This will also make it easier to add keyboard shortcuts and menu items for these actions in the future.
 
 export class Workbench implements IWorkbench {
-
   // Services
   private _documentService: IDocumentService;
   private _documentStateService: IDocumentStateService;
@@ -60,7 +59,7 @@ export class Workbench implements IWorkbench {
   private _componentFactory: ComponentFactory;
 
   // Internal state
-  private _openDocuments: Array<{documentId: StoreQualifiedDocumentId; tabId: TabId}> = [];
+  private _openDocuments: Array<{documentId: DocumentId; tabId: TabId}> = [];
   private _editors: WeakMap<EditorGroup, IEditorComponent> = new WeakMap();
   private _ui: IUserInteraction;
   private _focusedTab: TabId | null = null;
@@ -148,16 +147,16 @@ export class Workbench implements IWorkbench {
     await this._syncUI();
   }
 
-  async renameDocument(fromId: StoreQualifiedDocumentId, toFilepath: Filepath): Promise<void> {
+  async renameDocument(fromId: DocumentId, toFilepath: DocumentPath): Promise<void> {
 
-    let newId: StoreQualifiedDocumentId;
+    let newId: DocumentId;
     try {
       newId = await this._documentService.renameDocument(fromId, toFilepath);
     } catch (err: unknown) {
       if(err instanceof DocumentIdConflictError){
-        const newName = await this._ui.prompt(`A document with the name "${toFilepath}" already exists. Please enter a different name:`, toFilepath);
+        const newName = await this._ui.prompt(`A document with the name "${toFilepath}" already exists. Please enter a different name:`, toFilepath.toString());
         if(newName){
-          const newFilepath = this._documentService.filepathFromString(newName);
+          const newFilepath = this._documentService.documentPathFromString(newName);
           return this.renameDocument(fromId, newFilepath);
         }
         return;
@@ -167,13 +166,13 @@ export class Workbench implements IWorkbench {
     }
 
     // If the renamed document is currently open in a tab, we should also update the tab's title to reflect the new document name.
-    const openDoc = this._openDocuments.find(doc => doc.documentId === fromId);
+    const openDoc = this._openDocuments.find(doc => doc.documentId.equals(fromId));
     if (openDoc) {
       const pane = this._editorGroups.find(pane => pane.tabs.some(tab => tab.id === openDoc.tabId));
       if (pane) {
         const tab = pane.tabs.find(tab => tab.id === openDoc.tabId);
         if (tab) {
-          tab.title = this._getDocumentTitle(newId);
+          tab.title = newId.path.filename;
         }
       }
     }
@@ -181,7 +180,7 @@ export class Workbench implements IWorkbench {
     await this._syncUI();
   }
 
-  async deleteDocument(id: StoreQualifiedDocumentId): Promise<void> {
+  async deleteDocument(id: DocumentId): Promise<void> {
     // TODO: Depending on the desired UX, you might want to prompt the user to confirm deletion,
     // especially if the document is currently open or has unsaved changes.
     
@@ -189,61 +188,53 @@ export class Workbench implements IWorkbench {
     await this._documentService.deleteDocument(id);
     
     // If it was open in a tab, close that tab.
-    const openDoc = this._openDocuments.find(doc => doc.documentId === id);
+    const openDoc = this._openDocuments.find(doc => doc.documentId.equals(id));
     if (openDoc) {
       await this.closeTab(openDoc.tabId);
     }
     await this._syncUI();
   }
 
-  async createDocument(filename?:string): Promise<StoreQualifiedDocumentId> {
-    const filenameWithExtension = filename ? (filename.endsWith(".md") ? filename : `${filename}.md`) : "Untitled Document.md";
-    const newFilepath = await this._getUniqueFilepath(filenameWithExtension);
+  async duplicateDocument(id: DocumentId): Promise<void> {
+    const originalContent = await this._documentService.readDocument(id);
+    const originalDocumentPath = id.path;
+    const copyDocumentPath = originalDocumentPath.withSuffixName(" Copy");
+    const uniqueCopyDocumentPath = await this._getUniqueFilepath(copyDocumentPath);
+    const newDocumentId = await this._documentService.createDocument(uniqueCopyDocumentPath);
+    await this._documentService.updateDocument(newDocumentId, originalContent);
+    await this.openDocument(newDocumentId);
+  }
+
+  async exportDocument(id: DocumentId): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  async createDocument(filepath?:DocumentPath): Promise<DocumentId> {
+    const filepathStr = filepath ? filepath.toString() : "Untitled Document.md";
+    const filenameWithExtension = (filepathStr.endsWith(".md") ? filepathStr : `${filepathStr}.md`);
+    const documentPath = this._documentService.documentPathFromString(filenameWithExtension);
+    const newFilepath = await this._getUniqueFilepath(documentPath);
     const id = await this._documentService.createDocument(newFilepath);
     await this.openDocument(id);
     return id;
-    // The UI should now start a rename flow for the new document.
   }
 
-  private async _getUniqueFilepath(baseFilename: string): Promise<Filepath> {
+  private async _getUniqueFilepath(basePath: DocumentPath): Promise<DocumentPath> {
     const existingDocumentIds = await this._documentService.listDocuments();
-    const existingDocumentIdsSet = new Set(existingDocumentIds);
-
-    // Split the filename and extension to ensure we add the suffix before the extension
-    // (e.g. "Untitled Document (1).md" instead of "Untitled Document.md (1)")
-    const dotIndex = baseFilename.lastIndexOf(".");
-    let namePart = baseFilename;
-    let extensionPart = "";
-    if (dotIndex !== -1) {
-      namePart = baseFilename.substring(0, dotIndex);
-      extensionPart = baseFilename.substring(dotIndex);
-    }
-
-    let filename = baseFilename;
-    let candidateFilepath = this._documentService.filepathFromString(filename);
-    let candidate = this._documentService.toDocumentId(candidateFilepath);
+    let candidatePath = basePath;
     let index = 1;
-    while (existingDocumentIdsSet.has(candidate)) {
-      filename = `${namePart}(${index})${extensionPart}`;
-      candidateFilepath = this._documentService.filepathFromString(filename);
-      candidate = this._documentService.toDocumentId(candidateFilepath);
+
+    while (existingDocumentIds.some(id => id.equals(this._documentService.documentIdFromPath(candidatePath)))) {
+      candidatePath = basePath.withSuffixName(`(${index})`);
       index += 1;
     }
-    return candidateFilepath;
+
+    return candidatePath;
   }
 
-  private _getDocumentTitle(documentId: StoreQualifiedDocumentId): string {
-    const [, encodedName = documentId] = documentId.split(/\/(.+)$/);
-    try {
-      return decodeURIComponent(encodedName);
-    } catch {
-      return encodedName;
-    }
-  }
-
-  async closeDocument(documentId: StoreQualifiedDocumentId): Promise<void> {
+  async closeDocument(documentId: DocumentId): Promise<void> {
     // This method is for closing a document by its ID, regardless of which tab it's in. It will find the tab that has this document open and close that tab.
-    const openDoc = this._openDocuments.find(doc => doc.documentId === documentId);
+    const openDoc = this._openDocuments.find(doc => doc.documentId.equals(documentId));
     if (openDoc) {
       return await this.closeTab(openDoc.tabId);
     }
@@ -302,23 +293,23 @@ export class Workbench implements IWorkbench {
       return;
     }
 
-    const editor = await this._getEditorForPane("markdown", pane);
-    const currentTitle = this._getDocumentTitle(documentEntry.documentId);
+    const editor = await this._getEditorForPane(documentEntry.documentId, pane);
+    const currentTitle = documentEntry.documentId.path.filename;
     const requestedFilename = await this._ui.prompt("Save document as:", currentTitle);
     if (!requestedFilename) {
       return;
     }
 
-    const filepath = await this._getUniqueFilepath(requestedFilename);
+    const filepath = await this._getUniqueFilepath(documentEntry.documentId.path);
     const newDocumentId = await this._documentService.createDocument(filepath);
     await this._documentService.updateDocument(newDocumentId, editor.getContent());
     await this.openDocument(newDocumentId);
   }
 
-  async openDocument(documentId: StoreQualifiedDocumentId): Promise<void> {
+  async openDocument(documentId: DocumentId): Promise<void> {
 
     // Check if the document is already open in a tab. If so, just focus that tab instead of opening a new one.
-    const documentTabId = this._openDocuments.find(doc => doc.documentId === documentId);
+    const documentTabId = this._openDocuments.find(doc => doc.documentId.equals(documentId));
     if (documentTabId) {
       // Document is already open, just focus the existing tab.
       await this._selectTab(documentTabId.tabId);
@@ -332,7 +323,7 @@ export class Workbench implements IWorkbench {
     const newTabId = `tab-${documentId}`;
     const newTab: Tab = {
       id: newTabId,
-      title: this._getDocumentTitle(documentId),
+      title: documentId.path.filename
     };
     pane.tabs.push(newTab);
     pane.activeTabId = newTab;
@@ -347,7 +338,7 @@ export class Workbench implements IWorkbench {
     // Set the pane to show the editor for the document
     // TODO: If we support different types of documents, we might want to have different editor component factories based on the document type or other metadata.
     // For now, just assume all documents are markdown and use the same editor factory. We can extend this later.
-    let editor = await this._getEditorForPane("markdown", pane);
+    let editor = await this._getEditorForPane(documentId, pane);
     if(editor){
       // Use the documentService to load the document content, then set it in the editor.
       const content = await this._documentService.readDocument(documentId);
@@ -356,7 +347,19 @@ export class Workbench implements IWorkbench {
     await this._syncUI();
   }
 
-  private async _getEditorForPane(format: string, pane: EditorGroup): Promise<IEditorComponent> {
+  private _getDocumentFormat(documentId: DocumentId): string {
+    switch(documentId.path.ext){
+      case ".md":
+        return "markdown";
+      default:
+        return "plaintext";
+    }
+  }
+
+  private async _getEditorForPane(id: DocumentId, pane: EditorGroup): Promise<IEditorComponent> {
+
+    const format = this._getDocumentFormat(id);
+
     // Check to see if there is already a editor associated with this pane, if so, reuse it. If not, create a new one and associate it with the pane.
     let editor = this._editors.get(pane);
     if (!editor) {
@@ -405,7 +408,7 @@ export class Workbench implements IWorkbench {
     // If this tab contains a document, load the document content into the editor for pane
     const documentEntry = this._openDocuments.find(doc => doc.tabId === tabId);
     if (documentEntry) {
-      const editor = await this._getEditorForPane("markdown", pane);
+      const editor = await this._getEditorForPane(documentEntry.documentId, pane);
       if (editor) {
         // Use the documentService to load the document content, then set it in the editor.
         const documentId = documentEntry.documentId;
@@ -447,6 +450,8 @@ export class Workbench implements IWorkbench {
     this._documentPanel.addEventListener("create", this._handleDocumentCreate);
     this._documentPanel.addEventListener("rename", this._handleDocumentRename);
     this._documentPanel.addEventListener("delete", this._handleDocumentDelete);
+    this._documentPanel.addEventListener("duplicate", this._handleDocumentDuplicate);
+    this._documentPanel.addEventListener("export", this._handleDocumentExport);
     docPane.appendChild(this._documentPanel);
 
     const outlinePane = this._componentFactory.create(UiPane);
@@ -477,7 +482,7 @@ export class Workbench implements IWorkbench {
     return this._editors.get(pane) ?? null;
   }
 
-  private _getFocusedDocumentId(): StoreQualifiedDocumentId | null {
+  private _getFocusedDocumentId(): DocumentId | null {
     if (!this._focusedTab) return null;
     return this._openDocuments.find(d => d.tabId === this._focusedTab)?.documentId ?? null;
   }
@@ -514,8 +519,9 @@ export class Workbench implements IWorkbench {
     const dirtyIds = this._openDocuments
       .filter(d => this._documentStateService.isDocumentDirty(d.documentId))
       .map(d => d.documentId);
+
     this._documentPanel.setDocuments(
-      allDocIds.map(id => ({ id, title: this._getDocumentTitle(id) })),
+      allDocIds,
       focusedDocId,
       dirtyIds
     );
@@ -544,22 +550,69 @@ export class Workbench implements IWorkbench {
 
   // Document panel event handlers
   private _handleDocumentSelect = (event: Event): void => {
-    const { id } = (event as CustomEvent<{ id: StoreQualifiedDocumentId }>).detail;
-    void this.openDocument(id);
+    const { id } = (event as CustomEvent<{ id: string }>).detail;
+
+    if(!DocumentId.isValidFormat(id)){
+      throw new Error("id must be a valid DocumentId string");
+    }
+
+    const documentId = DocumentId.parse(id); 
+
+    void this.openDocument(documentId);
   }
 
-  private _handleDocumentCreate = (): void => {
-    void this.createDocument();
+  private _handleDocumentCreate = async (): Promise<void> => {
+    const id = await this.createDocument();
+    this._documentPanel?.startRename(id);
   }
 
   private _handleDocumentRename = (event: Event): void => {
-    const { fromId, toFilepath } = (event as CustomEvent<{ fromId: StoreQualifiedDocumentId; toFilepath: Filepath }>).detail;
-    void this.renameDocument(fromId, toFilepath);
+    const { fromId, toFilepath } = (event as CustomEvent<{ fromId: string; toFilepath: string }>).detail;
+
+    if(!DocumentId.isValidFormat(fromId)){
+      throw new Error("fromId must be a valid DocumentId string");
+    }
+
+    const fromDocumentId = DocumentId.parse(fromId);
+    const toDocumentPath = this._documentService.documentPathFromString(toFilepath);
+
+    void this.renameDocument(fromDocumentId, toDocumentPath);
   }
 
   private _handleDocumentDelete = (event: Event): void => {
-    const { id } = (event as CustomEvent<{ id: StoreQualifiedDocumentId }>).detail;
-    void this.deleteDocument(id);
+    const { id } = (event as CustomEvent<{ id: string }>).detail;
+
+    if(!DocumentId.isValidFormat(id)){
+      throw new Error("id must be a valid DocumentId string");
+    }
+
+    const documentId = DocumentId.parse(id);
+
+    void this.deleteDocument(documentId);
+  }
+
+  private _handleDocumentExport = (event: Event): void => {
+    const { id } = (event as CustomEvent<{ id: string }>).detail;
+
+    if(!DocumentId.isValidFormat(id)){
+      throw new Error("id must be a valid DocumentId string");
+    }
+
+    const documentId = DocumentId.parse(id);
+
+    void this.exportDocument(documentId);
+  }
+
+  private _handleDocumentDuplicate = (event: Event): void => {
+    const { id } = (event as CustomEvent<{ id: string }>).detail;
+
+    if(!DocumentId.isValidFormat(id)){
+      throw new Error("id must be a valid DocumentId string");
+    }
+
+    const documentId = DocumentId.parse(id);
+
+    void this.duplicateDocument(documentId);
   }
 
   // Outline panel event handlers

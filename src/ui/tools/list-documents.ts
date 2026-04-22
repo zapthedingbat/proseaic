@@ -33,7 +33,7 @@ export class ListDocumentsTool {
   addContext = (): Record<string, unknown> => {
     const openDocuments = this._workspace.listOpenDocuments();
     return ({document_management: {
-      open_documents: openDocuments.map(doc => ({id: doc.id, has_unsaved_changes: doc.isDirty}))
+      open_documents: openDocuments.map(doc => ({id: doc.id.toString(), has_unsaved_changes: doc.isDirty}))
     }});
   };
 
@@ -41,7 +41,7 @@ export class ListDocumentsTool {
     this._logger.debug("Listing documents");
     const documentIds = await this._documentService.listDocuments();
     return ({document_management: {
-      documents: documentIds,
+      documents: documentIds.map(id => id.toString()),
     }});
   };
 }

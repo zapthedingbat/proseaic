@@ -1,3 +1,4 @@
+import { DocumentPath } from "../document-service.ts";
 import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store.ts";
 import { DocumentConcurrencyError } from "../errors.ts";
 
@@ -21,15 +22,15 @@ export class WebDavDocumentStore implements IDocumentStore {
     return `${this._baseUrl}/store/${encoded}`;
   }
 
-  async read(filename: string): Promise<FileContent> {
-    const response = await fetch(this._getUrl(filename), {
+  async read(filepath: DocumentPath): Promise<FileContent> {
+    const response = await fetch(this._getUrl(filepath.toString()), {
       method: "GET",
       credentials: "include"
     });
 
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error(`File not found: ${filename}`);
+        throw new Error(`File not found: ${filepath.toString()}`);
       }
       throw new Error(`Failed to read file: ${response.statusText}`);
     }
@@ -46,7 +47,7 @@ export class WebDavDocumentStore implements IDocumentStore {
     };
   }
 
-  async write(filename: string, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
+  async write(filepath: DocumentPath, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
     const headers: Record<string, string> = {
       "Content-Type": "text/markdown"
     };
@@ -55,7 +56,7 @@ export class WebDavDocumentStore implements IDocumentStore {
       headers["If-Match"] = `"${expectedVersion}"`;
     }
 
-    const response = await fetch(this._getUrl(filename), {
+    const response = await fetch(this._getUrl(filepath.toString()), {
       method: "PUT",
       headers,
       body: content,
@@ -64,7 +65,7 @@ export class WebDavDocumentStore implements IDocumentStore {
 
     if (response.status === 412) {
       throw new DocumentConcurrencyError(
-        `File "${filename}" has been modified since last read`
+        `File "${filepath.toString()}" has been modified since last read`
       );
     }
 
@@ -80,13 +81,13 @@ export class WebDavDocumentStore implements IDocumentStore {
     return this._toFileVersionToken(etag);
   }
 
-  async mv(fromFilename: string, toFilename: string): Promise<void> {
-    if (fromFilename === toFilename) {
+  async mv(fromFilepath: DocumentPath, toFilepath: DocumentPath): Promise<void> {
+    if (fromFilepath.toString() === toFilepath.toString()) {
       return;
     }
 
-    const destination = this._getUrl(toFilename);
-    const response = await fetch(this._getUrl(fromFilename), {
+    const destination = this._getUrl(toFilepath.toString());
+    const response = await fetch(this._getUrl(fromFilepath.toString()), {
       method: "MOVE",
       headers: {
         "Destination": destination
@@ -95,7 +96,7 @@ export class WebDavDocumentStore implements IDocumentStore {
     });
 
     if (response.status === 412) {
-      throw new Error(`Destination file already exists: ${toFilename}`);
+      throw new Error(`Destination file already exists: ${toFilepath.toString()}`);
     }
 
     if (!response.ok) {
@@ -105,14 +106,14 @@ export class WebDavDocumentStore implements IDocumentStore {
     return;
   }
 
-  async rm(filename: string): Promise<void> {
-    const response = await fetch(this._getUrl(filename), {
+  async rm(filepath: DocumentPath): Promise<void> {
+    const response = await fetch(this._getUrl(filepath.toString()), {
       method: "DELETE",
       credentials: "include"
     });
 
     if (response.status === 404) {
-      throw new Error(`File not found: ${filename}`);
+      throw new Error(`File not found: ${filepath.toString()}`);
     }
 
     if (!response.ok) {
@@ -130,7 +131,31 @@ export class WebDavDocumentStore implements IDocumentStore {
       throw new Error(`Failed to list files: ${response.statusText}`);
     }
 
-    const files = await response.json();
+    // We expect the response to be a JSON array of objects with "filename" and "version" properties
+    const result = await response.json();
+    if(!Array.isArray(result)) {
+      throw new Error("Invalid response format for file listing");
+    }
+
+    const files = result.map((entry: unknown) => {
+      if (typeof entry !== "object" || entry === null) {
+        throw new Error("Invalid file entry format");
+      }
+
+      const jsonEntry = entry as { filename?: unknown; version?: unknown };
+
+      if (typeof jsonEntry.filename !== "string" || typeof jsonEntry.version !== "string") {
+        throw new Error("File entry missing required properties");
+      }
+
+      const filepath = DocumentPath.parse(jsonEntry.filename.startsWith("/") ? jsonEntry.filename : `/${jsonEntry.filename}`);
+
+      return {
+        filepath: filepath,
+        version: this._toFileVersionToken(jsonEntry.version)
+      } as FileEntry;
+    });
+
     return files;
   }
 }
