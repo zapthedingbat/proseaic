@@ -197,7 +197,8 @@ export class Workbench implements IWorkbench {
   }
 
   async createDocument(filename?:string): Promise<StoreQualifiedDocumentId> {
-    const newFilepath = await this._getUniqueFilepath(filename ?? "Untitled Document.md");
+    const filenameWithExtension = filename ? (filename.endsWith(".md") ? filename : `${filename}.md`) : "Untitled Document.md";
+    const newFilepath = await this._getUniqueFilepath(filenameWithExtension);
     const id = await this._documentService.createDocument(newFilepath);
     await this.openDocument(id);
     return id;
