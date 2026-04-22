@@ -120,14 +120,13 @@ export class OllamaPlatform implements IPlatform {
   private buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]) {
 
     const modelName = model.name;
-    const includeBoundary = !model.supportsStreamingToolCalls;
-    
-    this._logger.debug(`Building Ollama request for model: ${modelName}, includeBoundary: ${includeBoundary}, supportsStreamingToolCalls: ${model.supportsStreamingToolCalls}`);
+
+    this._logger.debug(`Building Ollama request for model: ${modelName}`);
    
     const initialMessages: OllamaRequestMessage[] = [
       {
         role: 'system',
-        content: buildWritingAssistantSystemPrompt(includeBoundary)
+        content: buildWritingAssistantSystemPrompt(false)
       },
     ];
 
