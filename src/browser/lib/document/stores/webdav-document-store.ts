@@ -1,6 +1,6 @@
 import { DocumentPath } from "../document-service.ts";
 import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store.ts";
-import { DocumentConcurrencyError } from "../errors.ts";
+import { DocumentConcurrencyError, DocumentIdConflictError } from "../errors.ts";
 
 export class WebDavDocumentStore implements IDocumentStore {
   namespace: string = "webdav";
@@ -96,7 +96,7 @@ export class WebDavDocumentStore implements IDocumentStore {
     });
 
     if (response.status === 412) {
-      throw new Error(`Destination file already exists: ${toFilepath.toString()}`);
+      throw new DocumentIdConflictError(toFilepath.toString());
     }
 
     if (!response.ok) {

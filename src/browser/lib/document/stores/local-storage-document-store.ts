@@ -1,6 +1,6 @@
 import { DocumentPath } from "../document-service";
 import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store";
-import { DocumentConcurrencyError } from "../errors";
+import { DocumentConcurrencyError, DocumentIdConflictError } from "../errors";
 
 type Record = { content: string; version: number };
 
@@ -64,7 +64,7 @@ export class LocalStorageDocumentStore implements IDocumentStore {
     }
     const targetRaw = localStorage.getItem(this._getStorageKey(toFilepath.toString()));
     if (targetRaw !== null) {
-      throw new Error("File already exists");
+      throw new DocumentIdConflictError(toFilepath.toString());
     }
 
     localStorage.setItem(this._getStorageKey(toFilepath.toString()), sourceRaw);

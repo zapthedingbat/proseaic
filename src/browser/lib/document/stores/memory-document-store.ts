@@ -1,5 +1,5 @@
 import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store.ts";
-import { DocumentConcurrencyError } from "../errors.ts";
+import { DocumentConcurrencyError, DocumentIdConflictError } from "../errors.ts";
 
 type Record = { content: string; version: number };
 
@@ -43,7 +43,7 @@ export class MemoryDocumentStore implements IDocumentStore {
       throw new Error(`File not found: ${fromFilename}`);
     }
     if (this._documents.has(toFilename)) {
-      throw new Error("File already exists");
+      throw new DocumentIdConflictError(toFilename);
     }
 
     this._documents.set(toFilename, source);

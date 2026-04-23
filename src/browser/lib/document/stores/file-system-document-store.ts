@@ -1,6 +1,6 @@
 import { DocumentPath } from "../document-service";
 import { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../document-store";
-import { DocumentConcurrencyError } from "../errors";
+import { DocumentConcurrencyError, DocumentIdConflictError } from "../errors";
 
 type FileSystemDirectoryHandleFactory = () => Promise<FileSystemDirectoryHandle>;
 
@@ -68,7 +68,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
         () => false
       );
       if (existingTarget) {
-        throw new Error("File already exists");
+        throw new DocumentIdConflictError(toFilepath.toString());
       }
 
       const newFileHandle = await directoryHandle.getFileHandle(toFilepath.toString(), { create: true });
@@ -80,6 +80,9 @@ export class FileSystemDocumentStore implements IDocumentStore {
 
       return;
     } catch (err) {
+      if (err instanceof DocumentIdConflictError) {
+        throw err;
+      }
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(`Failed to move file "${fromFilepath.toString()}" to "${toFilepath.toString()}": ${message}`);
     }
