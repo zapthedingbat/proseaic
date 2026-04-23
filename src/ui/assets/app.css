@@ -328,6 +328,14 @@ ui-pane .body {
   border-radius: var(--input-radius);
 }
 
+.list .list-item.action-item {
+  padding: 0;
+}
+
+.list .list-item.action-item.active {
+  background-color: var(--action-item-bg-color);
+}
+
 .list .list-item .list-item-content {
   display: flex;
   align-items: center;
