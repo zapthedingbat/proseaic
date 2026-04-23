@@ -6,7 +6,7 @@ import { JSONValue } from "../lib/JSONValue.js";
 
 export const schema: ToolSchema = {
   type: "function",
-  instructions: "Call after read_document_outline to understand document structure. Only call when document_management.open_documents is non-empty; if empty, tell the user no document is open.",
+  instructions: "Call after read_document_outline to understand document structure, or directly for a new empty document.",
   function: {
     name: "insert_document_section",
     description: "Insert a new section into the current editor document after you have inspected structure with read_document_outline.",

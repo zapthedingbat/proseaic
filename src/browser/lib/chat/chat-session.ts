@@ -77,16 +77,12 @@ export class ChatSession extends EventTarget implements IChatSession {
     return this._models.get(modelIdentifier);
   }
 
-  async submitUserPrompt(modelIdentifier: string, prompt: string, context: ChatMessageContext): Promise<void> {
+  async submitUserPrompt(modelIdentifier: string, prompt: string): Promise<void> {
 
     // When the user submits a prompt, we create a new user message and add it to the history.
     // This message serves as the input to the assistant's response generation.
     
-    // Allow tools to add information to the prompt context, which can then be used by tools when executing. For example, a tool that fetches real-time data could add that data to the prompt context so it can be included in the assistant's response.
-    const toolsContext = this._toolsService.addContext();
-    Object.assign(context, toolsContext);
-    
-    const userChatMessage = this._buildUserChatMessage(modelIdentifier, prompt, context);
+    const userChatMessage = this._buildUserChatMessage(modelIdentifier, prompt);
 
     await this._history.addMessage(userChatMessage);
     this.dispatchEvent(new ChatMessageEvent(userChatMessage));
@@ -100,9 +96,13 @@ export class ChatSession extends EventTarget implements IChatSession {
 
     let assistantMessage: AssistantChatMessage | null = null;
     let continueAgentLoop = true;
-    let continuationCount = 0;
-    const MAX_CONTINUATIONS = 2;
+    let iterationCount = 0;
+    const MAX_ITERATIONS = 10;
     while (continueAgentLoop) {
+      if (iterationCount++ >= MAX_ITERATIONS) {
+        this._logger.warn("Agent loop hit iteration limit, stopping.");
+        break;
+      }
       
       // Get the model details for the selected model identifier, which includes information about which platform to use for generating the response.
       // If the model identifier is invalid, we throw an error which will be caught and returned as part of the assistant's response, giving feedback to the user about the invalid model identifier.
@@ -135,7 +135,30 @@ export class ChatSession extends EventTarget implements IChatSession {
       }
       const systemPrompt = promptBuilder.build();
       const systemMessage: SystemChatMessage = { role: "system", model: modelIdentifier, content: [{ type: "text", text: systemPrompt }] };
-      const messagesWithSystem: ChatMessage[] = [systemMessage, ...contextMessages];
+
+      // Inject a fresh context snapshot as the first user message every iteration so the model
+      // always sees current state (e.g. which document is focused) regardless of what was true
+      // when the original user message was written.
+      const contextContent: ChatMessageContentPart[] = [];
+      const toolsContext = this._toolsService.addContext();
+
+      for (const [key, value] of Object.entries(toolsContext)) {
+        contextContent.push({
+          type: "context",
+          name: key,
+          data: value
+        });
+      }
+
+      const freshContextMessage: UserChatMessage = {
+        role: "user",
+        model: modelIdentifier,
+        content: contextContent
+      };
+
+      // The final message list we feed into the model includes the system prompt with instructions, followed by a fresh context snapshot,
+      // followed by the recent conversation history (including the user's new message).
+      const messagesWithSystem: ChatMessage[] = [systemMessage, freshContextMessage, ...contextMessages];
 
       // Select the relevant platform based on the model details, and use it to convert from our internal message format and user message context into the format expected by the model endpoint.
       // Then send the request to the model endpoint and stream the response, collecting any tool calls that are emitted along the way.
@@ -159,6 +182,7 @@ export class ChatSession extends EventTarget implements IChatSession {
       this.dispatchEvent(new ChatMessageEvent(assistantMessage));
 
       const toolResultsMessages: ToolChatMessage[] = [];
+      let taskCompleted = false;
       let isThinking = false;
       let assistantMessageTextContent = "";
       for await (const streamEvent of streamEvents) {
@@ -185,7 +209,9 @@ export class ChatSession extends EventTarget implements IChatSession {
           case "tool_call":
             assistantMessage.tool_calls = assistantMessage.tool_calls || [];
             assistantMessage.tool_calls.push(streamEvent.tool_call);
-            
+            if (streamEvent.tool_call.name === "task_complete") {
+              taskCompleted = true;
+            }
             const toolChatMessage = await this._runToolAndGetResultMessage(modelIdentifier, streamEvent.tool_call);
             toolResultsMessages.push(toolChatMessage);
 
@@ -218,10 +244,20 @@ export class ChatSession extends EventTarget implements IChatSession {
         this._activeAssistantChatMessage = null;
       }
 
-      if(toolResultsMessages.length == 0) {
+      if (taskCompleted) {
+        continueAgentLoop = false;
+      } else if (toolResultsMessages.length === 0) {
+        // Model produced text-only without calling task_complete — prompt it to continue or finish.
         const continuation = this._agent.buildContinuationPrompt?.();
-        if (continuation && continuationCount < MAX_CONTINUATIONS) {
-          continuationCount++;
+        if (continuation) {
+          // Drop the text-only assistant turn from the context window. Keeping it causes the model
+          // to treat its prose as "already done" and immediately call task_complete. By removing it
+          // the model sees the last tool result + the continuation prompt and is more likely to
+          // call the intended tools. The message is still in history for the user to see.
+          const lastMsg = contextMessages[contextMessages.length - 1];
+          if (lastMsg?.role === "assistant" && !("tool_calls" in lastMsg && (lastMsg as AssistantChatMessage).tool_calls?.length)) {
+            contextMessages.pop();
+          }
           const continuationMsg: UserChatMessage = {
             role: "user",
             model: modelIdentifier,
@@ -232,10 +268,10 @@ export class ChatSession extends EventTarget implements IChatSession {
         } else {
           continueAgentLoop = false;
         }
-      } else{
-        // If there are tool results, we feed them back into the next turn of the assistant's response generation to allow it to react to the tool results in real time and adjust its response accordingly.
-        // This allows for more dynamic and interactive conversations where the assistant can use tools, see the results, and then decide what to do next based on those results, rather than having to wait for the next user prompt to react to tool results.
-        for(const toolResult of toolResultsMessages) {
+      } else {
+        // Feed tool results back for the next turn. If task_complete was not called, the model
+        // will continue making tool calls in the next iteration.
+        for (const toolResult of toolResultsMessages) {
           this._logger.debug("Tool result", toolResult);
           await this._history.addMessage(toolResult);
           contextMessages.push(toolResult);
@@ -284,7 +320,7 @@ export class ChatSession extends EventTarget implements IChatSession {
     return errorMessage;
   }
 
-  private _buildUserChatMessage(modelIdentifier: string, prompt: string, context: ChatMessageContext): UserChatMessage {
+  private _buildUserChatMessage(modelIdentifier: string, prompt: string): UserChatMessage {
 
     const content: ChatMessageContentPart[] = [
       {
@@ -292,14 +328,6 @@ export class ChatSession extends EventTarget implements IChatSession {
         text: prompt
       }
     ];
-
-    for (const [key, value] of Object.entries(context)) {
-      content.push({
-        type: "context",
-        name: key,
-        data: value
-      });
-    }
 
     return {
       model: modelIdentifier,

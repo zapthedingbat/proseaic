@@ -65,10 +65,10 @@ ${workflowSteps.join("\n")}
 
 After create_document succeeds, proceed immediately to step 1 above to populate the new document with content.
 
-Only reply with plain text (no tool calls) for questions, explanations, or when document_management.focused_document_id is null.`;
+Only reply with plain text (no tool calls) for questions or explanations. When a tool signals that no document is open, tell the user to open one.`;
   }
 
   buildContinuationPrompt(): string {
-    return "Continue your task using the available tools. Do not produce document content as text — write it into the document using insert_document_section or replace_document_section. Call task_complete when all changes are done.";
+    return "You have not yet called task_complete. If there is still work to do, continue using tools now. If you are finished, call task_complete.";
   }
 }

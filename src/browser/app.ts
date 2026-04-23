@@ -235,7 +235,7 @@ export class App implements IUserInteraction {
     this._chatPanel.setAssistantMessage(this._chatSession.getActiveAssistantChatMessage());
   }
 
-  private _handleChatPanelSubmitPrompt = (event: Event): void => {
+  private _handleChatPanelSubmitPrompt = async (event: Event): Promise<void> => {
     const submitPromptEvent = event as SubmitPromptEvent;
     this._logger.debug("submit-prompt event", submitPromptEvent);
 
@@ -246,10 +246,11 @@ export class App implements IUserInteraction {
       return;
     }
 
-    // Build up the context object to pass to the ChatSession when submitting the prompt.
-    const context: ChatMessageContext = {}
-
-    this._chatSession.submitUserPrompt(modelIdentifier, promptText, context);
+    try {
+      await this._chatSession.submitUserPrompt(modelIdentifier, promptText);
+    } finally {
+      this._chatPanel?.setSendEnabled(true);
+    }
   }
 
   private _registerTools(): void {

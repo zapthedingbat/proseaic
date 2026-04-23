@@ -6,7 +6,7 @@ import { JSONValue } from "../lib/JSONValue.js";
 
 export const schema: ToolSchema = {
   type: "function",
-  instructions: "Call this before any document read or edit tool. The focused document is already open — call this immediately without calling open_document first. Only skip if document_management.focused_document_id is null; in that case tell the user no document is open.",
+  instructions: "Call this first to understand document structure before reading or editing sections. If no document is open, the tool will return an error — create one first.",
   function: {
     name: "read_document_outline",
     description: "Read the outline of the current document in the editor. Use this first when a task involves reviewing, summarizing, or editing document structure.",

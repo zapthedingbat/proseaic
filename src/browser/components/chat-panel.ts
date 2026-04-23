@@ -299,11 +299,18 @@ export class ChatPanel extends BaseHtmlElement {
     this.dispatchEvent(new SelectCheckpointEvent(checkpointId));
   };
 
+  setSendEnabled(enabled: boolean): void {
+    if (this.sendButton) {
+      this.sendButton.disabled = !enabled;
+    }
+  }
+
   private _submit(): void {
     const promptText = this.textarea.value.trim();
     if (!promptText){
       return;
     }
+    this.sendButton.disabled = true;
     this.dispatchEvent(new SubmitPromptEvent(promptText));
     this.textarea.value = "";
   }
