@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { ChatSession } from "../../src/ui/lib/chat/chat-session.js";
-import { ChatHistory } from "../../src/ui/lib/history/memory-chat-history.js";
-import { AssistantChatMessage, ChatMessage } from "../../src/ui/lib/chat/chat-message.js";
-import { IPlatformService } from "../../src/ui/lib/platform/platform-service.js";
-import { IToolService } from "../../src/ui/lib/tools/tool-service.js";
-import { IModelService } from "../../src/ui/lib/models/model-service.js";
-import { StreamEvent } from "../../src/ui/lib/platform/stream-event.js";
-import { Model } from "../../src/ui/lib/models/model.js";
-import { ToolSchema } from "../../src/ui/lib/tools/tool-schema.js";
+import { ChatSession } from "../../src/browser/lib/chat/chat-session.js";
+import { ChatHistory } from "../../src/browser/lib/history/memory-chat-history.js";
+import { AssistantChatMessage, ChatMessage } from "../../src/browser/lib/chat/chat-message.js";
+import { IPlatformService } from "../../src/browser/lib/platform/platform-service.js";
+import { IToolService } from "../../src/browser/lib/tools/tool-service.js";
+import { IModelService } from "../../src/browser/lib/models/model-service.js";
+import { StreamEvent } from "../../src/browser/lib/platform/stream-event.js";
+import { Model } from "../../src/browser/lib/models/model.js";
+import { ToolSchema } from "../../src/browser/lib/tools/tool-schema.js";
 
 // Silent logger factory for tests
 const silentLogger = () => ({

@@ -5,13 +5,13 @@
     "moduleResolution": "Bundler",
     "allowArbitraryExtensions": true,
     "lib": ["DOM", "ES2022"],
-    "rootDir": "src/ui",
-    "outDir": "dist/ui",
+    "rootDir": "src/browser",
+    "outDir": "dist/browser",
     "strict": false,
     "skipLibCheck": true,
     "noEmitOnError": true,
     "sourceMap": true
   },
-  "include": ["src/ui/**/*.ts", "src/ui/**/*.d.ts"],
-  "exclude": ["src/ui/**/*.test.ts"]
+  "include": ["src/browser/**/*.ts", "src/browser/**/*.d.ts"],
+  "exclude": ["src/browser/**/*.test.ts"]
 }

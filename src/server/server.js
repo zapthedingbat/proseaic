@@ -24,7 +24,7 @@ export function startServer(){
   app.use("/store", storeRoutes(import.meta.url, storeDir));
 
   // Static file serving for the web UI
-  app.use(staticRoutes(import.meta.url, "../../dist/ui"));
+  app.use(staticRoutes(import.meta.url, "../../dist/browser"));
 
   const server = http.createServer(app, { });
   server.listen(3001, () => {

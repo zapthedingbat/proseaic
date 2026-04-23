@@ -66,6 +66,8 @@ export function storeRoutes(moduleUrl, storeDir){
 
     if(filePath.endsWith(".md")){
       res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+    } else {
+      res.setHeader("Content-Type", "application/octet-stream");
     }
 
     // Set Content-Disposition header to suggest a filename when downloading the file. This allows 'Download' UX with a meaningful filename.
@@ -198,8 +200,8 @@ export function storeRoutes(moduleUrl, storeDir){
       throw err;
     }
 
-    const markdownFiles = await Promise.all(entries
-      .filter(entry => entry.isFile() && entry.name.endsWith(".md"))
+    const files = await Promise.all(entries
+      //.filter(entry => entry.isFile() && entry.name.endsWith(".md"))
       .map(async entry => {
         const absolutePath = path.join(listPath, entry.name);
         const stats = await fs.stat(absolutePath);
@@ -210,7 +212,7 @@ export function storeRoutes(moduleUrl, storeDir){
         };
       }));
 
-    res.status(200).json(markdownFiles);
+    res.status(200).json(files);
   };
 
   const webDavHandlers = {

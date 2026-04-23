@@ -6,8 +6,8 @@ import { startServer } from "../src/server/server.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
-const sourceStaticAssetsDir = path.join(root, "src", "ui");
-const destStaticAssetsDir = path.join(root, "dist", "ui");
+const sourceStaticAssetsDir = path.join(root, "src", "browser");
+const destStaticAssetsDir = path.join(root, "dist", "browser");
 const staticAssetsExtensions = new Set([".html", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg"]);
 const sourceFileExtensions = new Set([".ts", ".css"]);
 
@@ -37,7 +37,7 @@ async function copyAllFiles(signal, srcDir, destDir, filter = () => true) {
 function getBuildOptions() {
   return {
     absWorkingDir: root,
-    entryPoints: ["src/ui/script.ts"],
+    entryPoints: ["src/browser/script.ts"],
     bundle: true,
     loader: {
       ".css": "text"
@@ -45,7 +45,7 @@ function getBuildOptions() {
     format: "esm",
     platform: "browser",
     target: ["es2022"],
-    outfile: "dist/ui/script.js",
+    outfile: "dist/browser/script.js",
     sourcemap: true,
     logLevel: "info"
   };
@@ -148,7 +148,7 @@ async function runWatch(signal) {
   await rebuildAll();
 
   // Watch the source directory for changes and trigger a rebuild when files change.
-  const watchRoot = path.join(root, "src", "ui");
+  const watchRoot = path.join(root, "src", "browser");
   try {
     console.log(`Watching for file changes in: ${watchRoot}`);
     const watcher = fs.watch(watchRoot,  { recursive: true, signal });
