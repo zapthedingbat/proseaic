@@ -1,0 +1,688 @@
+/**
+ * Global styles and CSS variables.
+ * This file defines the overall look and feel of the application, including
+ * colors, typography, spacing, and layout. It also sets up CSS variables
+ * that can be used throughout the app for consistent styling.
+ * This file is imported in the main HTML file and applies to the root of the application.
+ * It's not adopted by WebComponents, so it provides a global variable baseline for the
+ * entire app, but not reusable classes
+ */
+
+:root {
+  --primary-color: #5a0;
+  --error-color: #f48771;
+  --highlight-color: #e5ba7d;
+
+  --text-color: #ccc; 
+  --app-bg-color: #191a1b;
+
+  --action-item-bg-color: rgba(255, 255, 255, 0.1);
+
+  --ui-border-radius: 4px;
+  --panel-bg-color: #191a1b;
+
+  --pane-border: 1px solid var(--pane-border-color);
+  --pane-border-color: #2a2b2c;
+  --pane-bg-color: #191a1b;
+
+  --workspace-bg-color: #121314;
+
+  --page-bg-color: var(--bg-color);
+  --menu-bar-bg: #252526;
+  --menu-bar-text-color: #ccc;
+  --input-radius: var(--ui-border-radius);
+  --input-border: 1px solid #555;
+  --input-focus-border: 1px solid var(--primary-color);
+  --input-bg-color: var(--bg-color);
+  --input-text-color: #fff;
+  --output-text-color: #ddd;
+
+  --editor-line-height: 1.5;
+  --editor-font-family: 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, serif;
+  --editor-font-size: 1.25rem;
+  --editor-padding: 1em;
+  --editor-selection-bg: color-mix(in srgb, var(--primary-color) 80%, transparent);
+  --editor-selection-text-color: #fff;
+  --editor-selection-radius: 2px;
+  --editor-bg-color: #fff;
+  --editor-text-color: #000;
+  --editor-box-shadow: 0 0 8px -4px rgba(0,0,0,0.5);
+
+  --editor-hr-color: var(--primary-color);
+
+  --chat-text-color: var(--text-color);
+  --chat-vertical-gap: 14px;
+  --chat-request-text-color: var(--chat-text-color);
+  --chat-response-text-color: var(--chat-text-color);
+  --chat-thinking-text-color: #8c8c8c;
+  --chat-error-text-color: var(--error-color);
+  --chat-error-border-color: var(--error-color);
+  --chat-error-bg-color: rgba(244, 136, 113, 0.1);
+  --chat-request-bg-color: rgba(200, 255, 255, 0.07);
+
+  --gap: 4px;
+  --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+
+  
+  
+  font-size: 13px;
+  box-sizing: border-box;
+  font-family: var(--font-family, sans-serif);
+}
+
+.media-container {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 Aspect Ratio */
+  background-image: radial-gradient(at 26% 18%, hsla(0, 0%, 0%, .1) 0px, transparent 68%), 
+radial-gradient(at 5% 81%, hsla(21, 81%, 63%, .1) 0px, transparent 76%), 
+radial-gradient(at 82% 66%, hsla(46, 72%, 67%, .1) 0px, transparent 78%);
+}
+
+.media-container > * {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  color: var(--text-color);
+}
+
+body {
+  min-height: 100vh;
+  height: 100vh;
+  box-sizing: border-box;
+  background-color: var(--page-bg-color);
+}
+
+body>.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--app-bg-color);
+}
+
+header.app-header,
+footer.app-footer {
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+header.app-header {
+  height: 36px;
+  border-bottom: var(--pane-border);
+  display: flex;
+  align-items: center;
+  padding: 0 calc(var(--gap) *2);
+  gap: var(--gap);
+}
+
+.app-header-tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-header-menu {
+  flex-shrink: 0;
+}
+
+footer.app-footer {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 calc(var(--gap) *2);
+  gap: var(--gap);
+  border-top: var(--pane-border);
+}
+
+main.app-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.center {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.pane-view {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  height: 100%;
+  min-height: 0;
+}
+
+.pane-view.left {
+  width: 220px;
+  border-right: var(--pane-border);
+}
+
+.pane-view.right {
+  width: 300px;
+  border-left: var(--pane-border);
+}
+
+.workspace {
+  background-color: var(--workspace-bg-color);
+
+}
+
+.selection {
+  background: var(--editor-selection-bg);
+}
+
+/* ui-pane styles (light DOM replacement for :host rules that were in pane.ts) */
+ui-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+ui-pane[collapsed] {
+  flex: 0 0 auto;
+}
+
+ui-pane + ui-pane {
+  border-top: var(--pane-border);
+}
+
+ui-pane[collapsed] .twisty-icon {
+  transform: rotate(-90deg);
+}
+
+ui-pane[collapsed] .body {
+  display: none;
+}
+
+/* Pane internal layout */
+ui-pane .header {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 0 var(--gap);
+  height: 28px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+ui-pane .twisty {
+  border: none;
+  background: transparent;
+  color: var(--text-color, inherit);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  flex-shrink: 0;
+  border-radius: var(--ui-border-radius);
+}
+
+ui-pane .twisty:hover {
+  background: var(--action-item-bg-color);
+  opacity: 1;
+}
+
+.twisty-icon {
+  transition: transform 0.2s ease;
+}
+
+ui-pane .title {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+ui-pane .actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  flex-shrink: 0;
+}
+
+ui-pane .body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pane-body-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.pane-body-content > * {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Shared component styles */
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Cover = floats vertically and horizontally centered */
+.cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scroll Box */
+.scroll-box {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--gap);
+}
+
+.scroll-box.bottom-up {
+  align-content: end;
+}
+
+/* Panel Lists */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  overflow-y: auto;
+  padding: 0;
+  margin: 0;
+}
+
+.list .list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: var(--input-radius);
+}
+
+.list .list-item.action-item {
+  padding: 0;
+}
+
+.list .list-item.action-item.active {
+  background-color: var(--action-item-bg-color);
+}
+
+.list .list-item .list-item-content {
+  display: flex;
+  align-items: center;
+}
+
+.list .list-item .list-item-title {
+  font-size: 1rem;
+  color: var(--output-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  padding: 4px 8px;
+}
+
+.list .list-item .list-item-title.highlight {
+  color: var(--highlight-color);
+}
+
+.list .list-item .list-item-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  padding-right: 4px;
+  gap: 2px;
+}
+
+.list .list-item:hover {
+  background-color: var(--action-item-bg-color);
+}
+
+.list .list-item:hover .list-item-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.list .list-item .input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--output-text-color);
+  font-family: var(--font-family);
+  font-size: inherit;
+  outline: none;
+}
+
+.list .list-item .input:focus {
+  border-color: var(--input-border-focus-color);
+}
+
+.list .list-item .input-error {
+  color: var(--error-color);
+  font-size: 0.8em;
+  padding: 2px 8px 4px;
+}
+
+/* Inputs */
+
+.textarea-input {
+  border: var(--input-border);
+  border-radius: var(--input-radius);
+  margin: 0 var(--gap) var(--gap);
+  padding: 0 6px 6px;
+  position: relative;
+}
+
+.textarea-input:focus-within {
+  border: var(--input-focus-border);
+}
+
+.textarea-input > textarea {
+  background-color: transparent;
+  border: none;
+  box-sizing: border-box;
+  color: var(--input-text-color);
+  font-family: monospace;
+  font-family: var(--font-family);
+  font-size: 1rem;
+  min-height: 60px;
+  padding: var(--gap) 0;
+  resize: none;
+  width: 100%;
+}
+
+.textarea-input > textarea:focus {
+  outline: none;
+}
+
+/* Action items */
+
+.actions-container {
+  display: flex;
+  gap: var(--gap);
+  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+  align-items: center;
+}
+
+.actions-container > .action-item {
+  flex-shrink: 0;
+}
+
+.action-item {
+  border: none;
+  background: transparent;
+  color: var(--output-text-color);
+  cursor: pointer;
+  padding: 3px 4px;
+  border-radius: var(--input-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.action-item:hover,
+.action-item:not(:open):hover {
+  opacity: 1;
+  background: var(--action-item-bg-color);
+}
+
+.action-item.delete {
+  color: #ff8080;
+}
+
+select.action-item {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+select.action-item:open {
+  background-color: var(--input-bg-color);
+  color: var(--input-text-color);
+}
+
+select.action-item option {
+  background-color: var(--input-bg-color);
+  color: var(--input-text-color);
+}
+
+/* Chat messages */
+
+.chat-history {
+  margin: 0 var(--gap);
+}
+
+.chat-message {
+  margin-bottom: var(--chat-vertical-gap);
+}
+
+.chat-message[role="error"] {
+  color: var(--chat-error-text-color);
+  margin-bottom: var(--chat-vertical-gap);
+  border: 1px solid var(--chat-error-border-color);
+  border-radius: var(--ui-border-radius);
+  padding: calc(var(--gap) * 2);
+  background-color: var(--chat-error-bg-color);
+}
+
+.chat-message[role="user"] {
+  color: var(--chat-request-text-color);
+  padding: 8px 12px;
+  max-width: 90%;
+  margin-left: auto;
+  background-color: var(--chat-request-bg-color);
+  border-radius: 12px 12px 0;
+  width: fit-content;
+}
+
+.chat-message[role="assistant"] {
+  color: var(--chat-response-text-color);
+}
+
+.chat-message .thinking {
+  color: var(--chat-thinking-text-color);
+}
+
+.chat-message .content {
+
+}
+
+.chat-message .tool {
+
+}
+
+.chat-message .tool:before {
+  content: "";
+  position: absolute;
+  left: 10.5px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  border-radius: 0;
+  background-color: var(--chat-request-border);
+  mask-image: linear-gradient(to bottom, #000 0 5px, transparent 5px 25px, #000 24px 100%);
+}
+
+.chat-message .tool .chat-icon {
+  position: absolute;
+  left: 5px;
+  top: 9px;
+  width: 12px;
+  height: 12px;
+  font-size: 12px;
+  line-height: 12px;
+  text-align: center;
+}
+
+.chat-message .tool .chat-icon:before & .codicon {
+  position: absolute;
+  left: 5px;
+  top: 9px;
+  width: 12px;
+  height: 12px;
+  font-size: 12px;
+  line-height: 12px;
+  text-align: center;
+}
+
+.chat-message .tool .content {
+  padding: 4px 12px 4px 18px;
+  position: relative;
+}
+
+/* Markdown */
+.markdown code,
+.markdown pre {
+  overflow-x: auto;
+}
+.markdown a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* Document panel */
+.panel ul.list.document-list {
+  margin: var(--gap);
+}
+
+/* Tabs */
+:host(.workspace-tabs) {
+  display: block;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.tabs {
+  display: flex;
+  background-color: var(--pane-bg-color);
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tabs::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 1px;
+  left: 0;
+  z-index: 9;
+  width: 100%;
+  background-color: var(--pane-border-color);
+}
+
+.tabs > .tab {
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-right: var(--pane-border);
+  background: transparent;
+  padding: 0 0 0 18px;
+  cursor: pointer;
+  color: var(--text-color);
+  min-height: 32px;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+
+.tabs > .tab > .tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab.active {
+  background-color: var(--workspace-bg-color);
+}
+
+.tab.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  border-top: 2px solid var(--primary-color);
+}
+
+.tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 1px;
+  left: 0;
+  width: 100%;
+  z-index: 10;
+  background-color: var(--workspace-bg-color);
+}
+
+.tabs > .tab > .icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0 2px;
+}
+
+.tabs > .tab[data-dirty="true"] .dirty-indicator {
+  visibility: visible;
+}
+
+.tabs > .tab .dirty-indicator {
+  visibility: hidden;
+}
+
+.tabs > .tab:hover .dirty-indicator {
+  visibility: hidden;
+  display: none;
+}
+
+.tabs > .tab .action-item.close {
+  display: none;
+}
+
+.tabs > .tab:hover .action-item.close {
+  display: flex;
+}
