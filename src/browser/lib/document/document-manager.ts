@@ -11,6 +11,7 @@ export class DocumentManager implements IDocumentService {
   private _stores: Map<string, IDocumentStore>;
   private _dirtyDocumentIds: Set<string>;
   private _documentVersions: Map<string, FileVersionToken | undefined>;
+  private _documentListCache: DocumentId[] | null = null;
 
   constructor(stores: IDocumentStore[] = []) {
     this._stores = new Map(stores.map(store => [store.namespace, store]));
@@ -108,12 +109,13 @@ export class DocumentManager implements IDocumentService {
   }
 
   async createDocument(filepath: DocumentPath, content?: string): Promise<DocumentId> {
-    // TODO: We should allow specifying the store/namespace when creating a document. 
+    // TODO: We should allow specifying the store/namespace when creating a document.
     // For now we will just use the first registered store.
     const storeInstance = this._getDefaultStore();
     const version = await storeInstance.write(filepath, content);
     const id = DocumentId.create(storeInstance.namespace, filepath);
     this._setDocumentVersion(id, version);
+    this._documentListCache = null;
     return id;
   }
 
@@ -156,6 +158,7 @@ export class DocumentManager implements IDocumentService {
     }
 
     await store.mv(id.path, toFilepath);
+    this._documentListCache = null;
     const newId = DocumentId.create(id.store, toFilepath);
     
     // Migrate draft to new ID if it exists
@@ -187,21 +190,23 @@ export class DocumentManager implements IDocumentService {
       throw new Error(`Document store with namespace ${id.store} not found`);
     }
     await storeInstance.rm(id.path);
+    this._documentListCache = null;
     this._documentVersions.delete(id.toString());
     this.discardUnsavedDocumentChanges(id);
   }
 
   async listDocuments(): Promise<DocumentId[]> {
-    const allDocs: DocumentId[] = [];
+    if (this._documentListCache !== null) {
+      return this._documentListCache;
+    }
 
-    // Call ls on all stores in parallel and aggregate results
+    const allDocs: DocumentId[] = [];
     await Promise.all(Array.from(this._stores.values()).map(async store => {
       const entries = await store.ls();
-      const storeDocs = entries.map(entry => {
-        return DocumentId.create(store.namespace, entry.filepath);
-      });
-      allDocs.push(...storeDocs);
+      allDocs.push(...entries.map(entry => DocumentId.create(store.namespace, entry.filepath)));
     }));
+
+    this._documentListCache = allDocs;
     return allDocs;
   }
 

@@ -16,7 +16,12 @@ const TOOL_NAMES = new Set([
   "replace_selection",
 ]);
 
-const EDIT_TOOL_NAMES = ["insert_document_section", "replace_document_section", "remove_document_section", "move_document_section"];
+const EDIT_TOOL_NAMES = [
+  "insert_document_section",
+  "replace_document_section",
+  "remove_document_section",
+  "move_document_section"
+];
 
 export class WritingAssistant implements Agent {
   readonly id = "writing-assistant";
@@ -38,16 +43,16 @@ export class WritingAssistant implements Agent {
       const skipNote = has("open_document")
         ? ` (the focused document is already open — do not call open_document first unless you need a different document)`
         : "";
-      workflowSteps.push(`1. Call read_document_outline${skipNote}.`);
+      workflowSteps.push(`- Call read_document_outline${skipNote}.`);
     }
     if (has("read_document_section")) {
-      workflowSteps.push(`2. Call read_document_section if you need the exact text of a section before editing it.`);
+      workflowSteps.push(`- Call read_document_section if you need the exact text of a section before editing it.`);
     }
     if (editTools.length > 0) {
-      workflowSteps.push(`3. Call the appropriate edit tool (${editTools.join(", ")}) to make the change.`);
+      workflowSteps.push(`- Call the appropriate edit tool (${editTools.join(", ")}) to make the change.`);
     }
     if (has("task_complete")) {
-      workflowSteps.push(`4. Call task_complete when all changes are done.`);
+      workflowSteps.push(`- Call task_complete when all changes are done.`);
     }
 
     const base = `You are a writing assistant with expertise in copywriting, technical writing, proofreading, grammar correction, and general writing assistance. Help the user write, edit, and organise their documents.`;
@@ -58,12 +63,12 @@ export class WritingAssistant implements Agent {
 
     return `${base}
 
-CRITICAL: Never produce document content as text in your response. All document content must be written into the document using tools. If you write document content as text, the user cannot use it — they would have to copy-paste it manually. This is always wrong.
+CRITICAL: Never produce document content as text in your response. All document content must be written into the document using tools. Do not write content and ask the user to copy-paste it. This is always wrong.
 
 When the user asks you to write, draft, create, edit, modify, add, or restructure content in a document, call tools immediately — do not explain your plan, do not describe what you are about to do, do not produce document content as text. Just call the tools:
 ${workflowSteps.join("\n")}
 
-After create_document succeeds, proceed immediately to step 1 above to populate the new document with content.
+After create_document succeeds, proceed immediately to populate the new document with content.
 
 Only reply with plain text (no tool calls) for questions or explanations. When a tool signals that no document is open, tell the user to open one.`;
   }

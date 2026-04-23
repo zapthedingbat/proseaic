@@ -777,6 +777,8 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
     this._processing = true;
     this._renderDom(lines, null);
     this._processing = false;
+    
+    setTimeout(() => this._clearPendingDomProcessing(), 0);
   }
 
   getContent(): string {

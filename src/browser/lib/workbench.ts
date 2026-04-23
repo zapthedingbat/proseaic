@@ -269,7 +269,7 @@ export class Workbench implements IWorkbench {
 
     try {
       await this._documentService.updateDocument(documentId, content);
-      // After saving, we should also update the document state to mark it as not dirty.
+      await this._syncUI();
     } catch (err: unknown) {
       await this._ui.alert(`Failed to save document: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -372,7 +372,7 @@ export class Workbench implements IWorkbench {
         const focusedDocId = this.getFocusedDocumentId();
         if (focusedDocId) {
           this._documentStateService.setDocumentDraft(focusedDocId, editorRef.getContent());
-          void this._syncUI();
+          this._syncOnContentChange();
         }
       });
     }
@@ -491,6 +491,12 @@ export class Workbench implements IWorkbench {
     this._syncOutlinePanel();
   }
 
+  private _syncOnContentChange(): void {
+    this._syncTabBar();
+    void this._syncDocumentPanel();
+    this._syncOutlinePanel();
+  }
+
   private _syncEditorArea(): void {
     const pane = this._editorGroups[0];
     if (!pane) return;
@@ -516,12 +522,7 @@ export class Workbench implements IWorkbench {
     const dirtyIds = this._openDocuments
       .filter(d => this._documentStateService.isDocumentDirty(d.documentId))
       .map(d => d.documentId);
-
-    this._documentPanel.setDocuments(
-      allDocIds,
-      focusedDocId,
-      dirtyIds
-    );
+    this._documentPanel.setDocuments(allDocIds, focusedDocId, dirtyIds);
   }
 
   private _syncOutlinePanel(): void {
