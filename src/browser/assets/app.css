@@ -174,7 +174,13 @@ main.app-main {
 
 .workspace {
   background-color: var(--workspace-bg-color);
+}
 
+.workbench-editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .selection {

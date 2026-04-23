@@ -545,6 +545,7 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
           max-width: 1024px;
           min-height: 100%;
           padding: 16px 0;
+          box-sizing: border-box;
         }
 
         #editor-page {
