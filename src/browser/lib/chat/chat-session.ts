@@ -1,5 +1,5 @@
 import { IChatHistory } from "../history/chat-history.js";
-import { AssistantChatMessage, ChatMessage, ChatMessageContentPart, ErrorChatMessage, ToolCall, ToolChatMessage, UserChatMessage } from "./chat-message.js";
+import { AssistantChatMessage, ChatMessage, ChatMessageContentPart, ErrorChatMessage, SystemChatMessage, ToolCall, ToolChatMessage, UserChatMessage } from "./chat-message.js";
 import { LoggerFactory } from "../logging/logger-factory.js";
 import { Logger } from "../logging/logger.js";
 import { Model } from "../models/model.js";
@@ -8,6 +8,9 @@ import { IToolService } from "../tools/tool-service.js";
 import { ChatMessageEvent } from "../events.js";
 import { ChatMessageContext } from "./chat-message-context.js";
 import { JSONValue } from "../JSONValue.js";
+import { Agent } from "../agent/agent.js";
+import { filterToolSchemas, filterToolSchemasByModel } from "../tools/tools-registry.js";
+import { BOUNDARY_PROMPT_ADDENDUM, PromptBuilder } from "../platform/system-prompt.js";
 
 export interface IChatSession extends EventTarget {
   submitUserPrompt(modelIdentifier: string, prompt: string, context: ChatMessageContext): Promise<void>;
@@ -38,9 +41,10 @@ export class ChatSession extends EventTarget implements IChatSession {
 
   // The message that the assistant is currently generating. As the assistant generates a response, we can update this message with the partial content and any tool calls that are emitted along the way, allowing us to show a live-updating response in the UI.
   private _activeAssistantChatMessage: AssistantChatMessage | null = null;
-  private _models: Map<string, Model> | null
+  private _models: Map<string, Model> | null;
+  private _agent: Agent;
 
-  constructor(loggerFactory: LoggerFactory, platformService: IPlatformService, history: IChatHistory, toolsService: IToolService) {
+  constructor(loggerFactory: LoggerFactory, platformService: IPlatformService, history: IChatHistory, toolsService: IToolService, agent: Agent) {
     super();
     this._id = `chat_${Date.now()}`;
     this._logger = loggerFactory(`Chat Session ${this._id}`);
@@ -48,6 +52,7 @@ export class ChatSession extends EventTarget implements IChatSession {
     this._history = history;
     this._toolsService = toolsService;
     this._models = null;
+    this._agent = agent;
   }
 
   async clearHistory(): Promise<void> {
@@ -107,9 +112,21 @@ export class ChatSession extends EventTarget implements IChatSession {
         return;
       }
 
+      // Build the filtered tool list: first scope to the agent's allow-list, then strip any tools the model doesn't support.
+      const allSchemas = this._toolsService.listToolSchemas();
+      const agentSchemas = filterToolSchemas(allSchemas, this._agent.tools);
+      const modelSchemas = filterToolSchemasByModel(agentSchemas, model);
+
+      // Build the system prompt from the agent definition and prepend it as the first message in the context.
+      const systemPrompt = new PromptBuilder(this._agent.systemPrompt)
+        .withInstruction("contentBoundary", BOUNDARY_PROMPT_ADDENDUM)
+        .build();
+      const systemMessage: SystemChatMessage = { role: "system", model: modelIdentifier, content: [{ type: "text", text: systemPrompt }] };
+      const messagesWithSystem: ChatMessage[] = [systemMessage, ...contextMessages];
+
       // Select the relevant platform based on the model details, and use it to convert from our internal message format and user message context into the format expected by the model endpoint.
       // Then send the request to the model endpoint and stream the response, collecting any tool calls that are emitted along the way.
-      const streamEvents = this._platformService.generate(model, contextMessages, this._toolsService.listToolSchemas());
+      const streamEvents = this._platformService.generate(model, messagesWithSystem, modelSchemas);
 
       // Normally this should always be null at this point since the assistant should emit a 'done' event when it finishes its response, setting the active message to null.
       // This likely means that the model emitted a new response before emitting a 'done'event for the previous response.

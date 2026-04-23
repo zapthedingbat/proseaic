@@ -9,7 +9,6 @@ import { Logger } from "../../lib/logging/logger.js";
 import { OllamaAssistantRequestMessage, OllamaRequest, OllamaRequestMessage, OllamaSystemRequestMessage, OllamaToolRequestMessage, OllamaUserRequestMessage } from "./ollama-request.js";
 import { JSONValue } from "../../lib/JSONValue.js";
 import { UrlResolver } from "../../lib/url-resolver.js";
-import { buildWritingAssistantSystemPrompt } from "../../lib/platform/system-prompt.js";
 
 export class OllamaPlatform implements IPlatform {
   private _logger: Logger;
@@ -123,15 +122,7 @@ export class OllamaPlatform implements IPlatform {
 
     this._logger.debug(`Building Ollama request for model: ${modelName}`);
    
-    const initialMessages: OllamaRequestMessage[] = [
-      {
-        role: 'system',
-        content: buildWritingAssistantSystemPrompt(false, toolSchemas)
-      },
-    ];
-
-    const formattedMessages = chatMessages.map((message, index, array) => this._formatMessage(message, index, array)).filter(Boolean) as OllamaRequestMessage[];
-    const messages = initialMessages.concat(formattedMessages);
+    const messages = chatMessages.map((message, index, array) => this._formatMessage(message, index, array)).filter(Boolean) as OllamaRequestMessage[];
 
     const modelInput: OllamaRequest = {
       model: modelName,

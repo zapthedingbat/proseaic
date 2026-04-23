@@ -1,5 +1,6 @@
 import { App, AppOptions, WorkbenchFactory } from "./app.js";
 import { MarkdownEditor } from "./components/markdown-editor.js";
+import { WritingAssistantAgent } from "./agents/writing-assistant.js";
 import { ChatSession } from "./lib/chat/chat-session.js";
 import { DocumentManager } from "./lib/document/document-manager.js";
 import { WebDavDocumentStore } from "./lib/document/stores/webdav-document-store.js";
@@ -54,7 +55,8 @@ import { OllamaStreamReader } from "./platform/ollama/ollama-stream-reader.js";
     loggerFactory,
     platformRegistry,
     history,
-    toolRegistry
+    toolRegistry,
+    WritingAssistantAgent
   );
 
   const documentManager = new DocumentManager();

@@ -97,11 +97,14 @@ describe("ChatSession", () => {
       error: vi.fn()
     }));
 
+    const agent = { id: "test", systemPrompt: "You are a test assistant.", tools: ["test_tool"] };
+
     const session = new ChatSession(
       loggerFactory,
       platformService as any,
       history as any,
-      toolsService as any
+      toolsService as any,
+      agent
     );
 
     await session.submitUserPrompt("demo-model", "Use the tool", {});
