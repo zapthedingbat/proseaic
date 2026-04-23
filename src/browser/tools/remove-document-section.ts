@@ -4,7 +4,7 @@ import { Logger } from "../lib/logging/logger.js";
 import { IStructuredDocument } from "../lib/document/structured-document.js";
 import { JSONValue } from "../lib/JSONValue.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
   instructions: "Call after confirming the target section ID from read_document_outline.",
   function: {
@@ -49,3 +49,4 @@ export class RemoveDocumentSectionTool {
     };
   };
 }
+

@@ -5,7 +5,7 @@ import { Logger } from "../lib/logging/logger.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
 import { IWorkbench } from "../lib/workbench.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
   function: {
     name: "create_document",
@@ -15,13 +15,21 @@ const schema: ToolSchema = {
       properties: {
         filename: {
           type: "string",
-          description: "filename for the new document, including path if desired. If not provided, a default name will be generated."
+          description: "Name for the new document, e.g. \"Technical Architecture\" or \"meeting-notes\". A .md extension and path prefix will be added automatically if omitted."
         },
       },
       required: []
     }
   }
 };
+
+function normalizeFilename(input?: string): string {
+  let name = (input ?? "").trim();
+  if (!name) name = "untitled";
+  if (!name.startsWith("/")) name = "/" + name;
+  if (!name.includes(".")) name = name + ".md";
+  return name;
+}
 
 export class CreateDocumentTool {
   schema = schema;
@@ -37,14 +45,15 @@ export class CreateDocumentTool {
 
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
-    const filename = args.filename as string;
-    if(filename && typeof filename !== "string") {
+    const filename = args.filename;
+    if (filename !== undefined && typeof filename !== "string") {
       throw new Error("filename must be a string");
     }
-    const documentPath = DocumentPath.parse(filename);
+    const documentPath = DocumentPath.parse(normalizeFilename(filename));
     const documentId = await this._workspace.createDocument(documentPath);
     return {
-      new_document_id: documentId.toString()
+      new_document_id: documentId.toString(),
+      next_step: "Document created and open. Call read_document_outline then insert_document_section to write content into it."
     };
   };
 }

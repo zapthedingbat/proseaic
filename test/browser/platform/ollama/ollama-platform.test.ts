@@ -34,8 +34,9 @@ describe("OllamaPlatform", () => {
     const platform = new OllamaPlatform(
       loggerFactory,
       fetchMock as any,
-      "http://localhost:11434",
-      () => reader
+      () => "",
+      () => reader,
+      "http://localhost:11434"
     );
 
     const model: Model = {
@@ -44,6 +45,11 @@ describe("OllamaPlatform", () => {
     };
 
     const chatMessages: ChatMessage[] = [
+      {
+        role: "system",
+        model: "llama3.1",
+        content: [{ type: "text", text: "You are a writing assistant." }]
+      },
       {
         role: "user",
         model: "llama3.1",
@@ -150,8 +156,9 @@ describe("OllamaPlatform", () => {
     const platform = new OllamaPlatform(
       loggerFactory,
       fetchMock as any,
-      "http://localhost:11434",
-      () => reader
+      () => "",
+      () => reader,
+      "http://localhost:11434"
     );
 
     const model: Model = {

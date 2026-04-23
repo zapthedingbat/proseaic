@@ -4,7 +4,7 @@ import { Logger } from "../lib/logging/logger.js";
 import { IStructuredDocument } from "../lib/document/structured-document.js";
 import { JSONValue } from "../lib/JSONValue.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
   instructions: "Call after read_document_outline. Use section_id from the outline results, not heading text.",
   function: {
@@ -45,3 +45,4 @@ export class ReadDocumentSectionTool {
     };
   };
 }
+

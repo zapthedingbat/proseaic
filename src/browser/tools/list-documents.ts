@@ -5,7 +5,7 @@ import { Logger } from "../lib/logging/logger.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
 import { IWorkbench } from "../lib/workbench.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
   instructions: "Use list_documents to inspect document IDs, open_document to switch the active document before reading or editing, create_document to start a new document, and rename_document to retitle an existing one.",
   function: {
@@ -33,7 +33,9 @@ export class ListDocumentsTool {
 
   addContext = (): Record<string, unknown> => {
     const openDocuments = this._workspace.listOpenDocuments();
+    const activeId = this._workspace.getFocusedDocumentId();
     return ({document_management: {
+      focused_document_id: activeId?.toString() ?? null,
       open_documents: openDocuments.map(doc => ({id: doc.id.toString(), has_unsaved_changes: doc.isDirty}))
     }});
   };

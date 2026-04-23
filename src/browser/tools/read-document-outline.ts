@@ -4,9 +4,9 @@ import { Logger } from "../lib/logging/logger.js";
 import { IStructuredDocument } from "../lib/document/structured-document.js";
 import { JSONValue } from "../lib/JSONValue.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
-  instructions: "Call this before any document read or edit tool. Only call when document_management.open_documents is non-empty; if empty, tell the user no document is open.",
+  instructions: "Call this before any document read or edit tool. The focused document is already open — call this immediately without calling open_document first. Only skip if document_management.focused_document_id is null; in that case tell the user no document is open.",
   function: {
     name: "read_document_outline",
     description: "Read the outline of the current document in the editor. Use this first when a task involves reviewing, summarizing, or editing document structure.",
@@ -39,3 +39,4 @@ export class ReadDocumentOutlineTool {
     };
   };
 }
+

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { NdJsonStreamReader } from "../../src/browser/lib/ndjson-stream-reader.js";
+import { NdJsonStreamReader } from "../../src/browser/lib/platform/ndjson-stream-reader.js";
 
 function createStreamFromTextParts(parts: string[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();

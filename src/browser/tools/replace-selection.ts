@@ -5,7 +5,7 @@ import { LoggerFactory } from "../lib/logging/logger-factory.js";
 import { Logger } from "../lib/logging/logger.js";
 import { JSONValue } from "../lib/JSONValue.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
   instructions: "Only call when the user has an active text selection. Use this instead of returning replacement text for the user to paste.",
   function: {
@@ -49,3 +49,4 @@ export class ReplaceSelectionTool {
     return {};
   }
 }
+

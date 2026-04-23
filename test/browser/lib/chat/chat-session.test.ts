@@ -97,7 +97,11 @@ describe("ChatSession", () => {
       error: vi.fn()
     }));
 
-    const agent = { id: "test", systemPrompt: "You are a test assistant.", tools: ["test_tool"] };
+    const agent = {
+      id: "test",
+      buildSystemPrompt: () => "You are a test assistant.",
+      filterTools: (tools: any[]) => tools
+    };
 
     const session = new ChatSession(
       loggerFactory,

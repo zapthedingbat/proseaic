@@ -9,7 +9,7 @@ import { ChatMessageEvent } from "../events.js";
 import { ChatMessageContext } from "./chat-message-context.js";
 import { JSONValue } from "../JSONValue.js";
 import { Agent } from "../agent/agent.js";
-import { filterToolSchemas, filterToolSchemasByModel } from "../tools/tools-registry.js";
+import { filterToolSchemasByModel } from "../tools/tools-registry.js";
 import { BOUNDARY_PROMPT_ADDENDUM, PromptBuilder } from "../platform/system-prompt.js";
 
 export interface IChatSession extends EventTarget {
@@ -100,6 +100,8 @@ export class ChatSession extends EventTarget implements IChatSession {
 
     let assistantMessage: AssistantChatMessage | null = null;
     let continueAgentLoop = true;
+    let continuationCount = 0;
+    const MAX_CONTINUATIONS = 2;
     while (continueAgentLoop) {
       
       // Get the model details for the selected model identifier, which includes information about which platform to use for generating the response.
@@ -114,13 +116,24 @@ export class ChatSession extends EventTarget implements IChatSession {
 
       // Build the filtered tool list: first scope to the agent's allow-list, then strip any tools the model doesn't support.
       const allSchemas = this._toolsService.listToolSchemas();
-      const agentSchemas = filterToolSchemas(allSchemas, this._agent.tools);
+      const agentSchemas = this._agent.filterTools(allSchemas);
       const modelSchemas = filterToolSchemasByModel(agentSchemas, model);
 
       // Build the system prompt from the agent definition and prepend it as the first message in the context.
-      const systemPrompt = new PromptBuilder(this._agent.systemPrompt)
-        .withInstruction("contentBoundary", BOUNDARY_PROMPT_ADDENDUM)
-        .build();
+      // The agent receives the final filtered tool list so it can tailor its instructions to only reference
+      // tools that are actually available to the model.
+      const promptBuilder = new PromptBuilder(this._agent.buildSystemPrompt(modelSchemas));
+      for (const schema of modelSchemas) {
+        if (schema.instructions) {
+          promptBuilder.withInstruction(schema.function.name, schema.instructions);
+        }
+      }
+      // Only use content boundary markers when no tools are available — with tools the model
+      // should edit documents directly via tool calls, not by producing text for the user to paste.
+      if (modelSchemas.length === 0) {
+        promptBuilder.withInstruction("contentBoundary", BOUNDARY_PROMPT_ADDENDUM);
+      }
+      const systemPrompt = promptBuilder.build();
       const systemMessage: SystemChatMessage = { role: "system", model: modelIdentifier, content: [{ type: "text", text: systemPrompt }] };
       const messagesWithSystem: ChatMessage[] = [systemMessage, ...contextMessages];
 
@@ -206,7 +219,19 @@ export class ChatSession extends EventTarget implements IChatSession {
       }
 
       if(toolResultsMessages.length == 0) {
-        continueAgentLoop = false;
+        const continuation = this._agent.buildContinuationPrompt?.();
+        if (continuation && continuationCount < MAX_CONTINUATIONS) {
+          continuationCount++;
+          const continuationMsg: UserChatMessage = {
+            role: "user",
+            model: modelIdentifier,
+            content: [{ type: "text", text: continuation }]
+          };
+          await this._history.addMessage(continuationMsg);
+          contextMessages.push(continuationMsg);
+        } else {
+          continueAgentLoop = false;
+        }
       } else{
         // If there are tool results, we feed them back into the next turn of the assistant's response generation to allow it to react to the tool results in real time and adjust its response accordingly.
         // This allows for more dynamic and interactive conversations where the assistant can use tools, see the results, and then decide what to do next based on those results, rather than having to wait for the next user prompt to react to tool results.

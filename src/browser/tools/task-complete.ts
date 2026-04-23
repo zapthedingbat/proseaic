@@ -4,7 +4,7 @@ import { Logger } from "../lib/logging/logger.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
 import { ITool } from "../lib/tools/tool.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
   function: {
     name: "task_complete",
@@ -36,3 +36,4 @@ export class TaskCompleteTool implements ITool {
     };
   };
 }
+

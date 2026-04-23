@@ -4,10 +4,10 @@ import { ChatHistory } from "../../src/browser/lib/history/memory-chat-history.j
 import { AssistantChatMessage, ChatMessage } from "../../src/browser/lib/chat/chat-message.js";
 import { IPlatformService } from "../../src/browser/lib/platform/platform-service.js";
 import { IToolService } from "../../src/browser/lib/tools/tool-service.js";
-import { IModelService } from "../../src/browser/lib/models/model-service.js";
 import { StreamEvent } from "../../src/browser/lib/platform/stream-event.js";
 import { Model } from "../../src/browser/lib/models/model.js";
 import { ToolSchema } from "../../src/browser/lib/tools/tool-schema.js";
+import { Agent } from "../../src/browser/lib/agent/agent.js";
 
 // Silent logger factory for tests
 const silentLogger = () => ({
@@ -19,9 +19,11 @@ const silentLogger = () => ({
 
 const TEST_MODEL: Model = { name: "test-model", platform: "test", capabilities: [] };
 
-function makeModelService(): IModelService {
-  return { getModel: () => TEST_MODEL };
-}
+const testAgent: Agent = {
+  id: "test",
+  buildSystemPrompt: () => "",
+  filterTools: (tools) => tools,
+};
 
 function makeToolService(toolExecute: (args: Record<string, unknown>) => Promise<unknown> = async () => ({ done: true })): IToolService {
   return {
@@ -33,7 +35,7 @@ function makeToolService(toolExecute: (args: Record<string, unknown>) => Promise
     listToolSchemas: (): ToolSchema[] => [
       { type: "function", function: { name: "replace_selection", description: "Replace selection", parameters: { type: "object", properties: { text: { type: "string" } }, required: ["text"] } } }
     ],
-    notifyPromptComplete: () => {},
+    addContext: () => ({}),
   };
 }
 
@@ -81,7 +83,7 @@ describe("ChatSession tool-call history", () => {
     };
 
     const history = new ChatHistory();
-    const session = new ChatSession(silentLogger as any, platformService, history, makeToolService(), makeModelService());
+    const session = new ChatSession(silentLogger as any, platformService, history, makeToolService(), testAgent);
 
     await session.submitUserPrompt("test-model", "write something", {});
 
@@ -128,7 +130,7 @@ describe("ChatSession tool-call history", () => {
     };
 
     const history = new ChatHistory();
-    const session = new ChatSession(silentLogger as any, platformService, history, makeToolService(), makeModelService());
+    const session = new ChatSession(silentLogger as any, platformService, history, makeToolService(), testAgent);
 
     await session.submitUserPrompt("test-model", "write a poem into the selection", {});
 
@@ -171,7 +173,7 @@ describe("ChatSession tool-call history", () => {
     };
 
     const history = new ChatHistory();
-    const session = new ChatSession(silentLogger as any, platformService, history, makeToolService(), makeModelService());
+    const session = new ChatSession(silentLogger as any, platformService, history, makeToolService(), testAgent);
 
     await expect(
       session.submitUserPrompt("test-model", "do stuff", {})

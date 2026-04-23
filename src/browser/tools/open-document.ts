@@ -5,7 +5,7 @@ import { Logger } from "../lib/logging/logger.js";
 import { ToolSchema } from "../lib/tools/tool-schema.js";
 import { IWorkbench } from "../lib/workbench.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
   function: {
     name: "open_document",

@@ -181,6 +181,9 @@ export class OllamaPlatform implements IPlatform {
       if(part.type === "text") {
         return `${acc}\n${part.text}\n`;
       }
+      if(part.type === "context") {
+        return acc + `\n<${part.name}>\n${JSON.stringify(part.data, null, 2)}\n</${part.name}>`;
+      }
       return acc;
     }, "");
 

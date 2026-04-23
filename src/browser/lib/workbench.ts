@@ -24,6 +24,7 @@ export interface IWorkbench {
   closeFocusedTab(): Promise<void>;
   createDocument(filepath?: DocumentPath): Promise<DocumentId>;
   deleteDocument(id: DocumentId): Promise<void>;
+  getFocusedDocumentId(): DocumentId | null;
   getFocusedEditor(): IEditorComponent | null;
   listOpenDocuments(): Array<WorkbenchDocumentState>;
   mount(containerEl: HTMLElement): void;
@@ -368,7 +369,7 @@ export class Workbench implements IWorkbench {
       // focused document so that switching tabs cannot leak drafts into the wrong document.
       const editorRef = editor;
       editor.addEventListener("change", () => {
-        const focusedDocId = this._getFocusedDocumentId();
+        const focusedDocId = this.getFocusedDocumentId();
         if (focusedDocId) {
           this._documentStateService.setDocumentDraft(focusedDocId, editorRef.getContent());
           void this._syncUI();
@@ -478,7 +479,7 @@ export class Workbench implements IWorkbench {
     return this._editors.get(pane) ?? null;
   }
 
-  private _getFocusedDocumentId(): DocumentId | null {
+  getFocusedDocumentId(): DocumentId | null {
     if (!this._focusedTab) return null;
     return this._openDocuments.find(d => d.tabId === this._focusedTab)?.documentId ?? null;
   }
@@ -511,7 +512,7 @@ export class Workbench implements IWorkbench {
   private async _syncDocumentPanel(): Promise<void> {
     if (!this._documentPanel) return;
     const allDocIds = await this._documentService.listDocuments();
-    const focusedDocId = this._getFocusedDocumentId();
+    const focusedDocId = this.getFocusedDocumentId();
     const dirtyIds = this._openDocuments
       .filter(d => this._documentStateService.isDocumentDirty(d.documentId))
       .map(d => d.documentId);

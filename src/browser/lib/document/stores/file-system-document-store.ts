@@ -101,7 +101,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
       if (entry.kind === "file" && entry.name.endsWith(".md")) {
         const file = await (entry as FileSystemFileHandle).getFile();
         files.push({
-          filepath: DocumentPath.parse(entry.name),
+          filepath: DocumentPath.parse("/" + entry.name),
           version: this._getVersionFromFile(file)
         });
       }

@@ -4,7 +4,7 @@ import { Logger } from "../lib/logging/logger.js";
 import { IStructuredDocument } from "../lib/document/structured-document.js";
 import { JSONValue } from "../lib/JSONValue.js";
 
-const schema: ToolSchema = {
+export const schema: ToolSchema = {
   type: "function",
   instructions: "Call after read_document_outline to understand document structure. Only call when document_management.open_documents is non-empty; if empty, tell the user no document is open.",
   function: {
@@ -56,3 +56,4 @@ export class InsertDocumentSectionTool {
     };
   };
 }
+

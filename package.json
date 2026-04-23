@@ -7,7 +7,7 @@
     "build": "node -r dotenv/config scripts/script.mjs",
     "watch": "node -r dotenv/config scripts/script.mjs",
     "start": "node -r dotenv/config scripts/script.mjs",
-    "test": "vitest run --environment jsdom",
+    "test": "vitest run",
     "test:smoke": "playwright test -c playwright.smoke.config.ts",
     "test:smoke:headed": "playwright test -c playwright.smoke.config.ts --headed"
   },

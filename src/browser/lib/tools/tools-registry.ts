@@ -3,11 +3,6 @@ import { IToolService } from "./tool-service.js";
 import { ToolSchema } from "./tool-schema.js";
 import { Model } from "../models/model.js";
 
-export function filterToolSchemas(schemas: ToolSchema[], allowedNames: readonly string[]): ToolSchema[] {
-  const allowed = new Set(allowedNames);
-  return schemas.filter(s => allowed.has(s.function.name));
-}
-
 export function filterToolSchemasByModel(schemas: ToolSchema[], model: Model): ToolSchema[] {
   return schemas.filter(s => {
     if (!s.requiredCapability) return true;
