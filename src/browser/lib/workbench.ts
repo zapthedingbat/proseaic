@@ -154,11 +154,7 @@ export class Workbench implements IWorkbench {
       newId = await this._documentService.renameDocument(fromId, toFilepath);
     } catch (err: unknown) {
       if(err instanceof DocumentIdConflictError){
-        const newName = await this._ui.prompt(`A document with the name "${toFilepath}" already exists. Please enter a different name:`, toFilepath.toString());
-        if(newName){
-          const newFilepath = this._documentService.documentPathFromString(newName);
-          return this.renameDocument(fromId, newFilepath);
-        }
+        this._documentPanel?.startRename(fromId, `"${toFilepath.toString()}" already exists. Try a different name.`);
         return;
       }
       await this._ui.alert(`Failed to rename document: ${err instanceof Error ? err.message : String(err)}`);
@@ -550,7 +546,8 @@ export class Workbench implements IWorkbench {
 
   // Document panel event handlers
   private _handleDocumentSelect = (event: Event): void => {
-    const { id } = (event as CustomEvent<{ id: string }>).detail;
+    if (!(event instanceof CustomEvent)) return;
+    const { id } = event.detail as { id: string };
 
     if(!DocumentId.isValidFormat(id)){
       throw new Error("id must be a valid DocumentId string");

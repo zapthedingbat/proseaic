@@ -391,6 +391,12 @@ ui-pane .body {
   border-color: var(--input-border-focus-color);
 }
 
+.list .list-item .input-error {
+  color: var(--error-color);
+  font-size: 0.8em;
+  padding: 2px 8px 4px;
+}
+
 /* Inputs */
 
 .textarea-input {

@@ -57,12 +57,12 @@ export class DocumentPanel extends BaseHtmlElement {
     }));
   }
 
-  public startRename(id: DocumentId): void {
+  public startRename(id: DocumentId, errorMessage?: string): void {
     const row = this._listEl.querySelector<HTMLLIElement>(`.list-item[data-doc-id="${CSS.escape(id.toString())}"]`);
     if (!row) {
       return;
     }
-    this._startRename(row);
+    this._startRename(row, errorMessage);
   }
 
   private _handleListClick = (event: MouseEvent): void => {
@@ -117,7 +117,7 @@ export class DocumentPanel extends BaseHtmlElement {
     }));
   };
 
-  private _startRename(row: HTMLLIElement): void {
+  private _startRename(row: HTMLLIElement, errorMessage?: string): void {
     const docId = row.dataset.docId!;
     const titleBtn = row.querySelector(".list-item-title") as HTMLButtonElement;
     const actions = row.querySelector(".list-item-actions") as HTMLDivElement;
@@ -126,6 +126,17 @@ export class DocumentPanel extends BaseHtmlElement {
     input.type = "text";
     input.className = "input";
     input.value = titleBtn.textContent?.trim() ?? "";
+
+    let wrapper: HTMLDivElement | null = null;
+
+    if (errorMessage) {
+      wrapper = document.createElement("div");
+      wrapper.style.flexGrow = "1";
+      const errorSpan = document.createElement("span");
+      errorSpan.className = "input-error";
+      errorSpan.textContent = errorMessage;
+      wrapper.append(input, errorSpan);
+    }
 
     const cleanup = () => {
       input.removeEventListener("keydown", onKeydown);
@@ -138,7 +149,11 @@ export class DocumentPanel extends BaseHtmlElement {
       const newTitle = input.value.trim() || "Untitled";
       titleBtn.textContent = newTitle;
       titleBtn.title = newTitle;
-      input.replaceWith(titleBtn);
+      if (wrapper) {
+        wrapper.replaceWith(titleBtn);
+      } else {
+        input.replaceWith(titleBtn);
+      }
 
       // TODO: Use typed custom events instead of relying on the event detail having the expected shape.
       this.dispatchEvent(new CustomEvent("rename", {
@@ -150,7 +165,11 @@ export class DocumentPanel extends BaseHtmlElement {
 
     const cancel = () => {
       cleanup();
-      input.replaceWith(titleBtn);
+      if (wrapper) {
+        wrapper.replaceWith(titleBtn);
+      } else {
+        input.replaceWith(titleBtn);
+      }
     };
 
     const onKeydown = (e: KeyboardEvent) => {
@@ -164,7 +183,11 @@ export class DocumentPanel extends BaseHtmlElement {
     input.addEventListener("blur", onBlur);
 
     actions.style.display = "none";
-    titleBtn.replaceWith(input);
+    if (wrapper) {
+      titleBtn.replaceWith(wrapper);
+    } else {
+      titleBtn.replaceWith(input);
+    }
     input.select();
   }
 
