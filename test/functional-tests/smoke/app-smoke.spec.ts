@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 class AppSmokePage {
   constructor(private readonly page: Page) {}
