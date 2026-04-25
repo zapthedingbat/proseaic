@@ -37,6 +37,9 @@ export type GeminiRequest = {
   generationConfig?: {
     maxOutputTokens?: number;
     temperature?: number;
+    thinkingConfig?: {
+      thinkingLevel?: "minimal" | "low" | "medium" | "high";
+    }
   };
 };
 

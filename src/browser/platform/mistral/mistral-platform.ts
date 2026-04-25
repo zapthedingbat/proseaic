@@ -14,7 +14,7 @@ import {
 } from "./mistral-request.js";
 import { IMistralStreamReader } from "./mistral-stream-reader.js";
 import { UrlResolver } from "../../lib/url-resolver.js";
-import { buildWritingAssistantSystemPrompt } from "../../lib/platform/system-prompt.js";
+import { PlatformGenerateOptions } from "../../lib/platform/platform-registry.js";
 
 export class MistralPlatform implements IPlatform {
   private _logger: Logger;
@@ -70,20 +70,32 @@ export class MistralPlatform implements IPlatform {
       });
   }
 
-  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[]): AsyncIterable<StreamEvent> {
-    const request = this._buildModelInput(model, chatMessages, tools);
+  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[], options?: PlatformGenerateOptions): AsyncIterable<StreamEvent> {
+    
+    // Default to thinking unless the caller explicitly sets thinkOption to false, or its not supported by the model.
+    const think = ((options?.think !== false) && model.capabilities?.includes("thinking")) ?? false;
+
+    // Format the messages for the Mistral API.
+    const request = this._buildModelInput(model, chatMessages, tools, think);
 
     this._logger.debug("Sending request to Mistral API", request);
 
     const url = this._urlResolver.resolve("/v1/chat/completions");
-    const response = await this._fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this._getApiKey()}`,
-      },
-      body: JSON.stringify(request),
-    });
+    let response: Response;
+    try {
+      response = await this._fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this._getApiKey()}`,
+        },
+        body: JSON.stringify(request),
+        signal: options?.signal,
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      throw e;
+    }
 
     if (!response.ok) {
       throw new Error(`Mistral API error: ${response.statusText}`);
@@ -147,21 +159,19 @@ export class MistralPlatform implements IPlatform {
     return (`${name}${Math.random().toString(32)}`).replace(/[^a-zA-Z0-9]+/g, "").slice(0, 9);
   }
 
-  private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): MistralRequest {
-    const systemPrompt = buildWritingAssistantSystemPrompt(!model.supportsStreamingToolCalls, toolSchemas);
+  private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[], think: boolean): MistralRequest {
 
-    const initialMessages: MistralRequestMessage[] = [
-      { role: "system", content: systemPrompt },
-    ];
-
-    const formattedMessages = chatMessages
+    const messages = chatMessages
       .map(message => this._formatMessage(message))
       .filter(Boolean) as MistralRequestMessage[];
 
+    this._logger.debug(`Building Mistral request for model: ${model.name}`);
+
     return {
       model: model.name,
-      messages: initialMessages.concat(formattedMessages),
+      messages: messages,
       stream: true,
+      reasoning_effort: think ? "high" : "none",
       tools: toolSchemas?.map(tool => ({
         type: "function",
         function: {

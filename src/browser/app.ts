@@ -1,18 +1,19 @@
-import { ChatMessageContext } from "./lib/chat/chat-message-context.js";
+import { Model } from "./lib/models/model.js"
 import { ChatSession } from "./lib/chat/chat-session.js";
 import { ComponentFactory } from "./lib/ui/component-factory.js";
 import { ConsoleLogger } from "./lib/logging/console-logger.js";
 import { IDocumentService } from "./lib/document/document-service.js";
-import { IChatStream } from "./lib/platform/chat-stream.js";
 import { IPlatformService } from "./lib/platform/platform-service.js";
 import { Logger } from "./lib/logging/logger.js";
 import { LoggerFactory } from "./lib/logging/logger-factory.js";
 
-import { SubmitPromptEvent } from "./lib/events.js";
+import { StreamTokenEvent, SubmitPromptEvent } from "./lib/events.js";
 import { TaskCompleteTool } from "./tools/task-complete.js";
 import { ToolRegistry } from "./lib/tools/tools-registry.js";
 import { IWorkbench } from "./lib/workbench.js";
+import { IInlineCompletionService } from "./lib/completion/inline-completion-service.js";
 import { IUserInteraction,  } from "./lib/ui/user-interaction.js";
+import { IConfigurationService, Configuration } from "./lib/configuration/configuration-service.js";
 
 // UI Components
 import { ChatPanel } from "./components/chat-panel.js";
@@ -20,7 +21,6 @@ import { MenuBar } from "./components/menu-bar.js";
 import { UiPane } from "./components/pane.js";
 import { UiPaneView } from "./components/pane-view.js";
 import { SettingsPanel } from "./components/settings-panel.js";
-
 
 // Tools
 import { ReplaceSelectionTool } from "./tools/replace-selection.js";
@@ -39,8 +39,9 @@ export type WorkbenchFactory = (ui: IUserInteraction) => IWorkbench;
 
 export type AppOptions = {
   chatSession: ChatSession;
-  chatStream: IChatStream;
+  completionService: IInlineCompletionService;
   componentFactory: ComponentFactory,
+  configurationService: IConfigurationService;
   documentService: IDocumentService;
   global: typeof globalThis,
   logger: Logger;
@@ -56,22 +57,23 @@ export class App implements IUserInteraction {
   private _workbench: IWorkbench;
   private _chatSession: ChatSession;
   private _platformService: IPlatformService;
-  private _chatStream: IChatStream;
   private _documentService: IDocumentService;
   private _toolService: ToolRegistry;
 
   // UI Components
+  private _configurationService: IConfigurationService;
   private _chatPanel?: ChatPanel;
   private _settingsPanel?: SettingsPanel;
   private _saveButton?: HTMLButtonElement;
   private _saveAsButton?: HTMLButtonElement;
+  private _availableModels: Model[] = [];
 
   // The constructor is private to enforce the use of the async create() method for initialization.
   private constructor(options: AppOptions) {
     // Useful for stubbing out dependencies in tests, but in practice these will typically be created and injected by the static create() method.
     this._chatSession = options.chatSession;
-    this._chatStream = options.chatStream;
     this._componentFactory = options.componentFactory;
+    this._configurationService = options.configurationService;
     this._documentService = options.documentService;
     this._global = options.global;
     this._logger = options.logger; 
@@ -137,33 +139,12 @@ export class App implements IUserInteraction {
     this._global.document.addEventListener("keydown", this._handleKeyDown);
 
     this._registerTools();
-    
-    // Stream content into the chat panel as it is received from the platform.
-    // TODO: Work out how we handle multiple simultaneous streams for different chat messages.
-    //   We likely need to include some identifier in the stream events so we know which 
-    //   message/panel to stream the content into.
-    this._chatStream.on("streamEvent", event => {
-      const chatPanel = this._chatPanel;
-      switch(event.type){
-        case "text_delta":
-          chatPanel?.appendResponseToActiveMessage(event.text);
-          break;
-        case "reasoning_delta":
-          chatPanel?.appendThinkingToActiveMessage(event.text);
-          break;
-        case "image":
-          chatPanel?.appendImageToActiveMessage(event.data);
-          break;
-      }
-
-    });
 
     this._global.document.addEventListener("settings-changed", this._handleSettingsChanged);
 
     // Load the list of available models from the platform and set them in the chat panel so that the user can select which model to use for their prompts.
     await this._refreshModels();
 
-    this._chatSession.addEventListener("message", this._updateChatPanel);
     await this._updateChatPanel();
 
   }
@@ -178,7 +159,22 @@ export class App implements IUserInteraction {
     this._settingsPanel = this._componentFactory.create(SettingsPanel);
     this._settingsPanel.id = "ui-settings-panel";
     this._settingsPanel.setAttribute("popover", "");
+    this._settingsPanel.addEventListener("toggle", (e: Event) => {
+      if ((e as ToggleEvent).newState === "open") {
+        void this._refreshModels();
+        this._loadSettingsPanel();
+      }
+    });
     appEl.insertBefore(this._settingsPanel, mainEl);
+  }
+
+  private _loadSettingsPanel(): void {
+    if (!this._settingsPanel) return;
+    const snapshot: Partial<Configuration> = {};
+    for (const key of this._configurationService.keys()) {
+      snapshot[key] = this._configurationService.get(key);
+    }
+    this._settingsPanel.load(snapshot);
   }
 
   private _mountChatPane(mainEl: HTMLElement): void {
@@ -247,7 +243,17 @@ export class App implements IUserInteraction {
     }
 
     try {
-      await this._chatSession.submitUserPrompt(modelIdentifier, promptText);
+      const stream = this._chatSession.submitUserPrompt(modelIdentifier, promptText);
+      stream.addEventListener("message", this._updateChatPanel);
+      stream.addEventListener("token", (e: Event) => {
+        const event = (e as StreamTokenEvent).detail;
+        if (event.type === "text_delta") {
+          this._chatPanel?.appendResponseToActiveMessage(event.text);
+        } else if (event.type === "reasoning_delta") {
+          this._chatPanel?.appendThinkingToActiveMessage(event.text);
+        }
+      });
+      await stream.completed;
     } finally {
       this._chatPanel?.setSendEnabled(true);
     }
@@ -288,83 +294,15 @@ export class App implements IUserInteraction {
     ]);
   }
 
-  // private _handleDocumentSelect = async (event: Event): Promise<void> => {
-  //   const { id } = (event as CustomEvent<{ id: string }>).detail;
-  //   await this._workbench.openDocument(id);
-  // }
-
-  // private _handleDocumentRename = async (event: Event): Promise<void> => {
-  //   const { fromId, toId } = (event as CustomEvent<{ fromId: string; toId: string }>).detail;
-  //   await this._workbench.renameDocument(fromId, toId);
-  // }
-
-  // private _handleDocumentDelete = async (event: Event): Promise<void> => {
-  //   const { id } = (event as CustomEvent<{ id: string }>).detail;
-  //   await this._workbench.deleteDocument(id);
-  // }
-
-  // private _handleDocumentCreate = async (): Promise<void> => {
-  //   await this._workbench.createDocument();
-  // }
-
-  // private _handleTabSelect = async (event: Event): Promise<void> => {
-  //   const { id } = (event as CustomEvent<{ id: string }>).detail;
-  //   await this._workbench.openDocument(id);
-  // }
-
-  // private _handleTabClose = async (event: Event): Promise<void> => {
-  //   const { id } = (event as CustomEvent<{ id: string }>).detail;
-  //   if (!id) {
-  //     return;
-  //   }
-
-  //   await this._workbench.closeDocument(id);
-  // }
-
-  // private _handleOutlineSelect = (event: Event): void => {
-  //   const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
-  //   const editor = this._workbench.getFocusedEditor() as any;
-  //   editor?.focusSection(sectionId);
-  // }
-
-  // private _handleOutlineDelete = (event: Event): void => {
-  //   const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
-  //   const editor = this._workbench.getFocusedEditor() as any;
-  //   editor?.removeSection(sectionId);
-  // }
-
-  // private _handleOutlineDecreaseLevel = (event: Event): void => {
-  //   const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
-  //   const editor = this._workbench.getFocusedEditor() as any;
-  //   editor?.decreaseSectionLevel(sectionId);
-  // }
-
-  // private _handleOutlineIncreaseLevel = (event: Event): void => {
-  //   const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
-  //   const editor = this._workbench.getFocusedEditor() as any;
-  //   editor?.increaseSectionLevel(sectionId);
-  // }
-
-  // private _handleEditorChange = (event: Event): void => {
-  //   this._refreshOutlinePanel();
-  //   void event;
-  //   this._workspace.handleEditorChange();
-  // }
-
-  // private _refreshOutlinePanel(): void {
-  //   const outline = this._markdownEditor?.getOutline();
-  //   if(outline){
-  //     this._outlinePanel?.setDocument(outline);
-  //   }
-  // }
-
   private _handleChatPanelClearHistory = (): void => {
     this._chatSession.clearHistory();
     this._updateChatPanel();
   }
 
-  private _handleSettingsChanged = (): void => {
-    this._refreshModels();
+  private _handleSettingsChanged = (event: Event): void => {
+    const { key, value } = (event as CustomEvent<{ key: keyof Configuration; value: string }>).detail;
+    this._configurationService.set(key, value);
+    void this._refreshModels();
   }
 
   private _handleKeyDown = (event: KeyboardEvent): void => {
@@ -379,7 +317,9 @@ export class App implements IUserInteraction {
 
   private async _refreshModels(): Promise<void> {
     const models = await this._platformService.getModels();
+    this._availableModels = models;
     this._chatPanel?.setModels(models);
+    this._settingsPanel?.setModels(models);
   }
 
   private _wireAppMenu(): void {

@@ -16,7 +16,7 @@ import {
 } from "./anthropic-request.js";
 import { IAnthropicStreamReader } from "./anthropic-stream-reader.js";
 import { UrlResolver } from "../../lib/url-resolver.js";
-import { buildWritingAssistantSystemPrompt } from "../../lib/platform/system-prompt.js";
+import { PlatformGenerateOptions } from "../../lib/platform/platform-registry.js";
 
 export class AnthropicPlatform implements IPlatform {
   private _logger: Logger;
@@ -92,20 +92,35 @@ export class AnthropicPlatform implements IPlatform {
       .map(([name]) => name);
   }
 
-  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[]): AsyncIterable<StreamEvent> {
-    const request = this._buildModelInput(model, chatMessages, tools);
+  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[], options?: PlatformGenerateOptions): AsyncIterable<StreamEvent> {
+    
+    // Default to thinking unless the caller explicitly sets thinkOption to false, or its not supported by the model.
+    const think = ((options?.think !== false) && model.capabilities?.includes("thinking")) ?? false;
+
+    // Format the messages for the Anthropic API.
+    const request = this._buildModelInput(model, chatMessages, tools, think);
+
     this._logger.debug("Sending request to Anthropic API", request);
+
+    // Send the request to the Anthropic API and stream the response.
     const url = this._urlResolver.resolve("/v1/messages");
-    const response = await this._fetch(url.toString(), {
-      method: "POST",
-      headers: {
-        "anthropic-dangerous-direct-browser-access": "true",
-        "Content-Type": "application/json",
-        "anthropic-version": "2023-06-01",
-        "x-api-key": this._getApiKey(),
-      },
-      body: JSON.stringify(request),
-    });
+    let response: Response;
+    try {
+      response = await this._fetch(url.toString(), {
+        method: "POST",
+        headers: {
+          "anthropic-dangerous-direct-browser-access": "true",
+          "Content-Type": "application/json",
+          "anthropic-version": "2023-06-01",
+          "x-api-key": this._getApiKey(),
+        },
+        body: JSON.stringify(request),
+        signal: options?.signal,
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      throw e;
+    }
 
     if (response.status >= 500) {
       throw new Error(`Anthropic API error: ${response.statusText}`);
@@ -212,8 +227,8 @@ export class AnthropicPlatform implements IPlatform {
     return events;
   }
 
-  private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): AnthropicRequest {
-    let systemContent = buildWritingAssistantSystemPrompt(!model.supportsStreamingToolCalls, toolSchemas);
+  private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[], think: boolean): AnthropicRequest {
+    let systemContent = "";
 
     const messages: AnthropicRequestMessage[] = [];
     let i = 0;
@@ -256,9 +271,7 @@ export class AnthropicPlatform implements IPlatform {
           break;
       }
     }
-
-    const supportsThinking = model.capabilities?.includes("thinking");
-
+   
     const request: AnthropicRequest = {
       model: model.name,
       messages,
@@ -273,7 +286,7 @@ export class AnthropicPlatform implements IPlatform {
           ...(tool.function.parameters as object),
         },
       })),
-      thinking: supportsThinking ? { type: "enabled", budget_tokens: 8000 } : undefined,
+      thinking: think ? { type: "enabled", budget_tokens: 8000 } : undefined,
     };
 
     return request;
@@ -332,3 +345,4 @@ export class AnthropicPlatform implements IPlatform {
     };
   }
 }
+

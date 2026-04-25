@@ -1,10 +1,12 @@
 import { BaseHtmlElement } from "./base-html-element";
+import { Model } from "../lib/models/model";
+import { Configuration } from "../lib/configuration/configuration-service";
 
-const PLATFORM_KEYS: Array<{ label: string; storageKey: string; placeholder: string }> = [
-  { label: "Anthropic",  storageKey: "anthropic_api_key", placeholder: "sk-ant-…"  },
-  { label: "OpenAI",     storageKey: "openai_api_key",    placeholder: "sk-…"       },
-  { label: "Gemini",     storageKey: "gemini_api_key",    placeholder: "AIza…"      },
-  { label: "Mistral",    storageKey: "mistral_api_key",   placeholder: ""            },
+const PLATFORM_KEYS: Array<{ label: string; key: string; placeholder: string }> = [
+  { label: "Anthropic",  key: "ai.platform.anthropic.api_key", placeholder: "sk-ant-…"},
+  { label: "OpenAI",     key: "ai.platform.openai.api_key",    placeholder: "sk-…"},
+  { label: "Gemini",     key: "ai.platform.gemini.api_key",    placeholder: "AIza…"},
+  { label: "Mistral",    key: "ai.platform.mistral.api_key",   placeholder: ""},
 ];
 
 const css = `
@@ -119,38 +121,70 @@ ui-settings-panel::backdrop {
   background: #3a3a3a;
   color: #ccc;
 }
+
+.field select {
+  flex: 1;
+  background: #333;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #fff;
+  font-family: var(--font-family, system-ui, sans-serif);
+  font-size: 0.85rem;
+  padding: 5px 8px;
+}
+
+.field select:focus {
+  border-color: #08f;
+  outline: none;
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid #3a3a3a;
+  margin: 2px 0;
+}
 `;
 
 export class SettingsPanel extends BaseHtmlElement {
+  private _models: Model[] = [];
+  private _completionModel = "";
+
   constructor() {
     super();
+  }
+
+  setModels(models: Model[]): void {
+    this._models = models;
+    this._renderCompletionModelSelect();
+  }
+
+  load(config: Partial<Configuration>): void {
+    this.querySelectorAll<HTMLInputElement>("input[data-storage-key]").forEach(input => {
+      input.value = config[input.dataset.storageKey as keyof Configuration] ?? "";
+      input.classList.remove("saved");
+    });
+    this._completionModel = config["ai.completion.model"] ?? "";
+    this._renderCompletionModelSelect();
   }
 
   connectedCallback(): void {
     if (!this.querySelector(".panel-header")) {
       this._render();
     }
-    // Reload values from storage each time the popover is shown
-    this.addEventListener("toggle", (e: Event) => {
-      if ((e as ToggleEvent).newState === "open") {
-        this._loadFromStorage();
-      }
-    });
-
     this.querySelector(".close-btn")!.addEventListener("click", () => {
       (this as HTMLElement & { hidePopover(): void }).hidePopover();
     });
   }
 
   private _render(): void {
-    const fields = PLATFORM_KEYS.map(({ label, storageKey, placeholder }) => `
-      <div class="field" data-key="${storageKey}">
+    const fields = PLATFORM_KEYS.map(({ label, key, placeholder }) => `
+      <div class="field" data-key="${key}">
         <label>${label}</label>
         <div class="input-row">
           <input type="password" autocomplete="off" spellcheck="false"
                  placeholder="${placeholder}"
-                 data-storage-key="${storageKey}" />
-          <button type="button" class="show-btn" data-storage-key="${storageKey}">Show</button>
+                 data-storage-key="${key}" />
+          <button type="button" class="show-btn" data-storage-key="${key}">Show</button>
         </div>
       </div>
     `).join("");
@@ -163,6 +197,13 @@ export class SettingsPanel extends BaseHtmlElement {
       </div>
       <div class="panel-body">
         ${fields}
+        <hr class="section-divider">
+        <div class="field" id="completion-model-field">
+          <label>Completion model</label>
+          <select id="completion-model-select">
+            <option value="">— same as chat —</option>
+          </select>
+        </div>
       </div>
     `;
 
@@ -180,26 +221,32 @@ export class SettingsPanel extends BaseHtmlElement {
         btn.textContent = isHidden ? "Hide" : "Show";
       });
     });
+
+    this.querySelector<HTMLSelectElement>("#completion-model-select")
+      ?.addEventListener("change", e => {
+        const value = (e.target as HTMLSelectElement).value;
+        this._completionModel = value;
+        this.dispatchEvent(new CustomEvent("settings-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { key: "ai.completion.model", value },
+        }));
+      });
   }
 
-  private _loadFromStorage(): void {
-    this.querySelectorAll<HTMLInputElement>("input[data-storage-key]").forEach(input => {
-      input.value = localStorage.getItem(input.dataset.storageKey!) ?? "";
-      input.classList.remove("saved");
-    });
+  private _renderCompletionModelSelect(): void {
+    const select = this.querySelector<HTMLSelectElement>("#completion-model-select");
+    if (!select) return;
+    select.innerHTML = `<option value="">— same as chat —</option>` +
+      this._models.map(m =>
+        `<option value="${m.name}"${m.name === this._completionModel ? " selected" : ""}>${m.name} (${m.platform})</option>`
+      ).join("");
   }
 
   private _save(input: HTMLInputElement): void {
     const key = input.dataset.storageKey!;
     const value = input.value.trim();
 
-    if (value) {
-      localStorage.setItem(key, value);
-    } else {
-      localStorage.removeItem(key);
-    }
-
-    // Brief visual confirmation
     input.classList.add("saved");
     setTimeout(() => input.classList.remove("saved"), 1200);
 

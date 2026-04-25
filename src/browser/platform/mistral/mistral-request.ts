@@ -34,6 +34,7 @@ export type MistralRequestMessage =
 export type MistralRequest = {
   model: string;
   messages: MistralRequestMessage[];
+  reasoning_effort?: "none" | "high";
   tools?: Array<{
     type: "function";
     function: {

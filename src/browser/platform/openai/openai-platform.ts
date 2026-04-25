@@ -80,20 +80,27 @@ export class OpenAIPlatform implements IPlatform {
       }));
   }
 
-  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[]): AsyncIterable<StreamEvent> {
+  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[], options?: { signal?: AbortSignal }): AsyncIterable<StreamEvent> {
     const request = this._buildModelInput(model, chatMessages, tools);
 
     this._logger.debug("Sending request to OpenAI API", request);
 
     const url = this._urlResolver.resolve("/v1/chat/completions");
-    const response = await this._fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this._getApiKey()}`,
-      },
-      body: JSON.stringify(request),
-    });
+    let response: Response;
+    try {
+      response = await this._fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this._getApiKey()}`,
+        },
+        body: JSON.stringify(request),
+        signal: options?.signal,
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      throw e;
+    }
 
     if (!response.ok) {
       throw new Error(`OpenAI API error: ${response.statusText}`);

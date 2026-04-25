@@ -15,7 +15,7 @@ import {
 } from "./gemini-request.js";
 import { IGeminiStreamReader } from "./gemini-stream-reader.js";
 import { UrlResolver } from "../../lib/url-resolver.js";
-import { buildWritingAssistantSystemPrompt } from "../../lib/platform/system-prompt.js";
+import { PlatformGenerateOptions } from "../../lib/platform/platform-registry.js";
 
 export class GeminiPlatform implements IPlatform {
   private _logger: Logger;
@@ -78,8 +78,13 @@ export class GeminiPlatform implements IPlatform {
     return models;
   }
 
-  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[]): AsyncIterable<StreamEvent> {
-    const request = this._buildModelInput(model, chatMessages, tools);
+  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[], options?: PlatformGenerateOptions): AsyncIterable<StreamEvent> {
+    
+    // Default to thinking unless the caller explicitly sets thinkOption to false, or its not supported by the model.
+    const think = ((options?.think !== false) && model.capabilities?.includes("thinking")) ?? false;
+
+    // Format the messages for the Gemini API.
+    const request = this._buildModelInput(model, chatMessages, tools, think);
 
     this._logger.debug("Sending request to Gemini API", request);
 
@@ -87,11 +92,18 @@ export class GeminiPlatform implements IPlatform {
     url.searchParams.set("key", this._getApiKey());
     url.searchParams.set("alt", "sse");
 
-    const response = await this._fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-    });
+    let response: Response;
+    try {
+      response = await this._fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+        signal: options?.signal,
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      throw e;
+    }
 
     if (!response.ok) {
       throw new Error(`Gemini API error: ${response.statusText}`);
@@ -137,8 +149,8 @@ export class GeminiPlatform implements IPlatform {
     }
   }
 
-  private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): GeminiRequest {
-    const systemText = buildWritingAssistantSystemPrompt(!model.supportsStreamingToolCalls, toolSchemas);
+  private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[], think: boolean): GeminiRequest {
+    const systemText = "";
 
     const contents: GeminiContent[] = [];
     let i = 0;
@@ -205,6 +217,11 @@ export class GeminiPlatform implements IPlatform {
             },
           ]
         : undefined,
+      generationConfig: {
+        thinkingConfig: {
+          "thinkingLevel": think ? "high" : "minimal",
+        }
+      },
     };
 
     return request;
