@@ -1,4 +1,5 @@
 import { App, AppOptions, WorkbenchFactory } from "./app.js";
+import { AiInlineCompletionService } from "./lib/completion/inline-completion-service.js";
 import { MarkdownEditor } from "./components/markdown-editor.js";
 import { WritingAssistant } from "./agents/writing-assistant.js";
 import { ChatSession } from "./lib/chat/chat-session.js";
@@ -14,8 +15,9 @@ import { IUserInteraction } from "./lib/ui/user-interaction.js";
 import { Workbench } from "./lib/workbench.js";
 import { OllamaPlatform } from "./platform/ollama/ollama-platform.js";
 import { OllamaStreamReader } from "./platform/ollama/ollama-stream-reader.js";
+import { ConfigurationManager } from "./lib/configuration/configuration-service.js";
 
-// Bootstrap the application. This isn't covered by tests.
+// This is the composition root of the application, where the dependencies are configured.
 (async function initialize(): Promise<void> {
 
   const { document: _document, customElements: _customElementsRegistry } = globalThis;
@@ -59,6 +61,8 @@ import { OllamaStreamReader } from "./platform/ollama/ollama-stream-reader.js";
     new WritingAssistant()
   );
 
+  // The document manager is responsible for managing documents in the app.
+  // It provides an interface for creating, reading, updating, renaming, and deleting documents, as well as tracking which documents are dirty (i.e. have unsaved changes).
   const documentManager = new DocumentManager();
   documentManager.registerMany([
     new WebDavDocumentStore(window.location.origin),
@@ -66,27 +70,42 @@ import { OllamaStreamReader } from "./platform/ollama/ollama-stream-reader.js";
     //new LocalStorageDocumentStore("localStorage"),
   ]);
 
+  // The configuration manager is responsible for managing user-configurable settings in the app.
+  // It persists settings to local storage and provides an interface for getting and setting configuration values, as well as listening for changes to configuration.
+  const configuration = new ConfigurationManager(localStorage);
+
+  // The inline completion service provides AI-powered completions for the editor.
+  // It is injected with the configuration and platform registry so that it can determine which model to use and how to call the platform's API to get completions.
+  const completionService = new AiInlineCompletionService(
+    configuration,
+    platformRegistry
+  );
+
+  // The workbench factory is responsible for creating the main workbench component of the app, which manages open documents and editors.
   const workbenchFactory: WorkbenchFactory = (ui: IUserInteraction) => {
     return new Workbench(
       ui,
       componentFactory,
       documentManager,
       documentManager,
+      completionService,
       async (format: string) => await componentFactory.create(MarkdownEditor)
     )
   }
 
+
   const options: AppOptions = {
     global: globalThis,
     componentFactory,
+    completionService,
+    configurationService: configuration,
     logger,
     chatSession,
     platformService: platformRegistry,
-    chatStream: platformRegistry,
     toolService: toolRegistry,
     documentService: documentManager,
     workbenchFactory,
   };
-  
+
   await App.create(options);
 })();

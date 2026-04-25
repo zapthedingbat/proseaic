@@ -1,4 +1,5 @@
 import { ChatMessage } from "./chat/chat-message";
+import { StreamEvent } from "./platform/stream-event";
 
 export class SubmitPromptEvent extends CustomEvent<{ promptText: string }> implements Event {
   constructor(promptText: string) {
@@ -56,5 +57,11 @@ export class ChatMessageEvent extends CustomEvent<{message: ChatMessage}> implem
       bubbles: true,
       composed: true
     });
+  }
+}
+
+export class StreamTokenEvent extends CustomEvent<StreamEvent> implements Event {
+  constructor(event: StreamEvent) {
+    super("token", { detail: event });
   }
 }

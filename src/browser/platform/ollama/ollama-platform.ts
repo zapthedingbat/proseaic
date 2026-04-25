@@ -9,6 +9,7 @@ import { Logger } from "../../lib/logging/logger.js";
 import { OllamaAssistantRequestMessage, OllamaRequest, OllamaRequestMessage, OllamaSystemRequestMessage, OllamaToolRequestMessage, OllamaUserRequestMessage } from "./ollama-request.js";
 import { JSONValue } from "../../lib/JSONValue.js";
 import { UrlResolver } from "../../lib/url-resolver.js";
+import { PlatformGenerateOptions } from "../../lib/platform/platform-registry.js";
 
 export class OllamaPlatform implements IPlatform {
   private _logger: Logger;
@@ -83,20 +84,30 @@ export class OllamaPlatform implements IPlatform {
     return modelDetails;
   }
 
-  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[]): AsyncIterable<StreamEvent> {
+  async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[], options?: PlatformGenerateOptions): AsyncIterable<StreamEvent> {
+
+    // Default to thinking unless the caller explicitly sets thinkOption to false, or its not supported by the model.
+    const think = ((options?.think !== false) && model.capabilities?.includes("thinking")) ?? false;
 
     // Format the messages for Ollama's API
-    const request = this.buildModelInput(model, chatMessages, tools);
+    const request = this.buildModelInput(model, chatMessages, tools, think);
 
     this._logger.debug("Sending request to Ollama API", request);
 
     // Send the request to Ollama's API
     const url = this._urlResolver.resolve("/api/chat");
-    const response = await this._fetch(url, {
-      method: "POST",
-      headers: this._buildHeaders(true),
-      body: JSON.stringify(request),
-    });
+    let response: Response;
+    try {
+      response = await this._fetch(url, {
+        method: "POST",
+        headers: this._buildHeaders(true),
+        body: JSON.stringify(request),
+        signal: options?.signal,
+      });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      throw e;
+    }
 
     if (!response.ok) {
       throw new Error(`Ollama API error: ${response.statusText}`);
@@ -116,7 +127,7 @@ export class OllamaPlatform implements IPlatform {
     }
   }
 
-  private buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]) {
+  private buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[], think: boolean): OllamaRequest {
 
     const modelName = model.name;
 
@@ -128,7 +139,7 @@ export class OllamaPlatform implements IPlatform {
       model: modelName,
       messages: messages,
       stream: true,
-      think: true,
+      think: think,
       tools: toolSchemas?.map(tool => ({
         type: "function",
         function: {

@@ -10,6 +10,7 @@ import { DocumentOutlinePanel } from "../components/outline-panel";
 import { UiPane } from "../components/pane";
 import { UiPaneView } from "../components/pane-view";
 import { UiTabBar } from "../components/tab-bar";
+import { IInlineCompletionService } from "./completion/inline-completion-service";
 
 export type WorkbenchDocumentState = {
   id: DocumentId;
@@ -58,6 +59,7 @@ export class Workbench implements IWorkbench {
   private _documentStateService: IDocumentStateService;
   private _editorComponentFactory: EditorComponentFactory;
   private _componentFactory: ComponentFactory;
+  private _inlineCompletionService: IInlineCompletionService | null = null;
 
   // Internal state
   private _openDocuments: Array<{documentId: DocumentId; tabId: TabId}> = [];
@@ -76,12 +78,14 @@ export class Workbench implements IWorkbench {
     componentFactory: ComponentFactory,
     documentService: IDocumentService,
     documentStateService: IDocumentStateService,
-    editorComponentFactory: EditorComponentFactory
+    inlineCompletionService: IInlineCompletionService,
+    editorComponentFactory: EditorComponentFactory,
   ) {
     this._ui = ui;
     this._componentFactory = componentFactory;
     this._documentService = documentService;
     this._documentStateService = documentStateService;
+    this._inlineCompletionService = inlineCompletionService;
     this._editorComponentFactory = editorComponentFactory;
   }
 
@@ -364,6 +368,11 @@ export class Workbench implements IWorkbench {
       editor = await this._editorComponentFactory(format);
       pane.canvasElement.appendChild(editor);
       this._editors.set(pane, editor);
+
+      // Wire up inline completion if available.
+      if (this._inlineCompletionService) {
+        (editor as any).setCompletionProvider?.(this._inlineCompletionService);
+      }
 
       // A single change listener per editor instance. Always reads the currently
       // focused document so that switching tabs cannot leak drafts into the wrong document.

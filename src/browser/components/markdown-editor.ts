@@ -3,6 +3,7 @@ import { LineType, MdLine, MdSection } from "../lib/markdown/markdown.js";
 import { IStructuredDocument } from "../lib/document/structured-document.js";
 import { DocumentOutline } from "../lib/document/document-outline.js";
 import { IEditorComponent } from "../lib/editor-component.js";
+import { IInlineCompletionService } from "../lib/completion/inline-completion-service.js";
 
 /**
  * I didn't set out to build a markdown editor, but I needed a way to edit markdown content with a decent UX and some structure (e.g. to support an outline view), so here we are.
@@ -291,6 +292,7 @@ function buildModel(lines: MdLine[]): MdSection {
 export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEditableText, IStructuredDocument {
 
   private static readonly DOM_CHANGE_DEBOUNCE_MS = 250;
+  private static readonly COMPLETION_DEBOUNCE_MS = 800;
 
   private _markdown = "";
   private _model: MdSection = { id: "root", level: 0, headingLine: null, bodyLines: [], children: [] };
@@ -302,9 +304,21 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
   private _savedStart = 0;
   private _savedEnd = 0;
 
+  // Inline completion state
+  private _completionProvider: IInlineCompletionService | null = null;
+  private _completionDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _completionAbortController: AbortController | null = null;
+  private _ghostText: string | null = null;
+  private _ghostSpan: HTMLSpanElement | null = null;
+  private _loadingSpan: HTMLSpanElement | null = null;
+
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+  }
+
+  setCompletionProvider(provider: IInlineCompletionService): void {
+    this._completionProvider = provider;
   }
 
   insertSection(
@@ -713,11 +727,32 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
           opacity: 0;
           max-width: 0;
         }
-        
+
         .mde-active .mde-syn {
           display: inline;
           opacity: 0.5;
           max-width: none;
+        }
+
+        /* Inline completion ghost text */
+        .mde-ghost {
+          opacity: 0.4;
+          pointer-events: none;
+          user-select: none;
+          color: var(--editor-ghost-color, inherit);
+        }
+
+        /* Loading indicator shown while a completion request is in flight */
+        .mde-loading {
+          opacity: 0.35;
+          pointer-events: none;
+          user-select: none;
+          animation: mde-loading-pulse 0.7s ease-in-out infinite alternate;
+        }
+
+        @keyframes mde-loading-pulse {
+          from { opacity: 0.15; }
+          to   { opacity: 0.45; }
         }
 
       </style>
@@ -735,6 +770,7 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
     }
     editorPage.addEventListener("beforeinput", this._onBeforeInput);
     editorPage.addEventListener("input", this._onInput);
+    editorPage.addEventListener("keydown", this._onKeyDown);
     editorPage.addEventListener("paste", this._onPaste);
     editorPage.addEventListener("focus", this._onFocus);
     editorPage.addEventListener("blur",  this._onBlur);
@@ -750,6 +786,8 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
 
   disconnectedCallback(): void {
     this._clearPendingDomProcessing();
+    this._cancelCompletion();
+    this._clearGhostText();
     const editorPage = this._editorPage;
     if (!editorPage) {
       document.removeEventListener("selectionchange", this._onSelectionChange);
@@ -757,6 +795,7 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
     }
     editorPage.removeEventListener("beforeinput", this._onBeforeInput);
     editorPage.removeEventListener("input", this._onInput);
+    editorPage.removeEventListener("keydown", this._onKeyDown);
     editorPage.removeEventListener("paste", this._onPaste);
     editorPage.removeEventListener("focus", this._onFocus);
     editorPage.removeEventListener("blur",  this._onBlur);
@@ -881,6 +920,8 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
   };
 
   private _onBlur = (_e: FocusEvent): void => {
+    this._clearGhostText();
+    this._cancelCompletion();
     this._flushPendingChanges();
     this._renderSelectionMarkers();
     this._setActiveLineDivs(null);
@@ -952,19 +993,43 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
   };
 
   private _onInput = (_e: Event): void => {
-    // Debounce DOM changes until the user stops typing for a moment, to avoid
-    // excessive re-processing on every keystroke.
+    // Clear any visible ghost text and cancel in-flight completion on every keystroke.
+    this._clearGhostText();
+    this._cancelCompletion();
 
-    if (this._processing || this._pendingProcessTimer !== null) {
-      return; // already scheduled or processing
+    // Debounce DOM changes until the user stops typing for a moment.
+    if (!this._processing && this._pendingProcessTimer === null) {
+      this._pendingProcessTimer = setTimeout(() => {
+        this._pendingProcessTimer = null;
+        this._processing = true;
+        this._processDomChange();
+        this._processing = false;
+      }, MarkdownEditor.DOM_CHANGE_DEBOUNCE_MS);
     }
 
-    this._pendingProcessTimer = setTimeout(() => {
-      this._pendingProcessTimer = null;
-      this._processing = true;
-      this._processDomChange();
-      this._processing = false;
-    }, MarkdownEditor.DOM_CHANGE_DEBOUNCE_MS);
+    // Schedule a completion request 600ms after the last keystroke (after DOM settle).
+    this._completionDebounceTimer = setTimeout(() => {
+      this._completionDebounceTimer = null;
+      void this._requestCompletion();
+    }, MarkdownEditor.COMPLETION_DEBOUNCE_MS);
+  };
+
+  private _onKeyDown = (e: KeyboardEvent): void => {
+    if (e.ctrlKey && e.key === " ") {
+      e.preventDefault();
+      this._clearGhostText();
+      this._cancelCompletion();
+      void this._requestCompletion();
+      return;
+    }
+    if (this._ghostSpan === null) return;
+    if (e.key === "Tab") {
+      e.preventDefault();
+      this._acceptGhostText();
+    } else if (e.key !== "Shift" && e.key !== "Control" && e.key !== "Alt" && e.key !== "Meta") {
+      this._clearGhostText();
+      this._cancelCompletion();
+    }
   };
 
   private _onPaste = (e: ClipboardEvent): void => {
@@ -981,6 +1046,144 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
     sel.addRange(range);
     this._processDomChange();
   };
+
+  // ---- Inline completion ----
+
+  private _cancelCompletion(): void {
+    if (this._completionDebounceTimer !== null) {
+      clearTimeout(this._completionDebounceTimer);
+      this._completionDebounceTimer = null;
+    }
+    this._completionAbortController?.abort();
+    this._completionAbortController = null;
+    this._clearLoadingIndicator();
+  }
+
+  private _clearGhostText(): void {
+    if (this._ghostSpan) {
+      this._ghostSpan.remove();
+      this._ghostSpan = null;
+    }
+    this._ghostText = null;
+  }
+
+  private _insertGhostSpan(lineIndex: number, charOffset: number): void {
+    const divs = Array.from(this._editorPage.children) as HTMLElement[];
+    const div = divs[lineIndex];
+    if (!div) return;
+
+    const ghost = this._editorPage.ownerDocument.createElement("span");
+    ghost.className = "mde-ghost";
+    ghost.setAttribute("contenteditable", "false");
+    ghost.textContent = this._ghostText ?? "";
+
+    const pos = nodeAtCharOffset(div, charOffset);
+    if (pos) {
+      const { node, offset } = pos;
+      if (offset < (node as Text).length) {
+        (node as Text).splitText(offset);
+      }
+      node.parentNode!.insertBefore(ghost, node.nextSibling);
+    } else {
+      div.appendChild(ghost);
+    }
+
+    this._ghostSpan = ghost;
+  }
+
+  private _acceptGhostText(): void {
+    const text = this._ghostText;
+    if (!text) return;
+    this._clearGhostText();
+
+    const before = this._markdown.slice(0, this._savedStart);
+    const after = this._markdown.slice(this._savedEnd);
+    const newMarkdown = before + text + after;
+    const newPos = this._savedStart + text.length;
+    this._savedStart = newPos;
+    this._savedEnd = newPos;
+    this.setContent(newMarkdown);
+    this._emitChange();
+
+    // Restore caret to end of inserted text
+    const lines = newMarkdown.split("\n");
+    let remaining = newPos;
+    let lineIndex = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (remaining <= lines[i].length) { lineIndex = i; break; }
+      remaining -= lines[i].length + 1;
+    }
+    this._restoreCaretPos({ lineIndex, charOffset: remaining });
+  }
+
+  private _showLoadingIndicator(lineIndex: number, charOffset: number): void {
+    const divs = Array.from(this._editorPage.children) as HTMLElement[];
+    const div = divs[lineIndex];
+    if (!div) return;
+
+    const span = this._editorPage.ownerDocument.createElement("span");
+    span.className = "mde-loading";
+    span.setAttribute("contenteditable", "false");
+    span.textContent = "…";
+
+    const pos = nodeAtCharOffset(div, charOffset);
+    if (pos) {
+      const { node, offset } = pos;
+      if (offset < (node as Text).length) {
+        (node as Text).splitText(offset);
+      }
+      node.parentNode!.insertBefore(span, node.nextSibling);
+    } else {
+      div.appendChild(span);
+    }
+    this._loadingSpan = span;
+  }
+
+  private _clearLoadingIndicator(): void {
+    this._loadingSpan?.remove();
+    this._loadingSpan = null;
+  }
+
+  private async _requestCompletion(): Promise<void> {
+    if (!this._completionProvider) return;
+
+    const lines = this._markdown.split("\n");
+    let remaining = this._savedStart;
+    let lineIndex = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (remaining <= lines[i].length) { lineIndex = i; break; }
+      remaining -= lines[i].length + 1;
+    }
+    const caretLine = lineIndex;
+    const caretOffset = remaining;
+
+    const documentBefore = this._markdown.slice(0, this._savedStart);
+    if (!documentBefore.trim()) return;
+
+    const controller = new AbortController();
+    this._completionAbortController = controller;
+
+    this._showLoadingIndicator(caretLine, caretOffset);
+
+    let accumulated = "";
+    try {
+      for await (const text of this._completionProvider.getCompletion(documentBefore, controller.signal)) {
+        if (controller.signal.aborted) break;
+        accumulated += text;
+        this._ghostText = accumulated;
+        if (!this._ghostSpan) {
+          this._clearLoadingIndicator();
+          this._insertGhostSpan(caretLine, caretOffset);
+        } else {
+          this._ghostSpan.textContent = accumulated;
+        }
+      }
+    } catch (e) {
+      if ((e instanceof DOMException || e instanceof Error) && e.name === "AbortError") return;
+    } finally {
+      this._clearLoadingIndicator();
+    }
+  }
 
   // ---- Core: DOM → model sync ----
 
@@ -1043,15 +1246,36 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
       if (node.nodeName === "DIV") {
         // Each div is one logical line, but its textContent might contain \n
         // (browser quirk or paste into an existing line).
-        splitOnNewlines((node as HTMLElement).textContent ?? "")
+        splitOnNewlines(this._divRawText(node as HTMLElement))
           .forEach(l => lines.push(l));
       } else if (node.nodeType === Node.TEXT_NODE) {
         // Stray text node between divs — treat \n as a line break.
-        splitOnNewlines((node as Text).data).forEach(l => lines.push(l));
+        // Filter ghost text for consistency with _divRawText.
+        const textNode = node as Text;
+        const parent = textNode.parentElement;
+        let text = textNode.data;
+        if (parent) {
+          const ghostElements = Array.from(parent.querySelectorAll(".mde-ghost"));
+          // If ghost elements exist in parent, filter them from text content
+          if (ghostElements.length > 0) {
+            const clone = parent.cloneNode(true) as HTMLElement;
+            clone.querySelectorAll(".mde-ghost").forEach(el => el.remove());
+            text = clone.textContent ?? "";
+          }
+        }
+        splitOnNewlines(text).forEach(l => lines.push(l));
       }
     }
 
     return lines.length > 0 ? lines : [""];
+  }
+
+  private _divRawText(div: HTMLElement): string {
+    const ghost = div.querySelector(".mde-ghost");
+    if (!ghost) return div.textContent ?? "";
+    const clone = div.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll(".mde-ghost").forEach(el => el.remove());
+    return clone.textContent ?? "";
   }
 
   private _classifyLines(rawLines: string[]): MdLine[] {
@@ -1268,10 +1492,16 @@ export class MarkdownEditor extends HTMLElement implements IEditorComponent, IEd
   /** Character offset of a DOM position from the start of the editor content. */
   private _offsetFromDomPosition(node: Node, offset: number): number {
     if (!this._editorPage.contains(node)) return 0;
-    const range = document.createRange();
-    range.setStart(this._editorPage, 0);
-    range.setEnd(node, offset);
-    return range.toString().length;
+    const divs = Array.from(this._editorPage.children) as HTMLElement[];
+    let pos = 0;
+    for (let i = 0; i < divs.length; i++) {
+      if (i > 0) pos++; // \n separator between lines
+      if (divs[i] === node || divs[i].contains(node)) {
+        return pos + charOffsetInSubtree(divs[i], node, offset);
+      }
+      pos += (divs[i].textContent ?? "").length;
+    }
+    return pos;
   }
 
   // ---- Misc ----

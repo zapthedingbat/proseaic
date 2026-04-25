@@ -2,6 +2,8 @@ import { ITool } from "./tool.js";
 import { IToolService } from "./tool-service.js";
 import { ToolSchema } from "./tool-schema.js";
 import { Model } from "../models/model.js";
+import { J } from "vitest/dist/chunks/environment.d.cL3nLXbE.js";
+import { JSONValue } from "../JSONValue.js";
 
 export function filterToolSchemasByModel(schemas: ToolSchema[], model: Model): ToolSchema[] {
   return schemas.filter(s => {
@@ -44,11 +46,11 @@ export class ToolRegistry implements IToolRegistry, IToolService {
       .filter((schema): schema is ToolSchema => Boolean(schema));
   }
 
-  addContext(): Record<string, unknown> {
+  addContext(): Record<string, JSONValue> {
     // Allow each tool to add information to the prompt context, which can then be used by tools when executing.
     // For example, a tool that fetches real-time data could add that data to the prompt context so it can be
     // included in the assistant's response.
-    const context: Record<string, unknown> = {};
+    const context: Record<string, JSONValue> = {};
     for (const tool of this._tools.values()) {
       if (tool.addContext) {
         const toolContext = tool.addContext();
