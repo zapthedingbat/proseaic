@@ -36,6 +36,10 @@ export class OllamaPlatform implements IPlatform {
     return "Ollama";
   }
 
+  isAvailable(): boolean {
+    return true;
+  }
+
   async getModels(): Promise<Model[]> {
     const modelList = await this._fetchModelList();
     // Fetch the details for each model in parallel, but limit concurrency to avoid overwhelming the API if there are lots of models

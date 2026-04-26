@@ -42,6 +42,10 @@ export class GeminiPlatform implements IPlatform {
     return "Gemini";
   }
 
+  isAvailable(): boolean {
+    return this._getApiKey().trim().length > 0;
+  }
+
   async getModels(): Promise<Model[]> {
     const models: Model[] = [];
     let pageToken: string | undefined;

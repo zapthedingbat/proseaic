@@ -55,6 +55,10 @@ export class OpenAIPlatform implements IPlatform {
     return "OpenAI";
   }
 
+  isAvailable(): boolean {
+    return this._getApiKey().trim().length > 0;
+  }
+
   async getModels(): Promise<Model[]> {
     const url = this._urlResolver.resolve("/v1/models");
     const response = await this._fetch(url, {
