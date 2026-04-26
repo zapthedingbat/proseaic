@@ -11,9 +11,15 @@ export type ConfigurationChangeEvent = {
 export interface Configuration {
   "ai.chat.model": string;
   "ai.completion.model": string;
+  "ai.platform.ollama.endpoint": string;
+  "ai.platform.ollama.api_key": string;
+  "ai.platform.anthropic.endpoint": string;
   "ai.platform.anthropic.api_key": string;
+  "ai.platform.openai.endpoint": string;
   "ai.platform.openai.api_key": string;
+  "ai.platform.gemini.endpoint": string;
   "ai.platform.gemini.api_key": string;
+  "ai.platform.mistral.endpoint": string;
   "ai.platform.mistral.api_key": string;
 }
 

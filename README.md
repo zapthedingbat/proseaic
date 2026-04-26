@@ -59,25 +59,20 @@ npm start
 
 Open [http://localhost:3001](http://localhost:3001) in your browser.
 
-To enter an API key for a cloud provider, open the **Settings** panel inside the app. Keys are saved to your browser's local storage only.
+Open the **Settings** panel to configure your AI platforms — enter the endpoint URL and API key for each provider you want to use. Settings are saved to your browser's local storage and never sent to the server.
+
+For **Ollama**, the default endpoint `http://localhost:11434` works if Ollama is running on the same machine as your browser. If Ollama is on a different machine (e.g. a homelab server), enter its address directly — or set the endpoint to `/ollama` to route requests through the ProseAiC server proxy instead.
 
 ---
 
-## Configuration
+## Server configuration
 
-Configuration is via environment variables in `.env`. See [.env.example](.env.example) for all options.
-
-By default all AI platforms are called directly from the browser (CORS). The server-side proxy is an opt-in fallback — useful when the browser cannot reach the platform directly (e.g. Ollama on a homelab server, or to centralise request logging).
+Server behaviour is configured via environment variables in `.env`. See [.env.example](.env.example) for all options.
 
 | Variable | Default | Description |
 |---|---|---|
-| `OLLAMA_HOST` | `http://localhost:11434` | URL of your Ollama instance (used for direct access and as the proxy target) |
-| `OLLAMA_TIMEOUT_MS` | — | Request timeout for Ollama (ms). Increase for slow hardware or large models |
-| `OLLAMA_PROXY` | — | Set to `true` to route Ollama requests through the server proxy |
-| `ANTHROPIC_PROXY` | — | Set to `true` to route Anthropic requests through the server proxy |
-| `OPENAI_PROXY` | — | Set to `true` to route OpenAI requests through the server proxy |
-| `GEMINI_PROXY` | — | Set to `true` to route Gemini requests through the server proxy |
-| `MISTRAL_PROXY` | — | Set to `true` to route Mistral requests through the server proxy |
+| `OLLAMA_HOST` | `http://localhost:11434` | Where the server proxy forwards Ollama requests (used when endpoint is set to `/ollama` in Settings) |
+| `OLLAMA_TIMEOUT_MS` | — | Request timeout for Ollama (ms). Useful for slow hardware or large models |
 | `STORE_DIR` | `./store` | Directory where documents are stored on disk |
 
 ---

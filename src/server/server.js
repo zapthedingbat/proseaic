@@ -25,20 +25,6 @@ export function startServer(){
   app.use(proxy("/gemini", GEMINI_HOST, { streamResponse: true }));
   app.use(proxy("/mistral", MISTRAL_HOST, { streamResponse: true }));
 
-  // Exposes server-side platform endpoint config to the browser.
-  // By default platforms are accessed directly (CORS). Set [PLATFORM]_PROXY=true to route through the server proxy instead.
-  app.get("/config", (_req, res) => {
-    res.json({
-      platforms: {
-        ollama:    process.env.OLLAMA_PROXY    === "true" ? "/ollama"    : OLLAMA_HOST,
-        anthropic: process.env.ANTHROPIC_PROXY === "true" ? "/anthropic" : "https://api.anthropic.com",
-        openai:    process.env.OPENAI_PROXY    === "true" ? "/openai"    : "https://api.openai.com",
-        gemini:    process.env.GEMINI_PROXY    === "true" ? "/gemini"    : "https://generativelanguage.googleapis.com",
-        mistral:   process.env.MISTRAL_PROXY   === "true" ? "/mistral"   : "https://api.mistral.ai",
-      },
-    });
-  });
-
   // Document store endpoints (WebDAV-like interface)
   const storeDir = process.env.STORE_DIR || "../../store";
   app.use("/store", storeRoutes(import.meta.url, storeDir));

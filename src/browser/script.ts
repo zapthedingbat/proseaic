@@ -23,11 +23,12 @@ import { GeminiPlatform } from "./platform/gemini/gemini-platform.js";
 import { GeminiStreamReader } from "./platform/gemini/gemini-stream-reader.js";
 import { MistralPlatform } from "./platform/mistral/mistral-platform.js";
 import { MistralStreamReader } from "./platform/mistral/mistral-stream-reader.js";
-import { ConfigurationManager } from "./lib/configuration/configuration-service.js";
+import { Configuration, ConfigurationManager } from "./lib/configuration/configuration-service.js";
 
 // This is the composition root of the application, where the dependencies are configured.
 (async function initialize(): Promise<void> {
 
+  // Injecting document and customElementsRegistry from globalThis allows us to mock them in tests and also makes it explicit that our component factory depends on these browser APIs for managing UI components.
   const { document: _document, customElements: _customElementsRegistry } = globalThis;
 
   // The logger factory is responsible for creating loggers for different components of the app. In this case, it creates ConsoleLoggers that log to the browser console, but in a more complex app it could create loggers that send logs to a server or integrate with a logging framework.
@@ -38,20 +39,25 @@ import { ConfigurationManager } from "./lib/configuration/configuration-service.
   // It also handles defining custom elements in the DOM as needed.
   const componentFactory = new ComponentFactory(loggerFactory, _document, _customElementsRegistry, "ui");
 
-  // Fetch server-side platform endpoint config. By default platforms are accessed directly from the
-  // browser (CORS). The server returns proxy paths instead when [PLATFORM]_PROXY=true is set.
-  const config: { platforms: Record<string, string> } = await fetch("/config").then(r => r.json());
-  const endpoints = config.platforms;
+  // The configuration manager is responsible for managing user-configurable settings in the app.
+  // It persists settings to local storage and provides an interface for getting and setting configuration values, as well as listening for changes to configuration.
+  const configuration = new ConfigurationManager(localStorage);
+
+  // Injecting fetch from globalThis allows us to easily mock it in tests, and also makes it explicit that our platform implementations depend on fetch for making API calls.
+  const fetchFunction = globalThis.fetch.bind(globalThis);
 
   const platformRegistry = new PlatformRegistry(loggerFactory);
-  const fetchFunction = globalThis.fetch.bind(globalThis);
-  const getApiKey = (keyName: string) => () => localStorage.getItem(keyName) ?? "";
+  
+  // API keys are read lazily so changes in Settings take effect immediately without a page reload.
+  // Endpoints are read once at startup; changing an endpoint requires a page reload.
+  const getApiKey = (key: keyof Configuration) => () => configuration.get(key) ?? "";
+  const getEndpoint = (key: keyof Configuration, defaultUrl: string) => configuration.get(key) || defaultUrl;
   platformRegistry.registerMany([
-    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ollama_api_key"), () => new OllamaStreamReader(), endpoints.ollama),
-    new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("anthropic_api_key"), () => new AnthropicStreamReader(), endpoints.anthropic),
-    new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("openai_api_key"), () => new OpenAIStreamReader(), endpoints.openai),
-    new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("gemini_api_key"), () => new GeminiStreamReader(), endpoints.gemini),
-    new MistralPlatform(loggerFactory, fetchFunction, getApiKey("mistral_api_key"), () => new MistralStreamReader(), endpoints.mistral),
+    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.ollama.api_key"),    () => new OllamaStreamReader(),    getEndpoint("ai.platform.ollama.endpoint",    "http://localhost:11434")),
+    new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.anthropic.api_key"), () => new AnthropicStreamReader(), getEndpoint("ai.platform.anthropic.endpoint", "https://api.anthropic.com")),
+    new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.openai.api_key"),    () => new OpenAIStreamReader(),    getEndpoint("ai.platform.openai.endpoint",    "https://api.openai.com")),
+    new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.gemini.api_key"),    () => new GeminiStreamReader(),    getEndpoint("ai.platform.gemini.endpoint",    "https://generativelanguage.googleapis.com")),
+    new MistralPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.mistral.api_key"),  () => new MistralStreamReader(),   getEndpoint("ai.platform.mistral.endpoint",   "https://api.mistral.ai")),
   ]);
 
   const toolRegistry = new ToolRegistry();
@@ -78,10 +84,6 @@ import { ConfigurationManager } from "./lib/configuration/configuration-service.
     //new FileSystemDocumentStore(() => navigator.storage.getDirectory()),
     //new LocalStorageDocumentStore("localStorage"),
   ]);
-
-  // The configuration manager is responsible for managing user-configurable settings in the app.
-  // It persists settings to local storage and provides an interface for getting and setting configuration values, as well as listening for changes to configuration.
-  const configuration = new ConfigurationManager(localStorage);
 
   // The inline completion service provides AI-powered completions for the editor.
   // It is injected with the configuration and platform registry so that it can determine which model to use and how to call the platform's API to get completions.
