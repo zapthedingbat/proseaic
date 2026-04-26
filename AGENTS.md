@@ -22,9 +22,15 @@ npm run test:smoke:headed  # Playwright E2E with browser UI visible
 **Build:**
 `scripts/script.mjs` uses esbuild to bundle `src/browser/script.ts` → `dist/browser/script.js`, copies static assets, and optionally watches for changes.
 
-## Problem solving guidelines:
+## Process
 
-When addressing a problem start by debugging and diagnosing the issue. Add tests, logging, or temporary debug code as needed to understand the flow and identify the root cause. Do not make any code changes until you have a clear understanding of the problem, and ideally can reproduce it. Do not rely on 'tracing' code paths in your head or making assumptions about how the code works. Use actual data, tests, and logging to verify your understanding.
+Always make changes on a new branch. Use descriptive branch names that indicate the purpose of the change (e.g., `fix/spelling-bug`, `feat/add-export-function`, `refactor/cleanup-document-module`).
+
+When you have a change ready, ensure tests pass, open a pull request with a clear description of the problem and your solution. Include any relevant context, such as screenshots, test results, or links to related issues.
+
+## Problem solving
+
+When addressing a problem, start by debugging and diagnosing the issue. Add tests, logging, or temporary debug code as needed to understand the flow and identify the root cause. Do not make any code changes until you have a clear understanding of the problem, and ideally can reproduce it. Do not rely on 'tracing' code paths in your head or making assumptions about how the code works. Use actual data, tests, and logging to verify your understanding.
 
 Remove unnecessary code, logging, or tests after diagnosing the issue. Do not add extra code or abstractions to 'future proof' against hypothetical issues or edge cases that are not currently relevant.
 
