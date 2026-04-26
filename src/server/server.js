@@ -8,6 +8,9 @@ import { storeRoutes } from "./routes/store.js";
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "https://ollama.com";
 const ANTHROPIC_HOST = process.env.ANTHROPIC_HOST || "https://api.anthropic.com";
+const OPENAI_HOST = process.env.OPENAI_HOST || "https://api.openai.com";
+const GEMINI_HOST = process.env.GEMINI_HOST || "https://generativelanguage.googleapis.com";
+const MISTRAL_HOST = process.env.MISTRAL_HOST || "https://api.mistral.ai";
 
 export function startServer(){
   const app = express();
@@ -18,6 +21,9 @@ export function startServer(){
   // Proxy requests to the appropriate upstream host based on the path prefix
   app.use(proxy("/ollama", OLLAMA_HOST, { streamResponse: true }));
   app.use(proxy("/anthropic", ANTHROPIC_HOST, { streamResponse: true }));
+  app.use(proxy("/openai", OPENAI_HOST, { streamResponse: true }));
+  app.use(proxy("/gemini", GEMINI_HOST, { streamResponse: true }));
+  app.use(proxy("/mistral", MISTRAL_HOST, { streamResponse: true }));
 
   // Document store endpoints (WebDAV-like interface)
   const storeDir = process.env.STORE_DIR || "../../store";

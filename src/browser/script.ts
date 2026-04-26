@@ -15,6 +15,14 @@ import { IUserInteraction } from "./lib/ui/user-interaction.js";
 import { Workbench } from "./lib/workbench.js";
 import { OllamaPlatform } from "./platform/ollama/ollama-platform.js";
 import { OllamaStreamReader } from "./platform/ollama/ollama-stream-reader.js";
+import { AnthropicPlatform } from "./platform/anthropic/anthropic-platform.js";
+import { AnthropicStreamReader } from "./platform/anthropic/anthropic-stream-reader.js";
+import { OpenAIPlatform } from "./platform/openai/openai-platform.js";
+import { OpenAIStreamReader } from "./platform/openai/openai-stream-reader.js";
+import { GeminiPlatform } from "./platform/gemini/gemini-platform.js";
+import { GeminiStreamReader } from "./platform/gemini/gemini-stream-reader.js";
+import { MistralPlatform } from "./platform/mistral/mistral-platform.js";
+import { MistralStreamReader } from "./platform/mistral/mistral-stream-reader.js";
 import { ConfigurationManager } from "./lib/configuration/configuration-service.js";
 
 // This is the composition root of the application, where the dependencies are configured.
@@ -30,19 +38,17 @@ import { ConfigurationManager } from "./lib/configuration/configuration-service.
   // It also handles defining custom elements in the DOM as needed.
   const componentFactory = new ComponentFactory(loggerFactory, _document, _customElementsRegistry, "ui");
 
-  // Use local proxy
-  const OLLAMA_ENDPOINT = "/ollama";
-  const ANTHROPIC_ENDPOINT = "/anthropic";
-
+  // All requests to AI platforms are routed through server-side proxies to avoid CORS issues.
+  // Platforms with no API key configured will return no models and are silently skipped.
   const platformRegistry = new PlatformRegistry(loggerFactory);
   const fetchFunction = globalThis.fetch.bind(globalThis);
   const getApiKey = (keyName: string) => () => localStorage.getItem(keyName) ?? "";
   platformRegistry.registerMany([
-    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ollama_api_key"), () => new OllamaStreamReader(), OLLAMA_ENDPOINT),
-    // new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("anthropic_api_key"), () => new AnthropicStreamReader()),
-    // new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("openai_api_key"), () => new OpenAIStreamReader()),
-    // new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("gemini_api_key"), () => new GeminiStreamReader()),
-    // new MistralPlatform(loggerFactory, fetchFunction, getApiKey("mistral_api_key"), () => new MistralStreamReader()),
+    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ollama_api_key"), () => new OllamaStreamReader(), "/ollama"),
+    new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("anthropic_api_key"), () => new AnthropicStreamReader(), "/anthropic"),
+    new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("openai_api_key"), () => new OpenAIStreamReader(), "/openai"),
+    new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("gemini_api_key"), () => new GeminiStreamReader(), "/gemini"),
+    new MistralPlatform(loggerFactory, fetchFunction, getApiKey("mistral_api_key"), () => new MistralStreamReader(), "/mistral"),
   ]);
 
   const toolRegistry = new ToolRegistry();
