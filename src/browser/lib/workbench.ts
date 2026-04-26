@@ -119,6 +119,7 @@ export class Workbench implements IWorkbench {
           // Don't close the tab if the user cancels the confirmation dialog
           return;
         }
+        this._documentStateService.discardUnsavedDocumentChanges(documentEntry.documentId);
       }
     }
 
