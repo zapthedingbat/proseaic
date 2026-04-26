@@ -31,4 +31,11 @@ export class PromptStream extends EventTarget {
   _fail(reason: unknown): void {
     this._reject(reason);
   }
+
+  then<TResult1 = void, TResult2 = never>(
+    onfulfilled?: ((value: void) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2> {
+    return this.completed.then(onfulfilled, onrejected);
+  }
 }

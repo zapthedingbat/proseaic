@@ -37,16 +37,18 @@ export class PlatformRegistry implements IPlatformService, IPlatformRegistry {
   }
 
   async getModels(): Promise<Model[]> {
-    const modelsFromPlatforms = await Promise.all(
-      Array.from(this._platforms.entries()).map(([platformName, platform]) => {
-        return platform.getModels().catch(error => {
-          this._logger.error(`Error fetching models from platform ${platformName}:`, error);
-          return [];
-        });
-      })
+    const available = Array.from(this._platforms.entries())
+      .filter(([, platform]) => platform.isAvailable());
+
+    const settled = await Promise.allSettled(
+      available.map(([, platform]) => platform.getModels())
     );
 
-    return modelsFromPlatforms.flat();
+    return settled.flatMap((result, i) => {
+      if (result.status === "fulfilled") return result.value;
+      this._logger.error(`Error fetching models from platform ${available[i][0]}:`, result.reason);
+      return [];
+    });
   }
 
   public register(platform: IPlatform) {

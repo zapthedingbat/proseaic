@@ -19,7 +19,7 @@ export class WebDavDocumentStore implements IDocumentStore {
       .split("/")
       .map(part => encodeURIComponent(part))
       .join("/");
-    return `${this._baseUrl}/store/${encoded}`;
+    return `${this._baseUrl}/documents/${encoded}`;
   }
 
   async read(filepath: DocumentPath): Promise<FileContent> {
@@ -122,7 +122,7 @@ export class WebDavDocumentStore implements IDocumentStore {
   }
 
   async ls(): Promise<FileEntry[]> {
-    const response = await fetch(`${this._baseUrl}/store/`, {
+    const response = await fetch(`${this._baseUrl}/documents/`, {
       method: "PROPFIND",
       credentials: "include"
     });

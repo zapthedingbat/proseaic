@@ -36,6 +36,10 @@ export class OllamaPlatform implements IPlatform {
     return "Ollama";
   }
 
+  isAvailable(): boolean {
+    return true;
+  }
+
   async getModels(): Promise<Model[]> {
     const modelList = await this._fetchModelList();
     // Fetch the details for each model in parallel, but limit concurrency to avoid overwhelming the API if there are lots of models
@@ -86,8 +90,8 @@ export class OllamaPlatform implements IPlatform {
 
   async *generate(model: Model, chatMessages: ChatMessage[], tools: ToolSchema[], options?: PlatformGenerateOptions): AsyncIterable<StreamEvent> {
 
-    // Default to thinking unless the caller explicitly sets thinkOption to false, or its not supported by the model.
-    const think = ((options?.think !== false) && model.capabilities?.includes("thinking")) ?? false;
+    // Default to thinking unless the caller explicitly sets think to false, or the model declares capabilities that exclude "thinking".
+    const think = options?.think !== false && (model.capabilities == null || model.capabilities.includes("thinking"));
 
     // Format the messages for Ollama's API
     const request = this.buildModelInput(model, chatMessages, tools, think);

@@ -8,10 +8,7 @@ export function storeRoutes(moduleUrl, storeDir){
   const storeRoot = path.resolve(_dirname, storeDir);
   const router = Router();
 
-  // TODO: Implement basic WebDAV methods (GET, PUT, MOVE, DELETE) to allow simple file operation in the client side code.
-  // Note: This is a potential security risk. We should implement strict checks to ensure that only intended files can be accessed or modified.
-
-  // The router will be mounted at /store, so the full path will be /store/:filename
+  // The router will be mounted at /documents, so the full path will be /documents/:filename
   router.param("path", async (req, res, next, filePath) => {
     const rawPath = Array.isArray(filePath)
       ? filePath.join("/")
@@ -33,6 +30,8 @@ export function storeRoutes(moduleUrl, storeDir){
   const rootRoute = router.route("/");
 
   // Handle CORS preflight request
+  // TODO: Limit allowed origins to the editor's frontend URL in production for better security
+  // TODO: Enforce authentication on store routes to prevent unauthorized access to the file system
   const optionsHandler = async (req, res) => {
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.set("Allow", "GET, PUT, DELETE, MOVE, PROPFIND, OPTIONS");
@@ -201,7 +200,6 @@ export function storeRoutes(moduleUrl, storeDir){
     }
 
     const files = await Promise.all(entries
-      //.filter(entry => entry.isFile() && entry.name.endsWith(".md"))
       .map(async entry => {
         const absolutePath = path.join(listPath, entry.name);
         const stats = await fs.stat(absolutePath);

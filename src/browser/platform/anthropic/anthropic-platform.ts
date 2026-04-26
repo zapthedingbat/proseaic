@@ -43,6 +43,10 @@ export class AnthropicPlatform implements IPlatform {
     return "Anthropic";
   }
 
+  isAvailable(): boolean {
+    return this._getApiKey().trim().length > 0;
+  }
+
   async getModels(): Promise<Model[]> {
     const models: Model[] = [];
     let afterId: string | undefined;
@@ -63,8 +67,8 @@ export class AnthropicPlatform implements IPlatform {
         },
       });
 
-      if (response.status >= 500) {
-        throw new Error(`Anthropic API error: ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
       }
 
       const data: AnthropicModelsResponse = await response.json();
@@ -122,8 +126,8 @@ export class AnthropicPlatform implements IPlatform {
       throw e;
     }
 
-    if (response.status >= 500) {
-      throw new Error(`Anthropic API error: ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
     }
 
     if (!response.body) {

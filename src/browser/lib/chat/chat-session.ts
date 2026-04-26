@@ -12,7 +12,7 @@ import { BOUNDARY_PROMPT_ADDENDUM, PromptBuilder } from "../platform/system-prom
 import { PromptStream } from "./prompt-stream.js";
 
 export interface IChatSession {
-  submitUserPrompt(modelIdentifier: string, prompt: string): PromptStream;
+  submitUserPrompt(modelIdentifier: string, prompt: string, options?: Record<string, unknown>): PromptStream;
   getActiveAssistantChatMessage(): ChatMessage | null;
   getMessages(maxMessages?: number): Promise<ChatMessage[]>;
   clearHistory(): Promise<void>;
@@ -75,7 +75,7 @@ export class ChatSession implements IChatSession {
     return this._models.get(modelIdentifier);
   }
 
-  submitUserPrompt(modelIdentifier: string, prompt: string): PromptStream {
+  submitUserPrompt(modelIdentifier: string, prompt: string, _options?: Record<string, unknown>): PromptStream {
     const stream = new PromptStream();
     void this._runAgentLoop(modelIdentifier, prompt, stream);
     return stream;

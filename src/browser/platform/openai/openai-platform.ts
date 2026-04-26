@@ -14,7 +14,6 @@ import {
 } from "./openai-request.js";
 import { IOpenAIStreamReader } from "./openai-stream-reader.js";
 import { UrlResolver } from "../../lib/url-resolver.js";
-import { buildWritingAssistantSystemPrompt } from "../../lib/platform/system-prompt.js";
 
 // Model IDs that are not chat-completion models and should be excluded from the list
 const NON_CHAT_MODEL_PATTERNS = [
@@ -54,6 +53,10 @@ export class OpenAIPlatform implements IPlatform {
 
   get name(): string {
     return "OpenAI";
+  }
+
+  isAvailable(): boolean {
+    return this._getApiKey().trim().length > 0;
   }
 
   async getModels(): Promise<Model[]> {
@@ -171,17 +174,11 @@ export class OpenAIPlatform implements IPlatform {
   }
 
   private _buildModelInput(model: Model, chatMessages: ChatMessage[], toolSchemas: ToolSchema[]): OpenAIRequest {
-    const systemPrompt = buildWritingAssistantSystemPrompt(!model.supportsStreamingToolCalls, toolSchemas);
-
-    const initialMessages: OpenAIRequestMessage[] = [
-      { role: "system", content: systemPrompt },
-    ];
-
     const formattedMessages = chatMessages.map(message => this._formatMessage(message)).filter(Boolean) as OpenAIRequestMessage[];
 
     return {
       model: model.name,
-      messages: initialMessages.concat(formattedMessages),
+      messages: formattedMessages,
       stream: true,
       stream_options: { include_usage: false },
       tools: toolSchemas?.map(tool => ({

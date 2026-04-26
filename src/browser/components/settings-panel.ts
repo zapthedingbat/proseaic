@@ -2,11 +2,21 @@ import { BaseHtmlElement } from "./base-html-element";
 import { Model } from "../lib/models/model";
 import { Configuration } from "../lib/configuration/configuration-service";
 
-const PLATFORM_KEYS: Array<{ label: string; key: string; placeholder: string }> = [
-  { label: "Anthropic",  key: "ai.platform.anthropic.api_key", placeholder: "sk-ant-…"},
-  { label: "OpenAI",     key: "ai.platform.openai.api_key",    placeholder: "sk-…"},
-  { label: "Gemini",     key: "ai.platform.gemini.api_key",    placeholder: "AIza…"},
-  { label: "Mistral",    key: "ai.platform.mistral.api_key",   placeholder: ""},
+type PlatformConfig = {
+  label: string;
+  endpointKey: keyof Configuration;
+  endpointPlaceholder: string;
+  apiKeyKey: keyof Configuration;
+  apiKeyPlaceholder: string;
+  apiKeyOptional?: boolean;
+};
+
+const PLATFORMS: PlatformConfig[] = [
+  { label: "Ollama",    endpointKey: "ai.platform.ollama.endpoint",    endpointPlaceholder: "/ollama",                      apiKeyKey: "ai.platform.ollama.api_key",    apiKeyPlaceholder: "",        apiKeyOptional: true },
+  { label: "Anthropic", endpointKey: "ai.platform.anthropic.endpoint", endpointPlaceholder: "https://api.anthropic.com",               apiKeyKey: "ai.platform.anthropic.api_key", apiKeyPlaceholder: "sk-ant-…" },
+  { label: "OpenAI",    endpointKey: "ai.platform.openai.endpoint",    endpointPlaceholder: "https://api.openai.com",                  apiKeyKey: "ai.platform.openai.api_key",    apiKeyPlaceholder: "sk-…" },
+  { label: "Gemini",    endpointKey: "ai.platform.gemini.endpoint",    endpointPlaceholder: "https://generativelanguage.googleapis.com", apiKeyKey: "ai.platform.gemini.api_key",   apiKeyPlaceholder: "AIza…" },
+  { label: "Mistral",   endpointKey: "ai.platform.mistral.endpoint",   endpointPlaceholder: "https://api.mistral.ai",                  apiKeyKey: "ai.platform.mistral.api_key",   apiKeyPlaceholder: "" },
 ];
 
 const css = `
@@ -22,6 +32,12 @@ ui-settings-panel {
   width: 400px;
   max-width: calc(100vw - 32px);
   margin: auto;
+}
+
+ui-settings-panel:popover-open {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 64px);
 }
 
 ui-settings-panel::backdrop {
@@ -63,6 +79,7 @@ ui-settings-panel::backdrop {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
 }
 
 .field {
@@ -143,6 +160,25 @@ ui-settings-panel::backdrop {
   border-top: 1px solid #3a3a3a;
   margin: 2px 0;
 }
+
+.platform-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.platform-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.5;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.field label .optional {
+  font-weight: 400;
+  opacity: 0.6;
+}
 `;
 
 export class SettingsPanel extends BaseHtmlElement {
@@ -177,17 +213,26 @@ export class SettingsPanel extends BaseHtmlElement {
   }
 
   private _render(): void {
-    const fields = PLATFORM_KEYS.map(({ label, key, placeholder }) => `
-      <div class="field" data-key="${key}">
-        <label>${label}</label>
-        <div class="input-row">
-          <input type="password" autocomplete="off" spellcheck="false"
-                 placeholder="${placeholder}"
-                 data-storage-key="${key}" />
-          <button type="button" class="show-btn" data-storage-key="${key}">Show</button>
+    const sections = PLATFORMS.map(({ label, endpointKey, endpointPlaceholder, apiKeyKey, apiKeyPlaceholder, apiKeyOptional }) => `
+      <div class="platform-section">
+        <span class="platform-label">${label}</span>
+        <div class="field">
+          <label>Endpoint</label>
+          <input type="text" autocomplete="off" spellcheck="false"
+                 placeholder="${endpointPlaceholder}"
+                 data-storage-key="${endpointKey}" />
+        </div>
+        <div class="field">
+          <label>API key${apiKeyOptional ? ' <span class="optional">(optional)</span>' : ''}</label>
+          <div class="input-row">
+            <input type="password" autocomplete="off" spellcheck="false"
+                   placeholder="${apiKeyPlaceholder}"
+                   data-storage-key="${apiKeyKey}" />
+            <button type="button" class="show-btn" data-storage-key="${apiKeyKey}">Show</button>
+          </div>
         </div>
       </div>
-    `).join("");
+    `).join('<hr class="section-divider">');
 
     this.innerHTML = `
       <style>${css}</style>
@@ -196,7 +241,7 @@ export class SettingsPanel extends BaseHtmlElement {
         <button class="close-btn" type="button" title="Close">✕</button>
       </div>
       <div class="panel-body">
-        ${fields}
+        ${sections}
         <hr class="section-divider">
         <div class="field" id="completion-model-field">
           <label>Completion model</label>

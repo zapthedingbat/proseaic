@@ -1,7 +1,7 @@
-node_modules/
+.claude/
+.documents/
+.env
 dist/
 logs/
-store/
-.env
-.claude/
+node_modules/
 test-results/
