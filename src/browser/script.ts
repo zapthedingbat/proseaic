@@ -53,7 +53,7 @@ import { Configuration, ConfigurationManager } from "./lib/configuration/configu
   const getApiKey = (key: keyof Configuration) => () => configuration.get(key) ?? "";
   const getEndpoint = (key: keyof Configuration, defaultUrl: string) => configuration.get(key) || defaultUrl;
   platformRegistry.registerMany([
-    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.ollama.api_key"),    () => new OllamaStreamReader(),    getEndpoint("ai.platform.ollama.endpoint",    "http://localhost:11434")),
+    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.ollama.api_key"),    () => new OllamaStreamReader(),    getEndpoint("ai.platform.ollama.endpoint",    "https://ollama.com")),
     new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.anthropic.api_key"), () => new AnthropicStreamReader(), getEndpoint("ai.platform.anthropic.endpoint", "https://api.anthropic.com")),
     new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.openai.api_key"),    () => new OpenAIStreamReader(),    getEndpoint("ai.platform.openai.endpoint",    "https://api.openai.com")),
     new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.gemini.api_key"),    () => new GeminiStreamReader(),    getEndpoint("ai.platform.gemini.endpoint",    "https://generativelanguage.googleapis.com")),

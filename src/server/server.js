@@ -6,7 +6,7 @@ import { staticRoutes } from "./routes/static.js";
 import { proxy } from "./routes/proxy.js";
 import { storeRoutes } from "./routes/store.js";
 
-const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
+const OLLAMA_HOST = process.env.OLLAMA_HOST || "https://ollama.com";
 const ANTHROPIC_HOST = process.env.ANTHROPIC_HOST || "https://api.anthropic.com";
 const OPENAI_HOST = process.env.OPENAI_HOST || "https://api.openai.com";
 const GEMINI_HOST = process.env.GEMINI_HOST || "https://generativelanguage.googleapis.com";

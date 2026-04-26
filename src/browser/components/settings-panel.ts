@@ -12,7 +12,7 @@ type PlatformConfig = {
 };
 
 const PLATFORMS: PlatformConfig[] = [
-  { label: "Ollama",    endpointKey: "ai.platform.ollama.endpoint",    endpointPlaceholder: "http://localhost:11434",                  apiKeyKey: "ai.platform.ollama.api_key",    apiKeyPlaceholder: "",        apiKeyOptional: true },
+  { label: "Ollama",    endpointKey: "ai.platform.ollama.endpoint",    endpointPlaceholder: "https://ollama.com",                      apiKeyKey: "ai.platform.ollama.api_key",    apiKeyPlaceholder: "",        apiKeyOptional: true },
   { label: "Anthropic", endpointKey: "ai.platform.anthropic.endpoint", endpointPlaceholder: "https://api.anthropic.com",               apiKeyKey: "ai.platform.anthropic.api_key", apiKeyPlaceholder: "sk-ant-…" },
   { label: "OpenAI",    endpointKey: "ai.platform.openai.endpoint",    endpointPlaceholder: "https://api.openai.com",                  apiKeyKey: "ai.platform.openai.api_key",    apiKeyPlaceholder: "sk-…" },
   { label: "Gemini",    endpointKey: "ai.platform.gemini.endpoint",    endpointPlaceholder: "https://generativelanguage.googleapis.com", apiKeyKey: "ai.platform.gemini.api_key",   apiKeyPlaceholder: "AIza…" },
