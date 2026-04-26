@@ -38,17 +38,20 @@ import { ConfigurationManager } from "./lib/configuration/configuration-service.
   // It also handles defining custom elements in the DOM as needed.
   const componentFactory = new ComponentFactory(loggerFactory, _document, _customElementsRegistry, "ui");
 
-  // All requests to AI platforms are routed through server-side proxies to avoid CORS issues.
-  // Platforms with no API key configured will return no models and are silently skipped.
+  // Fetch server-side platform endpoint config. By default platforms are accessed directly from the
+  // browser (CORS). The server returns proxy paths instead when [PLATFORM]_PROXY=true is set.
+  const config: { platforms: Record<string, string> } = await fetch("/config").then(r => r.json());
+  const endpoints = config.platforms;
+
   const platformRegistry = new PlatformRegistry(loggerFactory);
   const fetchFunction = globalThis.fetch.bind(globalThis);
   const getApiKey = (keyName: string) => () => localStorage.getItem(keyName) ?? "";
   platformRegistry.registerMany([
-    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ollama_api_key"), () => new OllamaStreamReader(), "/ollama"),
-    new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("anthropic_api_key"), () => new AnthropicStreamReader(), "/anthropic"),
-    new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("openai_api_key"), () => new OpenAIStreamReader(), "/openai"),
-    new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("gemini_api_key"), () => new GeminiStreamReader(), "/gemini"),
-    new MistralPlatform(loggerFactory, fetchFunction, getApiKey("mistral_api_key"), () => new MistralStreamReader(), "/mistral"),
+    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ollama_api_key"), () => new OllamaStreamReader(), endpoints.ollama),
+    new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("anthropic_api_key"), () => new AnthropicStreamReader(), endpoints.anthropic),
+    new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("openai_api_key"), () => new OpenAIStreamReader(), endpoints.openai),
+    new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("gemini_api_key"), () => new GeminiStreamReader(), endpoints.gemini),
+    new MistralPlatform(loggerFactory, fetchFunction, getApiKey("mistral_api_key"), () => new MistralStreamReader(), endpoints.mistral),
   ]);
 
   const toolRegistry = new ToolRegistry();

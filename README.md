@@ -67,11 +67,17 @@ To enter an API key for a cloud provider, open the **Settings** panel inside the
 
 Configuration is via environment variables in `.env`. See [.env.example](.env.example) for all options.
 
+By default all AI platforms are called directly from the browser (CORS). The server-side proxy is an opt-in fallback — useful when the browser cannot reach the platform directly (e.g. Ollama on a homelab server, or to centralise request logging).
+
 | Variable | Default | Description |
 |---|---|---|
-| `OLLAMA_HOST` | `http://localhost:11434` | URL of your Ollama instance |
+| `OLLAMA_HOST` | `http://localhost:11434` | URL of your Ollama instance (used for direct access and as the proxy target) |
 | `OLLAMA_TIMEOUT_MS` | — | Request timeout for Ollama (ms). Increase for slow hardware or large models |
-| `ANTHROPIC_HOST` | `https://api.anthropic.com` | Anthropic API endpoint (useful for proxies) |
+| `OLLAMA_PROXY` | — | Set to `true` to route Ollama requests through the server proxy |
+| `ANTHROPIC_PROXY` | — | Set to `true` to route Anthropic requests through the server proxy |
+| `OPENAI_PROXY` | — | Set to `true` to route OpenAI requests through the server proxy |
+| `GEMINI_PROXY` | — | Set to `true` to route Gemini requests through the server proxy |
+| `MISTRAL_PROXY` | — | Set to `true` to route Mistral requests through the server proxy |
 | `STORE_DIR` | `./store` | Directory where documents are stored on disk |
 
 ---
