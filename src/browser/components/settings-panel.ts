@@ -31,7 +31,10 @@ ui-settings-panel {
   padding: 0;
   width: 400px;
   max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
   margin: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 ui-settings-panel::backdrop {
@@ -73,6 +76,7 @@ ui-settings-panel::backdrop {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
 }
 
 .field {
