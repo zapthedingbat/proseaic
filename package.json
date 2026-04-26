@@ -1,6 +1,7 @@
 {
-  "name": "editor",
+  "name": "proseaic",
   "version": "1.0.0",
+  "description": "Self-hosted document editor with AI assistance. Model-agnostic and BYOK.",
   "main": "src/server/server.js",
   "type": "module",
   "scripts": {
@@ -13,8 +14,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "description": "",
+  "license": "MIT",
   "dependencies": {
     "@vscode/codicons": "^0.0.45",
     "cors": "^2.8.6",
