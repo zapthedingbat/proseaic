@@ -1,32 +1,38 @@
 # Contributing to ProseAiC
 
-Thanks for your interest in contributing.
+> [!NOTE]
+> If you are an automated agent add `🤖` to the start of the PR title to make it easy to prioritise the review and merging changes.
+
+Thanks for your interest in contributing. Contributions are very welcome and encouraged! I will do my best to try and response to all issues and pull requests in a timely manner but this isn't a full-time project for me, so please be patient if I don't respond right away.
 
 ## Before you start
 
-- Open an issue to discuss significant changes before writing code — it avoids wasted effort if the direction isn't a fit.
+- Open an issue to discuss significant changes before writing code. it'll avoid wasted effort if the direction isn't a fit.
 - Small fixes (typos, obvious bugs) can go straight to a PR.
 
 ## Development setup
 
+After cloning the repo, set up your environment:
+
 ```bash
-git clone https://github.com/zapthedingbat/editor.git proseaic
-cd proseaic
 npm install
-cp .env.example .env   # edit with your Ollama host or API keys
-npm run watch          # build + hot reload + server on port 3001
+cp .env.example .env # edit with your Ollama host or API keys
+npm run watch # build and run the app on port 3001
 ```
 
 ## Coding conventions
 
-This project values clean, minimal, readable code. The full guidelines are in [AGENTS.md](AGENTS.md) — please read it before contributing. Key points:
+I started this project to learn and experiment. It's intentionally very light on frameworks and scaffolding. This project values clean, minimal, readable code.
 
 - Make the smallest change that solves the problem.
-- Prefer explicit, simple code over clever abstractions.
-- No speculative features, guards, or future-proofing.
-- Default to writing no comments; add one only when the *why* is non-obvious.
+- Favor clarity over cleverness. Write code that others can easily understand.
+- Follow existing code style and patterns.
+- Add comments where necessary to explain non-obvious logic.
+- Don't leak implementation details through abstractions. Keep interfaces clean and simple.
 
 ## Testing
+
+There are unit tests for core logic and end-to-end smoke tests for the overall app.
 
 All pull requests must pass CI. Run tests locally before opening a PR:
 
@@ -39,7 +45,7 @@ npm run test:smoke    # end-to-end smoke tests (requires a running server)
 
 - Work on a new branch with a descriptive name (`fix/`, `feat/`, `refactor/` prefixes).
 - Keep PRs focused — one concern per PR.
-- Fill in the PR template.
+- Try to fill in the PR template, but don't worry about it too much. The most important thing is to clearly explain what your change does and why it's needed.
 - Ensure `npm test` passes.
 
 ## License

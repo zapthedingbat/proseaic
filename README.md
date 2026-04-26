@@ -2,9 +2,7 @@
 
 A self-hosted document editor with integrated AI assistance — built for people who work with documents, not code.
 
-ProseAiC is model-agnostic and BYOK (bring your own key). It works with all major cloud AI providers, and is especially designed for homelab use with open-weight models running on your own hardware via [Ollama](https://ollama.com).
-
-Your documents and API keys never leave your own machine.
+ProseAiC is model-agnostic and BYOK (bring your own key). It works with all major cloud AI providers, and is especially designed for homelab use with open-weight models running on your own hardware via [Ollama](https://ollama.com) so your documents and API keys never leave your own machine.
 
 ---
 
@@ -23,13 +21,13 @@ Your documents and API keys never leave your own machine.
 
 | Platform | Type | Notes |
 |---|---|---|
-| [Ollama](https://ollama.com) | Local | Default. Recommended for homelab and offline use |
+| [Ollama](https://ollama.com) | Local / Cloud | Recommended for homelab and offline use |
 | [Anthropic](https://anthropic.com) | Cloud | Requires API key |
 | [OpenAI](https://openai.com) | Cloud | Requires API key |
 | [Gemini](https://ai.google.dev) | Cloud | Requires API key |
 | [Mistral](https://mistral.ai) | Cloud | Requires API key |
 
-Ollama is the active default. To enable a cloud provider, uncomment the relevant platform registration in `src/browser/script.ts` and rebuild.
+To enable cloud providers, enter your API key and endpoint URL in the chat settings. For self-hosted environments proxy endpoints can be configured in the server's `.env` file so that requests are forwarded to the correct destination through the server.
 
 ---
 
@@ -44,9 +42,9 @@ Ollama is the active default. To enable a cloud provider, uncomment the relevant
 
 ## Getting started
 
+After cloning the repo, set up your environment:
+
 ```bash
-git clone https://github.com/zapthedingbat/editor.git proseaic
-cd proseaic
 npm install
 cp .env.example .env
 ```
@@ -59,9 +57,13 @@ npm start
 
 Open [http://localhost:3001](http://localhost:3001) in your browser.
 
-Open the **Settings** panel to configure your AI platforms — enter the endpoint URL and API key for each provider you want to use. Settings are saved to your browser's local storage and never sent to the server.
+Open the **Settings** panel to configure your AI platforms
 
-For **Ollama**, the default endpoint is `https://ollama.com` (their hosted platform). To use a local or homelab instance, enter its address directly in Settings (e.g. `http://localhost:11434`) — or set the endpoint to `/ollama` to route requests through the ProseAiC server proxy.
+Enter the endpoint URL and API key for each provider you want to use.
+
+Settings are saved to your browser's local storage and never sent to the server.
+
+For **Ollama**, the default endpoint is `https://ollama.com` (their hosted platform). To use a local or homelab instance, enter its address directly in Settings (e.g. `http://localhost:11434`) — or set the endpoint to `/ollama` to route requests through the server proxy.
 
 ---
 
@@ -73,7 +75,7 @@ Server behaviour is configured via environment variables in `.env`. See [.env.ex
 |---|---|---|
 | `OLLAMA_HOST` | `https://ollama.com` | Where the server proxy forwards Ollama requests (used when endpoint is set to `/ollama` in Settings) |
 | `OLLAMA_TIMEOUT_MS` | — | Request timeout for Ollama (ms). Useful for slow hardware or large models |
-| `STORE_DIR` | `./store` | Directory where documents are stored on disk |
+| `STORE_DIR` | `./documents` | Directory where documents are stored on disk |
 
 ---
 

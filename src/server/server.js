@@ -26,8 +26,8 @@ export function startServer(){
   app.use(proxy("/mistral", MISTRAL_HOST, { streamResponse: true }));
 
   // Document store endpoints (WebDAV-like interface)
-  const storeDir = process.env.STORE_DIR || "../../store";
-  app.use("/store", storeRoutes(import.meta.url, storeDir));
+  const storeDir = process.env.STORE_DIR || "../../.documents";
+  app.use("/documents", storeRoutes(import.meta.url, storeDir));
 
   // Static file serving for the web UI
   app.use(staticRoutes(import.meta.url, "../../dist/browser"));
