@@ -31,10 +31,13 @@ ui-settings-panel {
   padding: 0;
   width: 400px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 64px);
   margin: auto;
+}
+
+ui-settings-panel:popover-open {
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 64px);
 }
 
 ui-settings-panel::backdrop {
