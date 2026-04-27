@@ -1,0 +1,19 @@
+title: ProseAiC
+description: Self-hosted document editor with integrated AI assistance
+theme: minima
+
+nav:
+  - title: Overview
+    url: /
+  - title: Installation
+    url: /installation
+  - title: Usage
+    url: /usage
+  - title: AI Platforms
+    url: /ai-platforms
+  - title: Configuration
+    url: /configuration
+  - title: How It Works
+    url: /how-it-works
+  - title: Contributing
+    url: /contributing
