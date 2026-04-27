@@ -1,6 +1,7 @@
 .claude/
 .documents/
 .env
+.vscode/
 dist/
 logs/
 node_modules/
