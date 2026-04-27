@@ -1,8 +1,8 @@
 # ProseAiC
 
-A self-hosted document editor with integrated AI assistance — built for people who work with documents, not code.
+A self-hosted document editor with integrated AI assistance. Built for people who work with documents not just code.
 
-ProseAiC is model-agnostic and BYOK (bring your own key). It works with all major cloud AI providers, and is especially designed for homelab use with open-weight models running on your own hardware via [Ollama](https://ollama.com) so your documents and API keys never leave your own machine.
+ProseAiC is model-agnostic and BYOK (bring your own key). It works with all major cloud AI providers, and is especially designed for homelab use with open-weight models running on your own hardware via [Ollama](https://ollama.com) so your documents and API keys don't have to leave your network.
 
 ---
 
