@@ -114,8 +114,7 @@ export class ChatSession implements IChatSession {
         if(!model) {
           await this._error(`Model not found: ${modelIdentifier}`, modelIdentifier);
           assistantMessage = null;
-          continueAgentLoop = false;
-          return;
+          break;
         }
 
         // Build the filtered tool list: first scope to the agent's allow-list, then strip any tools the model doesn't support.
