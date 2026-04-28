@@ -5,7 +5,7 @@ export default defineConfig({
     environment: "jsdom",
     exclude: ["**/node_modules/**", "**/smoke/**"],
     coverage: {
-      provider: "v8",
+      provider: "istanbul",
       reporter: ["text", "lcov", "html"],
       include: ["src/browser/**/*.ts"],
       exclude: [
