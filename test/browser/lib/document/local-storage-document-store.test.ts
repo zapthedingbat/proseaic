@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
+// @vitest-environment node
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalStorageDocumentStore } from "../../../../src/browser/lib/document/stores/local-storage-document-store.js";
 import { DocumentPath } from "../../../../src/browser/lib/document/document-service.js";
 import { DocumentConcurrencyError, DocumentIdConflictError } from "../../../../src/browser/lib/document/errors.js";
@@ -7,9 +8,21 @@ function path(str: string): DocumentPath {
   return DocumentPath.parse(str);
 }
 
+function makeLocalStorage(): Storage {
+  const store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = value; },
+    removeItem: (key: string) => { delete store[key]; },
+    clear: () => { for (const k of Object.keys(store)) delete store[k]; },
+    get length() { return Object.keys(store).length; },
+    key: (index: number) => Object.keys(store)[index] ?? null,
+  } as Storage;
+}
+
 describe("LocalStorageDocumentStore", () => {
   beforeEach(() => {
-    localStorage.clear();
+    vi.stubGlobal("localStorage", makeLocalStorage());
   });
 
   describe("write and read", () => {

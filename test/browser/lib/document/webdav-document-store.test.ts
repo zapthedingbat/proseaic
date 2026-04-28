@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebDavDocumentStore } from "../../../../src/browser/lib/document/stores/webdav-document-store.js";
 import { DocumentPath } from "../../../../src/browser/lib/document/document-service.js";

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { InsertDocumentSectionTool } from "../../../src/browser/tools/insert-document-section.js";
 import { ReplaceDocumentSectionTool } from "../../../src/browser/tools/replace-document-section.js";
