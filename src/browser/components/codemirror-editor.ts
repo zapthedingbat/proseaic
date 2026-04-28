@@ -462,6 +462,7 @@ export class CodeMirrorEditor extends HTMLElement implements IEditorComponent {
       sections.push(newSection);
     }
     this.setContent(reassemble(sections));
+    this._emitChange();
   }
 
   moveSection(sectionId: string, insertBeforeSectionId?: string): void {
@@ -476,6 +477,7 @@ export class CodeMirrorEditor extends HTMLElement implements IEditorComponent {
       sections.push(moving);
     }
     this.setContent(reassemble(sections));
+    this._emitChange();
   }
 
   removeSection(sectionId: string): void {
@@ -484,6 +486,7 @@ export class CodeMirrorEditor extends HTMLElement implements IEditorComponent {
     if (idx === -1) return;
     sections.splice(idx, 1);
     this.setContent(reassemble(sections));
+    this._emitChange();
   }
 
   replaceSection(sectionId: string, sectionContent: string): void {
@@ -492,6 +495,7 @@ export class CodeMirrorEditor extends HTMLElement implements IEditorComponent {
     if (idx === -1) return;
     sections[idx] = { ...sections[idx], body: sectionContent };
     this.setContent(reassemble(sections));
+    this._emitChange();
   }
 
   getSectionContent(sectionId: string): string {
