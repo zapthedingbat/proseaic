@@ -9,7 +9,7 @@ export default defineConfig({
     outputFile: { junit: "test-results/junit.xml" },
     coverage: {
       provider: "v8",
-      reporter: ["text", "lcov", "html"],
+      reporter: ["text", "lcov", "html", "json-summary"],
       include: ["src/browser/**/*.ts"],
       exclude: [
         "src/browser/**/*.d.ts",
