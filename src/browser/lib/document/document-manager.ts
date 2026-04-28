@@ -12,11 +12,13 @@ export class DocumentManager implements IDocumentService {
   private _dirtyDocumentIds: Set<string>;
   private _documentVersions: Map<string, FileVersionToken | undefined>;
   private _documentListCache: DocumentId[] | null = null;
+  private _storage: Storage;
 
-  constructor(stores: IDocumentStore[] = []) {
+  constructor(stores: IDocumentStore[] = [], storage: Storage = this._storage) {
     this._stores = new Map(stores.map(store => [store.namespace, store]));
     this._dirtyDocumentIds = new Set();
     this._documentVersions = new Map();
+    this._storage = storage;
   }
 
   private _getDefaultStore(): IDocumentStore {
@@ -32,7 +34,7 @@ export class DocumentManager implements IDocumentService {
   }
 
   private _readDraft(id: DocumentId): DraftRecord | null {
-    const raw = globalThis.localStorage.getItem(this._getDraftStorageKey(id));
+    const raw = this._storage.getItem(this._getDraftStorageKey(id));
     if (raw === null) {
       return null;
     }
@@ -61,11 +63,11 @@ export class DocumentManager implements IDocumentService {
       content,
       baseVersion
     };
-    globalThis.localStorage.setItem(this._getDraftStorageKey(id), JSON.stringify(draft));
+    this._storage.setItem(this._getDraftStorageKey(id), JSON.stringify(draft));
   }
 
   private _clearDraft(id: DocumentId): void {
-    globalThis.localStorage.removeItem(this._getDraftStorageKey(id));
+    this._storage.removeItem(this._getDraftStorageKey(id));
   }
 
   private _setDirty(id: DocumentId, value: boolean): void {
@@ -162,7 +164,7 @@ export class DocumentManager implements IDocumentService {
     const newId = DocumentId.create(id.store, toFilepath);
     
     // Migrate draft to new ID if it exists
-    const draft = this._readDraft(newId);
+    const draft = this._readDraft(id);
     if (draft) {
       this._writeDraft(newId, draft.content, draft.baseVersion);
       this._clearDraft(id);
