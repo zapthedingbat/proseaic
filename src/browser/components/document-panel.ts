@@ -82,10 +82,11 @@ export class DocumentPanel extends BaseHtmlElement {
           composed: true,
         }));
         break;
-      case "rename":
+      case "rename": {
         const row = btn.closest(".list-item") as HTMLLIElement | null;
         if (row) this._startRename(row);
         break;
+      }
       case "delete":
         this.dispatchEvent(new CustomEvent("delete", {
           detail: { id: docId },

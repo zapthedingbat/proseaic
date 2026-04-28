@@ -29,15 +29,13 @@ export class ChatManager implements IChatService {
     throw new Error("Method not implemented.");
   }
 
-  removeSession(sessionId: string): Promise<void> {
+  removeSession(_sessionId: string): Promise<void> {
     throw new Error("Method not implemented.");
   }
 
   // Factory for chat sessions.
   // Each session corresponds to a single conversation with an AI, and manages the message history and interactions for that conversation.
-  startSession(modelIdentifier: string, prompt: string): IChatSession {
-    const sessionId = crypto.randomUUID();
-
+  startSession(_modelIdentifier: string, _prompt: string): IChatSession {
     throw new Error("Method not implemented.");
 
     //const history = new ChatHistory();

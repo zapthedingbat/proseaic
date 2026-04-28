@@ -84,7 +84,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
         throw err;
       }
       const message = err instanceof Error ? err.message : String(err);
-      throw new Error(`Failed to move file "${fromFilepath.toString()}" to "${toFilepath.toString()}": ${message}`);
+      throw new Error(`Failed to move file "${fromFilepath.toString()}" to "${toFilepath.toString()}": ${message}`, { cause: err });
     }
   }
 

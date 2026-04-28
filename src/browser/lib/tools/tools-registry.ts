@@ -2,7 +2,6 @@ import { ITool } from "./tool.js";
 import { IToolService } from "./tool-service.js";
 import { ToolSchema } from "./tool-schema.js";
 import { Model } from "../models/model.js";
-import { J } from "vitest/dist/chunks/environment.d.cL3nLXbE.js";
 import { JSONValue } from "../JSONValue.js";
 
 export function filterToolSchemasByModel(schemas: ToolSchema[], model: Model): ToolSchema[] {

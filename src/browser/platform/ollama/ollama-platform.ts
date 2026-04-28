@@ -183,7 +183,7 @@ export class OllamaPlatform implements IPlatform {
     });
   }
 
-  private _formatSystemMessage(message: SystemChatMessage, index: number, array: ChatMessage[]): OllamaSystemRequestMessage {
+  private _formatSystemMessage(message: SystemChatMessage, _index: number, _array: ChatMessage[]): OllamaSystemRequestMessage {
     const contentString = message.content.filter(part => part.type === "text").map(part => part.text).join("\n");
     return ({
       role: "system",
@@ -191,7 +191,7 @@ export class OllamaPlatform implements IPlatform {
     });
   }
 
-  private _formatUserMessage(message: UserChatMessage, index: number, array: ChatMessage[]): OllamaUserRequestMessage {
+  private _formatUserMessage(message: UserChatMessage, _index: number, _array: ChatMessage[]): OllamaUserRequestMessage {
     const contentString = message.content.reduce((acc, part) => {
       if(part.type === "text") {
         return `${acc}\n${part.text}\n`;
@@ -216,7 +216,7 @@ export class OllamaPlatform implements IPlatform {
     });
   }
 
-  private _formatAssistantMessage(message: AssistantChatMessage, index: number, array: ChatMessage[]): OllamaAssistantRequestMessage {
+  private _formatAssistantMessage(message: AssistantChatMessage, _index: number, _array: ChatMessage[]): OllamaAssistantRequestMessage {
     /* 
     In Ollama’s chat API an assistant message is expected to be either:
     - a tool call message (tool_calls), where content is typically empty or null
@@ -273,10 +273,11 @@ export class OllamaPlatform implements IPlatform {
         return this._formatUserMessage(message, index, array);
       case "assistant":
         return this._formatAssistantMessage(message, index, array);
-      default:
+      default: {
         const unknownMessage = message as ChatMessage;
         this._logger.error(`Unknown message role: ${unknownMessage.role} in message at index ${index} in conversation with ${array.length} messages.`);
         return null;
+      }
     }
   }
 

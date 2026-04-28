@@ -195,11 +195,11 @@ export class TextEditor extends BaseHtmlElement {
     const headingsPattern = /^(#{1,6})\s+(.*)$/gm;
     const outline: OutlineEntryList = [];
     let match;
-    let ids = new Set<string>();
+    const ids = new Set<string>();
     while ((match = headingsPattern.exec(this._markdown)) !== null) {
       const level = match[1].length;
       const title = match[2];
-      let id = title.toLowerCase().replace(/\s+/g, "_").replace(/[^\w\-]/g, "");
+      let id = title.toLowerCase().replace(/\s+/g, "_").replace(/[^\w-]/g, "");
       let headingDuplicateCount = 1;
       while (ids.has(id)) {
         id = `${id}_${headingDuplicateCount++}`;

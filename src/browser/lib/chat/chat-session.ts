@@ -114,8 +114,7 @@ export class ChatSession implements IChatSession {
         if(!model) {
           await this._error(`Model not found: ${modelIdentifier}`, modelIdentifier);
           assistantMessage = null;
-          continueAgentLoop = false;
-          return;
+          break;
         }
 
         // Build the filtered tool list: first scope to the agent's allow-list, then strip any tools the model doesn't support.
@@ -209,7 +208,7 @@ export class ChatSession implements IChatSession {
               assistantMessage.thinking = (assistantMessage.thinking || "") + streamEvent.text;
               stream._forwardStreamEvent(streamEvent);
               break;
-            case "tool_call":
+            case "tool_call": {
               assistantMessage.tool_calls = assistantMessage.tool_calls || [];
               assistantMessage.tool_calls.push(streamEvent.tool_call);
               if (streamEvent.tool_call.name === "task_complete") {
@@ -217,9 +216,9 @@ export class ChatSession implements IChatSession {
               }
               const toolChatMessage = await this._runToolAndGetResultMessage(modelIdentifier, streamEvent.tool_call);
               toolResultsMessages.push(toolChatMessage);
-
               break;
-            case "error":
+            }
+            case "error": {
               // If there's an error event, we can add an error message to the history to give feedback to the user about the issue.
               const errorMessage = await this._error(`Error generating response: ${streamEvent.error instanceof Error ? streamEvent.error.message : String(streamEvent.error)}`, modelIdentifier);
               // TODO: could we just return here?
@@ -227,6 +226,7 @@ export class ChatSession implements IChatSession {
               assistantMessage = null;
               continueAgentLoop = false;
               break;
+            }
             case "done":
               this._logger.debug("Assistant finished generating response", assistantMessage);
               await this._history.addMessage(assistantMessage);

@@ -1,7 +1,7 @@
 import { Marked } from "marked";
 import { ClearHistoryEvent, InsertContentEvent, NewDocumentEvent, SelectCheckpointEvent, SubmitPromptEvent } from "../lib/events.js";
 import { BaseHtmlElement } from "./base-html-element.js";
-import { AssistantChatMessage, ChatMessage, ChatMessageContentPart, ToolChatMessage } from "../lib/chat/chat-message.js";
+import { AssistantChatMessage, ChatMessage, ChatMessageContentPart } from "../lib/chat/chat-message.js";
 import { Model } from "../lib/models/model.js";
 import { PaneAction } from "./pane.js";
 

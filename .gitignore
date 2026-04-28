@@ -2,6 +2,7 @@
 .documents/
 .env
 .vscode/
+coverage/
 dist/
 logs/
 node_modules/

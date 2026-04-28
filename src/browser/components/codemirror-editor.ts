@@ -339,7 +339,7 @@ export class CodeMirrorEditor extends HTMLElement implements IEditorComponent {
             const deco = view.state.field(ghostTextField);
             let ghostText: string | null = null;
             let ghostPos = -1;
-            deco.between(0, view.state.doc.length, (from, _to, d: any) => {
+            deco.between(0, view.state.doc.length, (from, _to, d: Decoration) => {
               if (d.spec?.widget instanceof GhostTextWidget) {
                 ghostText = (d.spec.widget as GhostTextWidget).text;
                 ghostPos = from;
