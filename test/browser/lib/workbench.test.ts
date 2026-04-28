@@ -499,3 +499,21 @@ describe("Workbench.saveFocusedDocument", () => {
     expect(ui.alert).toHaveBeenCalled();
   });
 });
+
+describe("Workbench - editor change event triggers draft save", () => {
+  it("calls setDocumentDraft when the editor emits a change event after openDocument", async () => {
+    const id = makeDocumentId("/store/doc.md");
+    const dss = makeDocumentStateService();
+    const { factory, editor } = makeEditorNodeFactory();
+    const workbench = new Workbench(makeUi(), null as any, makeDocumentService(), dss, makeInlineCompletionService(), factory);
+    seedEditorGroup(workbench);
+
+    await workbench.openDocument(id);
+
+    // Simulate a tool mutation: dispatch a "change" event on the editor
+    // (exactly what CodeMirrorEditor._emitChange() does).
+    editor.dispatchEvent(new CustomEvent("change", { bubbles: true, composed: true }));
+
+    expect(dss.setDocumentDraft).toHaveBeenCalledWith(id, expect.any(String));
+  });
+});
