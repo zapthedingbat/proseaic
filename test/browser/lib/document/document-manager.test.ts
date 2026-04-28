@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { DocumentManager } from "../../../../src/browser/lib/document/document-manager";
 import { DocumentId, DocumentPath } from "../../../../src/browser/lib/document/document-service";
-import { MemoryDocumentStore } from "../../../../src/browser/lib/document/stores/memory-document-store";
+import type { FileContent, FileEntry, FileVersionToken, IDocumentStore } from "../../../../src/browser/lib/document/document-store";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const path = (s: string) => DocumentPath.parse(s);
+const version = (v: string) => v as FileVersionToken;
+const fileContent = (content: string, v = "1"): FileContent => ({ content, version: version(v) });
 
 function makeStorage(): Storage {
   const map = new Map<string, string>();
@@ -21,16 +23,27 @@ function makeStorage(): Storage {
   };
 }
 
+function makeStore(namespace = "mem"): IDocumentStore {
+  return {
+    namespace,
+    read: vi.fn().mockResolvedValue(fileContent("")),
+    write: vi.fn().mockResolvedValue(version("1")),
+    mv: vi.fn().mockResolvedValue(undefined),
+    rm: vi.fn().mockResolvedValue(undefined),
+    ls: vi.fn().mockResolvedValue([] as FileEntry[]),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
 
-let store: MemoryDocumentStore;
+let store: IDocumentStore;
 let storage: Storage;
 let manager: DocumentManager;
 
 beforeEach(() => {
-  store = new MemoryDocumentStore();
+  store = makeStore();
   storage = makeStorage();
   manager = new DocumentManager([store], storage);
 });
@@ -41,13 +54,11 @@ beforeEach(() => {
 
 describe("getStoreNamespaces", () => {
   it("returns the namespace of each registered store", () => {
-    expect(manager.getStoreNamespaces()).toEqual(["memory"]);
+    expect(manager.getStoreNamespaces()).toEqual(["mem"]);
   });
 
   it("reflects dynamically registered stores", () => {
-    const second = new MemoryDocumentStore();
-    second.namespace = "second";
-    manager.register(second);
+    manager.register(makeStore("second"));
     expect(manager.getStoreNamespaces()).toContain("second");
   });
 });
@@ -57,24 +68,22 @@ describe("getStoreNamespaces", () => {
 // ---------------------------------------------------------------------------
 
 describe("createDocument", () => {
-  it("creates a document and returns a DocumentId", async () => {
+  it("writes to the store and returns a DocumentId", async () => {
     const id = await manager.createDocument(path("/notes.md"));
-    expect(id).toBeInstanceOf(DocumentId);
-    expect(id.toString()).toBe("/memory/notes.md");
+    expect(store.write).toHaveBeenCalledWith(path("/notes.md"), undefined);
+    expect(id.toString()).toBe("/mem/notes.md");
   });
 
-  it("creates a document with initial content", async () => {
-    const id = await manager.createDocument(path("/hello.md"), "# Hello");
-    const content = await manager.readDocument(id);
-    expect(content).toBe("# Hello");
+  it("passes initial content to the store", async () => {
+    await manager.createDocument(path("/hello.md"), "# Hello");
+    expect(store.write).toHaveBeenCalledWith(path("/hello.md"), "# Hello");
   });
 
   it("invalidates the list cache", async () => {
-    const lsSpy = vi.spyOn(store, "ls");
     await manager.listDocuments(); // prime cache
     await manager.createDocument(path("/new.md"));
-    await manager.listDocuments(); // should re-query
-    expect(lsSpy).toHaveBeenCalledTimes(2);
+    await manager.listDocuments();
+    expect(store.ls).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -84,27 +93,28 @@ describe("createDocument", () => {
 
 describe("readDocument", () => {
   it("returns the stored content when no draft exists", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "stored content");
+    vi.mocked(store.read).mockResolvedValue(fileContent("stored content"));
+    const id = await manager.createDocument(path("/doc.md"));
     const content = await manager.readDocument(id);
     expect(content).toBe("stored content");
   });
 
   it("marks the document clean when there is no draft", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "stored");
+    const id = await manager.createDocument(path("/doc.md"));
     await manager.readDocument(id);
     expect(manager.isDocumentDirty(id)).toBe(false);
   });
 
   it("returns draft content when a draft exists", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "stored");
+    vi.mocked(store.read).mockResolvedValue(fileContent("stored"));
+    const id = await manager.createDocument(path("/doc.md"));
     manager.setDocumentDraft(id, "draft content");
-    const content = await manager.readDocument(id);
-    expect(content).toBe("draft content");
+    expect(await manager.readDocument(id)).toBe("draft content");
   });
 
   it("marks the document dirty when a draft exists", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "stored");
-    manager.setDocumentDraft(id, "draft content");
+    const id = await manager.createDocument(path("/doc.md"));
+    manager.setDocumentDraft(id, "draft");
     await manager.readDocument(id);
     expect(manager.isDocumentDirty(id)).toBe(true);
   });
@@ -120,18 +130,26 @@ describe("readDocument", () => {
 // ---------------------------------------------------------------------------
 
 describe("updateDocument", () => {
-  it("persists new content to the store", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "original");
+  it("writes updated content to the store", async () => {
+    const id = await manager.createDocument(path("/doc.md"));
     await manager.updateDocument(id, "updated");
-    const content = await manager.readDocument(id);
-    expect(content).toBe("updated");
+    expect(store.write).toHaveBeenLastCalledWith(path("/doc.md"), "updated", expect.anything());
   });
 
-  it("clears the draft after saving", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "original");
+  it("clears the draft and dirty state after saving", async () => {
+    const id = await manager.createDocument(path("/doc.md"));
     manager.setDocumentDraft(id, "draft");
     await manager.updateDocument(id, "saved");
     expect(manager.isDocumentDirty(id)).toBe(false);
+  });
+
+  it("passes the baseVersion from the draft to the store", async () => {
+    vi.mocked(store.read).mockResolvedValue(fileContent("content", "42"));
+    const id = await manager.createDocument(path("/doc.md"));
+    await manager.readDocument(id); // loads version "42" from read response
+    manager.setDocumentDraft(id, "draft");
+    await manager.updateDocument(id, "saved");
+    expect(store.write).toHaveBeenLastCalledWith(path("/doc.md"), "saved", version("42"));
   });
 });
 
@@ -149,31 +167,34 @@ describe("setDocumentDraft", () => {
   it("appears in getDirtyDocumentIds", async () => {
     const id = await manager.createDocument(path("/doc.md"));
     manager.setDocumentDraft(id, "draft");
-    const dirty = manager.getDirtyDocumentIds();
-    expect(dirty.some(d => d.equals(id))).toBe(true);
+    expect(manager.getDirtyDocumentIds().some(d => d.equals(id))).toBe(true);
   });
 
-  it("preserves the baseVersion from the initial store read", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "v1");
-    await manager.readDocument(id); // loads version into memory
+  it("preserves baseVersion across multiple draft updates", async () => {
+    vi.mocked(store.read).mockResolvedValue(fileContent("content", "5"));
+    const id = await manager.createDocument(path("/doc.md"));
+    await manager.readDocument(id); // loads version "5" from read response
     manager.setDocumentDraft(id, "draft v1");
-
-    // A second draft update must not reset the baseVersion to undefined.
-    manager.setDocumentDraft(id, "draft v2");
-
-    // Save should succeed (uses the stored baseVersion, not undefined).
-    await expect(manager.updateDocument(id, "saved")).resolves.not.toThrow();
+    manager.setDocumentDraft(id, "draft v2"); // second update must not reset baseVersion
+    await manager.updateDocument(id, "saved");
+    expect(store.write).toHaveBeenLastCalledWith(path("/doc.md"), "saved", version("5"));
   });
 });
 
 describe("discardUnsavedDocumentChanges", () => {
-  it("clears the draft and marks the document clean", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "stored");
+  it("clears dirty state", async () => {
+    const id = await manager.createDocument(path("/doc.md"));
     manager.setDocumentDraft(id, "draft");
     manager.discardUnsavedDocumentChanges(id);
     expect(manager.isDocumentDirty(id)).toBe(false);
-    const content = await manager.readDocument(id);
-    expect(content).toBe("stored");
+  });
+
+  it("causes readDocument to return stored content again", async () => {
+    vi.mocked(store.read).mockResolvedValue(fileContent("stored"));
+    const id = await manager.createDocument(path("/doc.md"));
+    manager.setDocumentDraft(id, "draft");
+    manager.discardUnsavedDocumentChanges(id);
+    expect(await manager.readDocument(id)).toBe("stored");
   });
 });
 
@@ -182,11 +203,10 @@ describe("discardUnsavedDocumentChanges", () => {
 // ---------------------------------------------------------------------------
 
 describe("deleteDocument", () => {
-  it("removes the document from the store", async () => {
-    const id = await manager.createDocument(path("/doc.md"), "content");
+  it("calls rm on the store", async () => {
+    const id = await manager.createDocument(path("/doc.md"));
     await manager.deleteDocument(id);
-    const docs = await manager.listDocuments();
-    expect(docs.some(d => d.equals(id))).toBe(false);
+    expect(store.rm).toHaveBeenCalledWith(path("/doc.md"));
   });
 
   it("clears dirty state on deletion", async () => {
@@ -197,12 +217,11 @@ describe("deleteDocument", () => {
   });
 
   it("invalidates the list cache", async () => {
-    const lsSpy = vi.spyOn(store, "ls");
     const id = await manager.createDocument(path("/doc.md"));
     await manager.listDocuments(); // prime cache
     await manager.deleteDocument(id);
-    await manager.listDocuments(); // should re-query
-    expect(lsSpy).toHaveBeenCalledTimes(2);
+    await manager.listDocuments();
+    expect(store.ls).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -211,18 +230,19 @@ describe("deleteDocument", () => {
 // ---------------------------------------------------------------------------
 
 describe("listDocuments", () => {
-  it("returns all documents in the store", async () => {
-    await manager.createDocument(path("/a.md"));
-    await manager.createDocument(path("/b.md"));
+  it("maps store entries to DocumentIds", async () => {
+    vi.mocked(store.ls).mockResolvedValue([
+      { filepath: path("/a.md"), version: version("1") },
+      { filepath: path("/b.md"), version: version("1") },
+    ]);
     const docs = await manager.listDocuments();
-    expect(docs).toHaveLength(2);
+    expect(docs.map(d => d.toString())).toEqual(["/mem/a.md", "/mem/b.md"]);
   });
 
-  it("returns cached results on the second call", async () => {
-    const lsSpy = vi.spyOn(store, "ls");
+  it("returns cached results on the second call without re-querying", async () => {
     await manager.listDocuments();
     await manager.listDocuments();
-    expect(lsSpy).toHaveBeenCalledTimes(1);
+    expect(store.ls).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -231,25 +251,24 @@ describe("listDocuments", () => {
 // ---------------------------------------------------------------------------
 
 describe("renameDocument", () => {
+  it("calls mv on the store with the correct paths", async () => {
+    const id = await manager.createDocument(path("/old.md"));
+    await manager.renameDocument(id, path("/new.md"));
+    expect(store.mv).toHaveBeenCalledWith(path("/old.md"), path("/new.md"));
+  });
+
   it("returns a DocumentId with the new path", async () => {
-    const id = await manager.createDocument(path("/old.md"), "content");
+    const id = await manager.createDocument(path("/old.md"));
     const newId = await manager.renameDocument(id, path("/new.md"));
-    expect(newId.toString()).toBe("/memory/new.md");
+    expect(newId.toString()).toBe("/mem/new.md");
   });
 
-  it("makes the document readable under the new id", async () => {
-    const id = await manager.createDocument(path("/old.md"), "content");
-    const newId = await manager.renameDocument(id, path("/new.md"));
-    const content = await manager.readDocument(newId);
-    expect(content).toBe("content");
-  });
-
-  it("makes draft content readable under the new id", async () => {
-    const id = await manager.createDocument(path("/old.md"), "stored");
+  it("migrates draft content to the new id", async () => {
+    vi.mocked(store.read).mockResolvedValue(fileContent("stored"));
+    const id = await manager.createDocument(path("/old.md"));
     manager.setDocumentDraft(id, "draft content");
     const newId = await manager.renameDocument(id, path("/new.md"));
-    const content = await manager.readDocument(newId);
-    expect(content).toBe("draft content");
+    expect(await manager.readDocument(newId)).toBe("draft content");
   });
 
   it("migrates dirty state to the new id", async () => {
@@ -261,12 +280,11 @@ describe("renameDocument", () => {
   });
 
   it("invalidates the list cache", async () => {
-    const lsSpy = vi.spyOn(store, "ls");
     const id = await manager.createDocument(path("/old.md"));
     await manager.listDocuments(); // prime cache
     await manager.renameDocument(id, path("/new.md"));
-    await manager.listDocuments(); // should re-query
-    expect(lsSpy).toHaveBeenCalledTimes(2);
+    await manager.listDocuments();
+    expect(store.ls).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -285,8 +303,7 @@ describe("documentPathFromString", () => {
 });
 
 describe("documentIdFromPath", () => {
-  it("creates an id scoped to the default store", () => {
-    const id = manager.documentIdFromPath(path("/notes.md"));
-    expect(id.toString()).toBe("/memory/notes.md");
+  it("creates an id scoped to the default store namespace", () => {
+    expect(manager.documentIdFromPath(path("/notes.md")).toString()).toBe("/mem/notes.md");
   });
 });
