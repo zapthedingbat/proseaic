@@ -143,8 +143,6 @@ describe("Workbench.closeTab – dirty document discard", () => {
     expect(ui.confirm).toHaveBeenCalledOnce();
 
     // … and the draft should be discarded from the document state service.
-    // BUG: this assertion currently FAILS because closeTab never calls
-    // discardUnsavedDocumentChanges after the user confirms.
     expect(documentStateService.discardUnsavedDocumentChanges).toHaveBeenCalledWith(documentId);
   });
 });
