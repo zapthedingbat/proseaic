@@ -1,6 +1,6 @@
 import { App, AppOptions, WorkbenchFactory } from "./app.js";
 import { AiInlineCompletionService } from "./lib/completion/inline-completion-service.js";
-import { MarkdownEditor } from "./components/markdown-editor.js";
+import { CodeMirrorEditor } from "./components/codemirror-editor.js";
 import { WritingAssistant } from "./agents/writing-assistant.js";
 import { ChatSession } from "./lib/chat/chat-session.js";
 import { DocumentManager } from "./lib/document/document-manager.js";
@@ -92,6 +92,18 @@ import { Configuration, ConfigurationManager } from "./lib/configuration/configu
     platformRegistry
   );
 
+  const editorFactory = async (format: string) => {
+    switch (format) {
+      case "text/markdown":
+      case "markdown":
+        return componentFactory.create(CodeMirrorEditor, {
+          completionService
+        });
+      default:
+        throw new Error(`Unsupported format: ${format}`);
+    }
+  };
+
   // The workbench factory is responsible for creating the main workbench component of the app, which manages open documents and editors.
   const workbenchFactory: WorkbenchFactory = (ui: IUserInteraction) => {
     return new Workbench(
@@ -100,7 +112,7 @@ import { Configuration, ConfigurationManager } from "./lib/configuration/configu
       documentManager,
       documentManager,
       completionService,
-      async (format: string) => await componentFactory.create(MarkdownEditor)
+      editorFactory
     )
   }
 
