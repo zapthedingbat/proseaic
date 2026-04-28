@@ -3,14 +3,13 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "jsdom",
+    include: ["test/**/*.test.ts"],
     exclude: ["**/node_modules/**", "**/smoke/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],
       include: ["src/browser/**/*.ts"],
       exclude: [
-        // Test files
-        "src/browser/**/*.test.ts",
         "src/browser/**/*.d.ts",
         // Entry point — bootstrap wiring only
         "src/browser/script.ts",
@@ -21,6 +20,8 @@ export default defineConfig({
         "src/browser/lib/logging/console-logger.ts",
         "src/browser/lib/ui/component-factory.ts",
       ],
+      // Thresholds are intentionally low while test coverage is being built out.
+      // Ratchet these up as more tests are added.
       thresholds: {
         lines: 25,
         functions: 23,
