@@ -52,6 +52,20 @@ beforeEach(() => {
 // Store registration
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Default storage
+// ---------------------------------------------------------------------------
+
+describe("default storage", () => {
+  it("uses localStorage when no storage argument is provided", async () => {
+    const mgr = new DocumentManager([makeStore()]);
+    const id = await mgr.createDocument(path("/doc.md"));
+    // Should not throw — regression for constructor default being this._storage (undefined)
+    await expect(mgr.readDocument(id)).resolves.toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 describe("getStoreNamespaces", () => {
   it("returns the namespace of each registered store", () => {
     expect(manager.getStoreNamespaces()).toEqual(["mem"]);
