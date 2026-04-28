@@ -14,7 +14,7 @@ export class DocumentManager implements IDocumentService {
   private _documentListCache: DocumentId[] | null = null;
   private _storage: Storage;
 
-  constructor(stores: IDocumentStore[] = [], storage: Storage = localStorage) {
+  constructor(stores: IDocumentStore[], storage: Storage) {
     this._stores = new Map(stores.map(store => [store.namespace, store]));
     this._dirtyDocumentIds = new Set();
     this._documentVersions = new Map();

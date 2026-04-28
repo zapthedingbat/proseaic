@@ -78,7 +78,7 @@ import { Configuration, ConfigurationManager } from "./lib/configuration/configu
 
   // The document manager is responsible for managing documents in the app.
   // It provides an interface for creating, reading, updating, renaming, and deleting documents, as well as tracking which documents are dirty (i.e. have unsaved changes).
-  const documentManager = new DocumentManager();
+  const documentManager = new DocumentManager([], localStorage);
   documentManager.registerMany([
     new WebDavDocumentStore(window.location.origin),
     //new FileSystemDocumentStore(() => navigator.storage.getDirectory()),

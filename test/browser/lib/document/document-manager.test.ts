@@ -56,12 +56,13 @@ beforeEach(() => {
 // Default storage
 // ---------------------------------------------------------------------------
 
-describe("default storage", () => {
-  it("uses localStorage when no storage argument is provided", async () => {
-    const mgr = new DocumentManager([makeStore()]);
+describe("constructor", () => {
+  it("reads and writes drafts through the injected storage", async () => {
+    const injected = makeStorage();
+    const mgr = new DocumentManager([makeStore()], injected);
     const id = await mgr.createDocument(path("/doc.md"));
-    // Should not throw — regression for constructor default being this._storage (undefined)
-    await expect(mgr.readDocument(id)).resolves.toBeDefined();
+    mgr.setDocumentDraft(id, "hello");
+    expect(injected.getItem(`document_draft:${id}`)).not.toBeNull();
   });
 });
 
