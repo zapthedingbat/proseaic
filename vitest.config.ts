@@ -5,6 +5,8 @@ export default defineConfig({
     environment: "jsdom",
     include: ["test/**/*.test.ts"],
     exclude: ["**/node_modules/**", "**/smoke/**"],
+    reporters: ["default", "junit"],
+    outputFile: { junit: "test-results/junit.xml" },
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],
