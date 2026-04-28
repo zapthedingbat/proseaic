@@ -6,7 +6,7 @@ export interface IComponentFactory<T extends CustomElementConstructor> {
 }
 
 type NonFunctionKeys<T> = {
-  [K in keyof T]: T[K] extends Function ? never : K
+  [K in keyof T]: T[K] extends (...args: unknown[]) => unknown ? never : K
 }[keyof T];
 
 type DependencyMap<T extends CustomElementConstructor> = {
@@ -76,7 +76,7 @@ export class ComponentFactory {
     // Otherwise, treat it as a simple map of property keys to values to be injected.
     for (const [key, value] of Object.entries(dependencies || {})) {
       if (key in component) {
-        (component as any)[key] = value;
+        (component as Record<string, unknown>)[key] = value;
       } else {
         this._logger.warn(`Component ${component.constructor.name} does not have a '${key}' property. Skipping injection of dependency.`);
       }
