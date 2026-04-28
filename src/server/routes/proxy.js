@@ -4,21 +4,7 @@ import { Readable, PassThrough } from "stream";
 const LOGGING_TO_FILE = true;
 const LOGGING_TO_CONSOLE = true;
 
-function resolveUpstreamUrl(req, upstreamBaseUrl, targetPath) {
-  if (typeof targetPath === "string" && targetPath.length > 0) {
-    const query = req.originalUrl.includes("?")
-      ? req.originalUrl.slice(req.originalUrl.indexOf("?"))
-      : "";
-    const url = new URL(targetPath, upstreamBaseUrl);
-    url.search = query;
-    return url;
-  }
-
-  return new URL(req.originalUrl, upstreamBaseUrl);
-}
-
-export function proxy(prefix, upstreamBaseUrl, options = {}) {
-  const { targetPath = null } = options;
+export function proxy(prefix, upstreamBaseUrl, _options = {}) {
 
   return async (req, res, next) => {
 

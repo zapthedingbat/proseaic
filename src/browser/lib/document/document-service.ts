@@ -2,7 +2,7 @@ export type DocumentIdString = string & { readonly __brand: unique symbol };
 export type DocumentPathString = string & { readonly __brand: unique symbol };
 
 const StoreRegex = /^[a-z0-9-]+$/;
-const DocumentIdRegex = /^\/([^\/]+)(\/[^\/?]+)+$/;
+const DocumentIdRegex = /^\/([^/]+)(\/[^/?]+)+$/;
 const SEPARATOR = "/";
 
 export class DocumentId {

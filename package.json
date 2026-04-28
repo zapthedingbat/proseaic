@@ -9,8 +9,14 @@
     "watch": "node -r dotenv/config scripts/script.mjs",
     "start": "node -r dotenv/config scripts/script.mjs",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:smoke": "playwright test -c playwright.smoke.config.ts",
-    "test:smoke:headed": "playwright test -c playwright.smoke.config.ts --headed"
+    "test:smoke:headed": "playwright test -c playwright.smoke.config.ts --headed",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
+    "type-check": "tsc -p tsconfig.ui.json --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -28,11 +34,17 @@
     "marked": "^18.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.54.2",
     "dotenv": "^17.4.0",
     "esbuild": "^0.28.0",
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.5.0",
     "jsdom": "^29.0.0",
+    "prettier": "^3.8.3",
     "typescript": "^6.0.0",
+    "typescript-eslint": "^8.59.1",
     "vitest": "^4.0.0"
   }
 }

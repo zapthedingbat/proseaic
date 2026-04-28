@@ -1,5 +1,5 @@
 
-import { AssistantChatMessage, ChatMessage, ErrorChatMessage, ToolChatMessage, UserChatMessage } from "../../lib/chat/chat-message.js";
+import { AssistantChatMessage, ChatMessage, ToolChatMessage, UserChatMessage } from "../../lib/chat/chat-message.js";
 import { ToolSchema } from "../../lib/tools/tool-schema.js";
 import { IPlatform } from "../../lib/platform/platform.js";
 import { StreamEvent } from "../../lib/platform/stream-event.js";
@@ -216,14 +216,16 @@ export class AnthropicPlatform implements IPlatform {
         events.push({ type: "done" });
         break;
 
-      case "error":
+      case "error": {
         const errorStreamEvent: StreamEvent = {
           type: "error",
           error: chunk.error.message,
         };
         events.push(errorStreamEvent);
         break;
+      }
       default:
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         this._logger.warn(`Unknown chunk type: ${(chunk as any).type}`);
         break;
     }
@@ -256,7 +258,7 @@ export class AnthropicPlatform implements IPlatform {
           i++;
           break;
 
-        case "tool":
+        case "tool": {
           // Collect all consecutive tool result messages into a single user message
           const toolResults: AnthropicToolResultPart[] = [];
           while (i < chatMessages.length && chatMessages[i].role === "tool") {
@@ -270,6 +272,7 @@ export class AnthropicPlatform implements IPlatform {
           }
           messages.push({ role: "user", content: toolResults });
           break;
+        }
         default:
           i++;
           break;

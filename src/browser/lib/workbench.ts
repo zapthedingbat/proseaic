@@ -207,7 +207,7 @@ export class Workbench implements IWorkbench {
     await this.openDocument(newDocumentId);
   }
 
-  async exportDocument(id: DocumentId): Promise<void> {
+  async exportDocument(_id: DocumentId): Promise<void> {
     throw new Error("Method not implemented.");
   }
 
@@ -340,7 +340,7 @@ export class Workbench implements IWorkbench {
     // Set the pane to show the editor for the document
     // TODO: If we support different types of documents, we might want to have different editor component factories based on the document type or other metadata.
     // For now, just assume all documents are markdown and use the same editor factory. We can extend this later.
-    let editor = await this._getEditorForPane(documentId, pane);
+    const editor = await this._getEditorForPane(documentId, pane);
     if(editor){
       // Use the documentService to load the document content, then set it in the editor.
       const content = await this._documentService.readDocument(documentId);
@@ -372,6 +372,7 @@ export class Workbench implements IWorkbench {
 
       // Wire up inline completion if available.
       if (this._inlineCompletionService) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (editor as any).setCompletionProvider?.(this._inlineCompletionService);
       }
 
@@ -627,12 +628,14 @@ export class Workbench implements IWorkbench {
   // Outline panel event handlers
   private _handleOutlineSelect = (event: Event): void => {
     const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const editor = this.getFocusedEditor() as any;
     editor?.focusSection(sectionId);
   }
 
   private _handleOutlineDelete = (event: Event): void => {
     const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const editor = this.getFocusedEditor() as any;
     editor?.removeSection(sectionId);
     void this._syncUI();
@@ -640,6 +643,7 @@ export class Workbench implements IWorkbench {
 
   private _handleOutlineDecreaseLevel = (event: Event): void => {
     const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const editor = this.getFocusedEditor() as any;
     editor?.decreaseSectionLevel(sectionId);
     void this._syncUI();
@@ -647,6 +651,7 @@ export class Workbench implements IWorkbench {
 
   private _handleOutlineIncreaseLevel = (event: Event): void => {
     const { sectionId } = (event as CustomEvent<{ sectionId: string }>).detail;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const editor = this.getFocusedEditor() as any;
     editor?.increaseSectionLevel(sectionId);
     void this._syncUI();
