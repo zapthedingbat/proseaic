@@ -179,11 +179,33 @@ ui-settings-panel::backdrop {
   font-weight: 400;
   opacity: 0.6;
 }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-row label {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-row input[type="checkbox"] {
+  accent-color: #08f;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 `;
 
 export class SettingsPanel extends BaseHtmlElement {
   private _models: Model[] = [];
   private _completionModel = "";
+  private _completionEnabled = true;
 
   constructor() {
     super();
@@ -199,6 +221,9 @@ export class SettingsPanel extends BaseHtmlElement {
       input.value = config[input.dataset.storageKey as keyof Configuration] ?? "";
       input.classList.remove("saved");
     });
+    this._completionEnabled = config["ai.completion.enabled"] !== "false";
+    const toggle = this.querySelector<HTMLInputElement>("#completion-enabled-toggle");
+    if (toggle) toggle.checked = this._completionEnabled;
     this._completionModel = config["ai.completion.model"] ?? "";
     this._renderCompletionModelSelect();
   }
@@ -243,6 +268,10 @@ export class SettingsPanel extends BaseHtmlElement {
       <div class="panel-body">
         ${sections}
         <hr class="section-divider">
+        <div class="toggle-row">
+          <input type="checkbox" id="completion-enabled-toggle"${this._completionEnabled ? " checked" : ""} />
+          <label for="completion-enabled-toggle">AI autocomplete</label>
+        </div>
         <div class="field" id="completion-model-field">
           <label>Completion model</label>
           <select id="completion-model-select">
@@ -266,6 +295,17 @@ export class SettingsPanel extends BaseHtmlElement {
         btn.textContent = isHidden ? "Hide" : "Show";
       });
     });
+
+    this.querySelector<HTMLInputElement>("#completion-enabled-toggle")
+      ?.addEventListener("change", e => {
+        const checked = (e.target as HTMLInputElement).checked;
+        this._completionEnabled = checked;
+        this.dispatchEvent(new CustomEvent("settings-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { key: "ai.completion.enabled", value: checked ? "true" : "false" },
+        }));
+      });
 
     this.querySelector<HTMLSelectElement>("#completion-model-select")
       ?.addEventListener("change", e => {

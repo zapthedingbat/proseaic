@@ -32,6 +32,7 @@ export class AiInlineCompletionService implements IInlineCompletionService {
   }
 
   async *getCompletion(documentBefore: string, signal: AbortSignal): AsyncIterable<string> {
+    if (this._configurationService.get("ai.completion.enabled") === "false") return;
 
     const model = await this.getModel();
     if (!model) {

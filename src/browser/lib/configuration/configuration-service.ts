@@ -10,6 +10,7 @@ export type ConfigurationChangeEvent = {
 
 export interface Configuration {
   "ai.chat.model": string;
+  "ai.completion.enabled": string;
   "ai.completion.model": string;
   "ai.platform.ollama.endpoint": string;
   "ai.platform.ollama.api_key": string;
