@@ -9,15 +9,23 @@ export default defineConfig({
       reporter: ["text", "lcov", "html"],
       include: ["src/browser/**/*.ts"],
       exclude: [
+        // Test files
         "src/browser/**/*.test.ts",
         "src/browser/**/*.d.ts",
+        // Entry point — bootstrap wiring only
         "src/browser/script.ts",
+        "src/browser/app.ts",
+        // WebComponents — DOM rendering logic, covered by smoke tests
+        "src/browser/components/**",
+        // Trivial wrappers / DI infrastructure
+        "src/browser/lib/logging/console-logger.ts",
+        "src/browser/lib/ui/component-factory.ts",
       ],
       thresholds: {
-        lines: 20,
-        functions: 20,
-        branches: 14,
-        statements: 20,
+        lines: 25,
+        functions: 23,
+        branches: 15,
+        statements: 24,
       },
     },
   },
