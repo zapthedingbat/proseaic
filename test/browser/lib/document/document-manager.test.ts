@@ -86,7 +86,7 @@ describe("getStoreNamespaces", () => {
 describe("createDocument", () => {
   it("writes to the store and returns a DocumentId", async () => {
     const id = await manager.createDocument(path("/notes.md"));
-    expect(store.write).toHaveBeenCalledWith(path("/notes.md"), undefined);
+    expect(store.write).toHaveBeenCalledWith(path("/notes.md"), "");
     expect(id.toString()).toBe("/mem/notes.md");
   });
 
