@@ -72,6 +72,23 @@ export const SCENARIOS = [
       return q1After.length > 10 && q2After.length > 10;
     },
   },
+
+  {
+    id: "remove-section",
+    name: "Remove a section from the document",
+    document: `# Project Plan\n\n## Overview\n\nThis is a project about building a tool.\n\n## Draft Notes\n\nThese are rough draft notes that should be deleted.\n\n## Timeline\n\n- Week 1: Research\n- Week 2: Design\n`,
+    prompt: `Remove the "Draft Notes" section from the document — it is no longer needed.`,
+    expectedTools: ["read_document_outline", "remove_document_section", "task_complete"],
+    requiredTools: ["remove_document_section", "task_complete"],
+    expectDocChange: true,
+    scoreDoc: (before, after) => {
+      const hadDraftNotes = /## Draft Notes/i.test(before);
+      const removedDraftNotes = !/## Draft Notes/i.test(after);
+      const keptTimeline = /## Timeline/i.test(after);
+      return hadDraftNotes && removedDraftNotes && keptTimeline;
+    },
+  },
+
 ];
 
 export const PROMPT_VARIANTS = ["default", "minimal", "direct", "verbose", "ultra-minimal", "task-explicit"];

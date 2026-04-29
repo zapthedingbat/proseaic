@@ -41,11 +41,20 @@ export class RemoveDocumentSectionTool {
     }
     const sectionId = args.section_id as string;
 
+    const outline = doc.getOutline();
+    const target = outline.find(s => s.sectionTitleId === sectionId);
+    if (!target) {
+      const validIds = outline.map(s => `${s.sectionTitleId} ("${s.sectionTitle}")`).join(", ");
+      throw new Error(`Section '${sectionId}' not found. Valid IDs: ${validIds}`);
+    }
+
     doc.removeSection(sectionId);
 
     return {
       section_id: sectionId,
-      removed: true
+      removed: true,
+      removed_title: target.sectionTitle,
+      next_step: "Section removed. Call task_complete now to finish."
     };
   };
 }

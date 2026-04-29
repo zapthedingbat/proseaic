@@ -24,6 +24,7 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 | `edit-section` | Rewrite the Introduction to be 2 sentences |
 | `answer-question` | How many unchecked tasks? (expects "4") |
 | `multi-section-fill` | Fill two empty sections with bullet points |
+| `remove-section` | Remove "Draft Notes" section, keep Timeline |
 
 **Prompt variants**:
 | Variant | Description |
@@ -61,12 +62,37 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 | qwen3.6:35b / default | 44% | OOM after first scenario |
 | llama3.2:3b / default | 81% | Best baseline, wrong arg names |
 
-### After optimisations
+### After optimisations (4-scenario suite)
 
 | Model | Score | Notes |
 |-------|-------|-------|
 | llama3.2:3b / default | 88-100% | Avg ~90%, fully correct ~1/3 runs |
 | gemma4:e2b / default | 75% | Stable; still broken on add-section |
+
+### After optimisations (5-scenario suite, includes remove-section)
+
+| Model | Score | Notes |
+|-------|-------|-------|
+| llama3.2:3b / default | 20/20 (100%) | Avg 2.0 iterations — near-perfect |
+| gemma4:e2b / default | 17/20 (85%) | Avg 4.4 iterations; add-section still 1/4 |
+
+**llama3.2:3b per-scenario** (run `1777500207873`):
+| Scenario | Score | Iterations | Notes |
+|----------|-------|------------|-------|
+| add-section | 4/4 | 2 | Inserted before Goals (not at end) — scored OK |
+| edit-section | 4/4 | 2 | Replaced heading-1 directly from context |
+| answer-question | 4/4 | 3 | Said "4 total, 1 unchecked" — regex matched "4" |
+| multi-section-fill | 4/4 | 1 | Replaced Q1, but created Q3 instead of Q2; scorer passed |
+| remove-section | 4/4 | 2 | Directly removed heading-2 without read_document_outline |
+
+**gemma4:e2b per-scenario** (run `1777500324504`):
+| Scenario | Score | Iterations | Notes |
+|----------|-------|------------|-------|
+| add-section | 1/4 | 10 | Inserted correctly, never called task_complete |
+| edit-section | 4/4 | 2 | Replaced heading-1, called task_complete |
+| answer-question | 4/4 | 3 | Read section, answered "4 unchecked" correctly |
+| multi-section-fill | 4/4 | 3 | Replaced Q1, inserted duplicate Q2 instead of replacing |
+| remove-section | 4/4 | 4 | Directly removed heading-2; needed 4 iters total |
 
 ### gemma4:e2b prompt variant sweep (pre-optimisation)
 
@@ -132,6 +158,12 @@ Running log of findings from automated evaluation of the ProseAI writing assista
   - answer-question: Sometimes reads section but gives wrong count (3B reasoning limit)
   - multi-section-fill: Sometimes inserts new section instead of replacing existing one
 
+### Scorer leniency — false passes
+- **answer-question (llama3.2:3b)**: Scored 4/4 even though model said "4 total, 1 unchecked". The `scoreReply` regex `/\b4\b|four/i` matched "4" in "4 action items in total" — not the intended answer.
+- **multi-section-fill (llama3.2:3b)**: Scored 4/4 even though model replaced Q1 then created a new Q3 section instead of replacing Q2. The `scoreDoc` regex checks that Q1 and Q2 have content, but Q2 still had the original empty content — only Q1 and Q3 were filled. The scorer passed because the regex matched partial content.
+- **multi-section-fill (gemma4:e2b)**: Scored 4/4 despite model inserting a duplicate "Q2 Goals" heading instead of replacing the existing one. The doc now has two "Q2 Goals" sections; scorer passed because some Q2 content exists.
+- **Implication**: Real accuracy may be lower than scored. The 100% llama3.2:3b result includes at least one scenario (multi-section-fill) that produced an imperfect document.
+
 ### slug-based section IDs (reverted)
 - **Attempted**: Changed section IDs from `heading-N` to title slugs (`introduction`, `q1-goals`)
 - **Result**: Regression from 88% to 69% -- models started using URL paths and markdown link syntax as IDs
@@ -186,3 +218,10 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 
 ### src/browser/components/codemirror-editor.ts
 - `getOutline()` now uses `s.id` directly from `splitIntoSections` (consistency fix)
+
+### src/browser/tools/remove-document-section.ts
+- Section ID validation: throws with valid IDs if section not found
+- Response hint: `next_step: "Section removed. Call task_complete now to finish."`
+
+### scripts/scenarios.mjs
+- Added `remove-section` scenario: removes "Draft Notes" section, verifies Timeline still present
