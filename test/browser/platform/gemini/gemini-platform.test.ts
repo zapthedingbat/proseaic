@@ -1,7 +1,9 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
 import { GeminiPlatform } from "../../../../src/browser/platform/gemini/gemini-platform";
 import type { IGeminiStreamReader } from "../../../../src/browser/platform/gemini/gemini-stream-reader";
 import type { Model } from "../../../../src/browser/lib/models/model";
+import { UrlResolver } from "../../../../src/browser/lib/url-resolver";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -48,7 +50,7 @@ function makePlatform(opts: { apiKey?: string; fetch?: ReturnType<typeof makeFet
     opts.fetch ?? makeFetch(),
     () => opts.apiKey ?? "gemini-test-key",
     opts.readerFactory ?? makeReaderFactory([doneChunk]),
-    "https://generativelanguage.googleapis.com"
+    new UrlResolver("https://generativelanguage.googleapis.com", "https://generativelanguage.googleapis.com")
   );
 }
 

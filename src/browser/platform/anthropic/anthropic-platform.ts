@@ -30,9 +30,9 @@ export class AnthropicPlatform implements IPlatform {
     fetch: typeof globalThis.fetch,
     getApiKey: () => string,
     streamReaderFactory: () => IAnthropicStreamReader,
-    endpoint = "https://api.anthropic.com"
+    urlResolver: UrlResolver
   ) {
-    this._urlResolver = new UrlResolver(endpoint, document.head);
+    this._urlResolver = urlResolver;
     this._getApiKey = getApiKey;
     this._streamReaderFactory = streamReaderFactory;
     this._logger = loggerFactory("Anthropic platform");

@@ -28,13 +28,13 @@ export class MistralPlatform implements IPlatform {
     fetch: typeof globalThis.fetch,
     getApiKey: () => string,
     streamReaderFactory: () => IMistralStreamReader,
-    endpoint = "https://api.mistral.ai"
+    urlResolver: UrlResolver
   ) {
     this._getApiKey = getApiKey;
     this._streamReaderFactory = streamReaderFactory;
     this._logger = loggerFactory("Mistral platform");
     this._fetch = fetch;
-    this._urlResolver = new UrlResolver(endpoint, document.head);
+    this._urlResolver = urlResolver;
   }
 
   get name(): string {

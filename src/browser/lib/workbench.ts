@@ -428,6 +428,7 @@ export class Workbench implements IWorkbench {
   }
 
   mount(mainEl: HTMLElement): void {
+    const document = mainEl.ownerDocument;
     // Create center workspace section
     const center = document.createElement("section");
     center.className = "workspace center";

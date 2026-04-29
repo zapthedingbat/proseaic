@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AiInlineCompletionService } from "../../../../src/browser/lib/completion/inline-completion-service";
 import type { IConfigurationService } from "../../../../src/browser/lib/configuration/configuration-service";

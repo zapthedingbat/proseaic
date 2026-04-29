@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { NdJsonStreamReader } from "../../src/browser/lib/platform/ndjson-stream-reader.js";
 

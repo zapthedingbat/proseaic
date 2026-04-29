@@ -23,9 +23,9 @@ export class OllamaPlatform implements IPlatform {
     fetch: typeof globalThis.fetch,
     getApiKey: () => string,
     streamReaderFactory: () => IOllamaStreamReader,
-    endpoint: string = "https://api.ollama.com"
+    urlResolver: UrlResolver
   ) {
-    this._urlResolver = new UrlResolver(endpoint, document.head);
+    this._urlResolver = urlResolver;
     this._getApiKey = getApiKey;
     this._streamReaderFactory = streamReaderFactory;
     this._logger = loggerFactory("Ollama platform");

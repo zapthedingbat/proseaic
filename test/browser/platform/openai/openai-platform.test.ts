@@ -1,7 +1,9 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
 import { OpenAIPlatform } from "../../../../src/browser/platform/openai/openai-platform";
 import type { IOpenAIStreamReader } from "../../../../src/browser/platform/openai/openai-stream-reader";
 import type { Model } from "../../../../src/browser/lib/models/model";
+import { UrlResolver } from "../../../../src/browser/lib/url-resolver";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,7 +43,7 @@ function makePlatform(opts: { apiKey?: string; fetch?: ReturnType<typeof makeFet
     opts.fetch ?? makeFetch(),
     () => opts.apiKey ?? "sk-test",
     opts.readerFactory ?? makeReaderFactory([doneChunk]),
-    "https://api.openai.com"
+    new UrlResolver("https://api.openai.com", "https://api.openai.com")
   );
 }
 

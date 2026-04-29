@@ -42,9 +42,9 @@ export class OpenAIPlatform implements IPlatform {
     fetch: typeof globalThis.fetch,
     getApiKey: () => string,
     streamReaderFactory: () => IOpenAIStreamReader,
-    endpoint = "https://api.openai.com"
+    urlResolver: UrlResolver
   ) {
-    this._urlResolver = new UrlResolver(endpoint, document.head);
+    this._urlResolver = urlResolver;
     this._getApiKey = getApiKey;
     this._streamReaderFactory = streamReaderFactory;
     this._logger = loggerFactory("OpenAI platform");

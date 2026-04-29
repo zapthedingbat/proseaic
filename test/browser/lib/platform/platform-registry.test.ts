@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PlatformRegistry } from "../../../../src/browser/lib/platform/platform-registry";
 import type { IPlatform } from "../../../../src/browser/lib/platform/platform";

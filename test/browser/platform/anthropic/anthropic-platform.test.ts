@@ -1,8 +1,10 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
 import { AnthropicPlatform } from "../../../../src/browser/platform/anthropic/anthropic-platform";
 import type { IAnthropicStreamReader } from "../../../../src/browser/platform/anthropic/anthropic-stream-reader";
 import type { AnthropicStreamChunk } from "../../../../src/browser/platform/anthropic/anthropic-request";
 import type { Model } from "../../../../src/browser/lib/models/model";
+import { UrlResolver } from "../../../../src/browser/lib/url-resolver";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -39,7 +41,7 @@ function makePlatform(opts: { apiKey?: string; fetch?: ReturnType<typeof makeFet
     opts.fetch ?? makeFetch(),
     () => opts.apiKey ?? "sk-ant-test",
     opts.readerFactory ?? makeReaderFactory([{ type: "message_stop" } as AnthropicStreamChunk]),
-    "https://api.anthropic.com"
+    new UrlResolver("https://api.anthropic.com", "https://api.anthropic.com")
   );
 }
 

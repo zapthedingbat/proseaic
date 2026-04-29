@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { FileSystemDocumentStore } from "../../../../src/browser/lib/document/stores/file-system-document-store.js";
 import { DocumentConcurrencyError, DocumentIdConflictError } from "../../../../src/browser/lib/document/errors.js";

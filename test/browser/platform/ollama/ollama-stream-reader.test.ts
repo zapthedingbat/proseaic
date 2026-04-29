@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { OllamaStreamReader } from "../../../../src/browser/platform/ollama/ollama-stream-reader.ts";
 
