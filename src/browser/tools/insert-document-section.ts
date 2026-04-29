@@ -59,7 +59,7 @@ export class InsertDocumentSectionTool {
 
     return {
       inserted: true,
-      next_step: "Call task_complete now unless you still have more sections to add."
+      next_step: "Section inserted successfully. Call task_complete now to finish."
     };
   };
 }

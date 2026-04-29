@@ -57,7 +57,7 @@ export class ReplaceDocumentSectionTool {
 
     return {
       replaced: true,
-      next_step: "Call task_complete now unless you still have more sections to edit."
+      next_step: "Section updated successfully. Call task_complete now to finish."
     };
   };
 }

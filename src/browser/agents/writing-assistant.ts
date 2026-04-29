@@ -225,6 +225,6 @@ IMPORTANT:
   // ── Continuation prompt ───────────────────────────────────────────────────
 
   buildContinuationPrompt(): string {
-    return "If all edits are done, call task_complete now to finish. If edits are still needed, make them now using tools, then call task_complete.";
+    return "Call task_complete now to complete the task. If you still have edits to make, do them first with the edit tools, then call task_complete.";
   }
 }
