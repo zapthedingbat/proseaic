@@ -114,7 +114,7 @@ export class DocumentManager implements IDocumentService {
     // TODO: We should allow specifying the store/namespace when creating a document.
     // For now we will just use the first registered store.
     const storeInstance = this._getDefaultStore();
-    const version = await storeInstance.write(filepath, content);
+    const version = await storeInstance.write(filepath, content ?? "");
     const id = DocumentId.create(storeInstance.namespace, filepath);
     this._setDocumentVersion(id, version);
     this._documentListCache = null;
