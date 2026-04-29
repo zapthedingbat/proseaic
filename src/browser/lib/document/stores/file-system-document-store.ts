@@ -45,7 +45,8 @@ export class FileSystemDocumentStore implements IDocumentStore {
     }
 
     const writable = await fileHandle.createWritable();
-    await writable.write(content);
+    const writeParams: WriteParams = { type: "write", data: content };
+    await writable.write(writeParams);
     await writable.close();
 
     const updatedFile = await fileHandle.getFile();
@@ -73,7 +74,8 @@ export class FileSystemDocumentStore implements IDocumentStore {
 
       const newFileHandle = await directoryHandle.getFileHandle(toFilepath.filename, { create: true });
       const writable = await newFileHandle.createWritable();
-      await writable.write(content);
+      const writeParams: WriteParams = { type: "write", data: content };
+      await writable.write(writeParams);
       await writable.close();
 
       await directoryHandle.removeEntry(fromFilepath.filename);
