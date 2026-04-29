@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { DocumentManager } from "../../../../src/browser/lib/document/document-manager";
 import { DocumentId, DocumentPath } from "../../../../src/browser/lib/document/document-service";

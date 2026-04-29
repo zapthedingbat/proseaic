@@ -1,4 +1,5 @@
 // @vitest-environment node
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { MemoryDocumentStore } from "../../../../src/browser/lib/document/stores/memory-document-store.js";
 import { DocumentPath } from "../../../../src/browser/lib/document/document-service.js";

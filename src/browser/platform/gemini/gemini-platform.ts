@@ -29,9 +29,9 @@ export class GeminiPlatform implements IPlatform {
     fetch: typeof globalThis.fetch,
     getApiKey: () => string,
     streamReaderFactory: () => IGeminiStreamReader,
-    endpoint = "https://generativelanguage.googleapis.com"
+    urlResolver: UrlResolver
   ) {
-    this._urlResolver = new UrlResolver(endpoint, document.head);
+    this._urlResolver = urlResolver;
     this._getApiKey = getApiKey;
     this._streamReaderFactory = streamReaderFactory;
     this._logger = loggerFactory("Gemini platform");

@@ -1,8 +1,10 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { OllamaPlatform } from "../../../../src/browser/platform/ollama/ollama-platform.js";
 import type { ChatMessage } from "../../../../src/browser/lib/chat/chat-message.js";
 import type { Model } from "../../../../src/browser/lib/models/model.js";
 import type { ToolSchema } from "../../../../src/browser/lib/tools/tool-schema.js";
+import { UrlResolver } from "../../../../src/browser/lib/url-resolver.js";
 
 function createLogger() {
   return {
@@ -36,7 +38,7 @@ describe("OllamaPlatform", () => {
       fetchMock as any,
       () => "",
       () => reader,
-      "http://localhost:11434"
+      new UrlResolver("http://localhost:11434", "http://localhost:11434")
     );
 
     const model: Model = {
@@ -158,7 +160,7 @@ describe("OllamaPlatform", () => {
       fetchMock as any,
       () => "",
       () => reader,
-      "http://localhost:11434"
+      new UrlResolver("http://localhost:11434", "http://localhost:11434")
     );
 
     const model: Model = {

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { ChatSession } from "../../../../src/browser/lib/chat/chat-session.js";
 import type { ChatMessage, ErrorChatMessage } from "../../../../src/browser/lib/chat/chat-message.js";

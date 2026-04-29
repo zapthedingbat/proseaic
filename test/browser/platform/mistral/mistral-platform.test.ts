@@ -1,7 +1,9 @@
+// @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
 import { MistralPlatform } from "../../../../src/browser/platform/mistral/mistral-platform";
 import type { IMistralStreamReader } from "../../../../src/browser/platform/mistral/mistral-stream-reader";
 import type { Model } from "../../../../src/browser/lib/models/model";
+import { UrlResolver } from "../../../../src/browser/lib/url-resolver";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,7 +43,7 @@ function makePlatform(opts: { apiKey?: string; fetch?: ReturnType<typeof makeFet
     opts.fetch ?? makeFetch(),
     () => opts.apiKey ?? "mistral-test-key",
     opts.readerFactory ?? makeReaderFactory([doneChunk]),
-    "https://api.mistral.ai"
+    new UrlResolver("https://api.mistral.ai", "https://api.mistral.ai")
   );
 }
 

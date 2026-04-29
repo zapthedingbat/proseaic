@@ -28,6 +28,7 @@ import { GeminiPlatform } from "./platform/gemini/gemini-platform.js";
 import { GeminiStreamReader } from "./platform/gemini/gemini-stream-reader.js";
 import { MistralPlatform } from "./platform/mistral/mistral-platform.js";
 import { MistralStreamReader } from "./platform/mistral/mistral-stream-reader.js";
+import { UrlResolver } from "./lib/url-resolver.js";
 import { Configuration, ConfigurationManager } from "./lib/configuration/configuration-service.js";
 
 const WELCOME_DOCUMENT_PATH = DocumentPath.parse("/getting-started.md");
@@ -104,17 +105,17 @@ async function seedWelcomeDocument(documentManager: DocumentManager): Promise<vo
   // In demo mode Ollama is accessed directly; in server mode it is proxied through the Express server.
   const ollamaDefaultEndpoint = DEMO_MODE ? "http://localhost:11434" : "/ollama";
   platformRegistry.registerMany([
-    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.ollama.api_key"),    () => new OllamaStreamReader(),    getEndpoint("ai.platform.ollama.endpoint", ollamaDefaultEndpoint)),
-    new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.anthropic.api_key"), () => new AnthropicStreamReader(), getEndpoint("ai.platform.anthropic.endpoint", "https://api.anthropic.com")),
-    new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.openai.api_key"),    () => new OpenAIStreamReader(),    getEndpoint("ai.platform.openai.endpoint",    "https://api.openai.com")),
-    new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.gemini.api_key"),    () => new GeminiStreamReader(),    getEndpoint("ai.platform.gemini.endpoint",    "https://generativelanguage.googleapis.com")),
-    new MistralPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.mistral.api_key"),  () => new MistralStreamReader(),   getEndpoint("ai.platform.mistral.endpoint",   "https://api.mistral.ai")),
+    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.ollama.api_key"),    () => new OllamaStreamReader(),    new UrlResolver(getEndpoint("ai.platform.ollama.endpoint", ollamaDefaultEndpoint), document.baseURI)),
+    new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.anthropic.api_key"), () => new AnthropicStreamReader(), new UrlResolver(getEndpoint("ai.platform.anthropic.endpoint", "https://api.anthropic.com"), document.baseURI)),
+    new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.openai.api_key"),    () => new OpenAIStreamReader(),    new UrlResolver(getEndpoint("ai.platform.openai.endpoint",    "https://api.openai.com"), document.baseURI)),
+    new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.gemini.api_key"),    () => new GeminiStreamReader(),    new UrlResolver(getEndpoint("ai.platform.gemini.endpoint",    "https://generativelanguage.googleapis.com"), document.baseURI)),
+    new MistralPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.mistral.api_key"),  () => new MistralStreamReader(),   new UrlResolver(getEndpoint("ai.platform.mistral.endpoint",   "https://api.mistral.ai"), document.baseURI)),
   ]);
 
   const toolRegistry = new ToolRegistry();
 
   // Chat history is saved to local storage under the "chat_history" key.
-  const history = new BrowserChatHistory("chat_history");
+  const history = new BrowserChatHistory("chat_history", localStorage);
 
   // Create the chat session, which is the main interface for the UI to interact with the underlying platform and tools.
   // The chat session is responsible for managing the state of the current chat, submitting user prompts to the platform, and invoking tools as needed.

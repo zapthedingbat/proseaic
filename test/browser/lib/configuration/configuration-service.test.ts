@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ConfigurationManager } from "../../../../src/browser/lib/configuration/configuration-service";
 
