@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node -r dotenv/config scripts/script.mjs",
-    "watch": "node -r dotenv/config scripts/script.mjs",
+    "watch": "VERBOSE=true node -r dotenv/config scripts/script.mjs",
     "start": "node -r dotenv/config scripts/script.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",

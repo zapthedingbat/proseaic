@@ -5,6 +5,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { startServer } from "../src/server/server.js";
 
+const verbose = process.env.VERBOSE === "true";
+const log = (...args) => { if (verbose) log(...args); };
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 const sourceStaticAssetsDir = path.join(root, "src", "browser", "assets");
@@ -51,7 +54,7 @@ function getBuildOptions() {
     entryNames: "[name]-[hash]",
     sourcemap: true,
     metafile: true,
-    logLevel: "info",
+    logLevel: verbose ? "info" : "warning",
     define: {
       "DEMO_MODE": demoMode ? "true" : "false",
       "BUILD_SENTRY_DSN": JSON.stringify(process.env.SENTRY_DSN || ""),
@@ -132,9 +135,9 @@ async function runStart(signal) {
   // Start the server after the initial build and asset copying is complete, so that we can serve the latest build immediately.
   const server = startServer();
   signal.onabort = () => {
-    console.log("Shutting down server...");
+    log("Shutting down server...");
     server.close(() => {
-      console.log("Server closed.");
+      log("Server closed.");
     });
   };
 } 
@@ -158,7 +161,7 @@ async function runWatch(signal) {
 
   // Function to perform a full rebuild of the project and copy all static assets, which we can call both initially and whenever we want to trigger a full rebuild (e.g. on demand or when certain files change).
   const rebuildAll = async () => {
-    console.log("Building all assets and source files...");
+    log("Building all assets and source files...");
     // Copy all static assets initially, so that we have them in place before the first build completes.
     // We can be selective about which files to copy based on their extensions, since we only want to copy static assets and not source files or other non-asset files.
     await copyAllFiles(signal, sourceStaticAssetsDir, destStaticAssetsDir, isStaticAssetFile);
@@ -167,30 +170,30 @@ async function runWatch(signal) {
     // Perform the initial build after copying static assets, so that we have the first build output ready to serve.
     await rebuildContext(ctx);
 
-    console.log("Build and asset copying complete.");
+    log("Build and asset copying complete.");
   }
   await rebuildAll();
 
   // Watch the source directory for changes and trigger a rebuild when files change.
   const watchRoot = path.join(root, "src", "browser");
   try {
-    console.log(`Watching for file changes in: ${watchRoot}`);
+    log(`Watching for file changes in: ${watchRoot}`);
     const watcher = fs.watch(watchRoot,  { recursive: true, signal });
     for await (const {eventType, filename} of watcher) {
-      console.log(`File changed: ${filename} (${eventType})`);
+      log(`File changed: ${filename} (${eventType})`);
       if(isStaticAssetFile(filename)) {
-        console.log(`Copying changed static asset: ${filename}`);
+        log(`Copying changed static asset: ${filename}`);
         const srcPath = path.join(sourceStaticAssetsDir, filename);
         const destPath = path.join(destStaticAssetsDir, filename);
         await fs.copyFile(srcPath, destPath);
       } else if (sourceFileExtensions.has(path.extname(filename))) {
-        console.log(`Source file changed: ${filename}, triggering rebuild...`);
+        log(`Source file changed: ${filename}, triggering rebuild...`);
         await rebuildContext(ctx);
       }
     }
   } catch (err) {
     if (err.name === 'AbortError'){
-      console.log("Watch mode aborted.");
+      log("Watch mode aborted.");
       return;
     }
     throw err;
@@ -208,15 +211,15 @@ async function runWatch(signal) {
   await new Promise((resolve, reject) => {
     // Clean up resources when the signal is aborted
     signal.onabort = () => {
-      console.log("Shutting down server...");
+      log("Shutting down server...");
       Promise.allSettled([
         new Promise((res) => server.close(() => {
-          console.log("Server closed.");
+          log("Server closed.");
           res();
         })),
         ctx.dispose()
       ]).then(() => {
-        console.log("Clean up complete, exiting.");
+        log("Clean up complete, exiting.");
         resolve();
       }).catch(err => {
         console.error("Error during clean up:", err);
@@ -246,25 +249,25 @@ const abortController = new AbortController();
 
 // Ctrl+C handler to gracefully shut down watch mode
 process.on("SIGINT", () => {
-  console.log("Received SIGINT, shutting down...");
+  log("Received SIGINT, shutting down...");
   abortController.abort();
   process.exit(0);
 });
 
 // SIGTERM handler to gracefully shut down watch mode
 process.on("SIGTERM", () => {
-  console.log("Received SIGTERM, shutting down...");
+  log("Received SIGTERM, shutting down...");
   abortController.abort();
   process.exit(0);
 });
 
 // Run the selected script function with the provided arguments and handle the result if it's a promise.
-console.log(`Running script for mode: ${mode}`);
+log(`Running script for mode: ${mode}`);
 const args = process.argv.slice(3);
 const result = script.apply(null, [abortController.signal, ...args]);
 if (result instanceof Promise) {
   result.then(() => {
-    console.log(`Script for mode '${mode}' completed successfully.`);
+    log(`Script for mode '${mode}' completed successfully.`);
     if (mode === "build") {
       process.exit(0);
     }
