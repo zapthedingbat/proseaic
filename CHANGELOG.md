@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0](https://github.com/zapthedingbat/proseaic/compare/v1.1.0...v1.2.0) (2026-04-29)
+
+
+### Features
+
+* add Sentry error monitoring with opt-in settings toggle ([#40](https://github.com/zapthedingbat/proseaic/issues/40)) ([f3e5847](https://github.com/zapthedingbat/proseaic/commit/f3e58473c73734aa1f47c92c45c23bd25e3ac2de))
+
+
+### Bug Fixes
+
+* pass --repo flag to gh workflow run ([#42](https://github.com/zapthedingbat/proseaic/issues/42)) ([bc8335b](https://github.com/zapthedingbat/proseaic/commit/bc8335b2f5362ad77a319601a32cc24a1ad90a5e))
+* persist task_complete tool results to history ([#37](https://github.com/zapthedingbat/proseaic/issues/37)) ([724c490](https://github.com/zapthedingbat/proseaic/commit/724c490d051b018c45284a2f0a9e6d2d63c19cc5))
+* trigger CI on release-please PR branches ([#41](https://github.com/zapthedingbat/proseaic/issues/41)) ([625bbb6](https://github.com/zapthedingbat/proseaic/commit/625bbb6ac9aa9052201873ce5a2de0b49a7c1847))
+* use explicit WriteParams for FileSystemWritableFileStream.write ([#39](https://github.com/zapthedingbat/proseaic/issues/39)) ([918747c](https://github.com/zapthedingbat/proseaic/commit/918747c9a94f9c1d81b6d79df63fb016fb1d9ace))
+
 ## [1.1.0](https://github.com/zapthedingbat/proseaic/compare/v1.0.3...v1.1.0) (2026-04-29)
 
 
