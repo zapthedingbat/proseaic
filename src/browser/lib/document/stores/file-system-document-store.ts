@@ -23,7 +23,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
 
   async read(filepath: DocumentPath): Promise<FileContent> {
     const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(filepath.toString());
+    const fileHandle = await directoryHandle.getFileHandle(filepath.filename);
     const file = await fileHandle.getFile();
     const content = await file.text();
     return {
@@ -34,7 +34,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
 
   async write(filepath: DocumentPath, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
     const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(filepath.toString(), { create: true });
+    const fileHandle = await directoryHandle.getFileHandle(filepath.filename, { create: true });
 
     if (expectedVersion !== undefined) {
       const currentFile = await fileHandle.getFile();
@@ -59,11 +59,11 @@ export class FileSystemDocumentStore implements IDocumentStore {
 
     const directoryHandle = await this._getDirectoryHandle();
     try {
-      const fileHandle = await directoryHandle.getFileHandle(fromFilepath.toString());
+      const fileHandle = await directoryHandle.getFileHandle(fromFilepath.filename);
       const file = await fileHandle.getFile();
       const content = await file.text();
 
-      const existingTarget = await directoryHandle.getFileHandle(toFilepath.toString()).then(
+      const existingTarget = await directoryHandle.getFileHandle(toFilepath.filename).then(
         () => true,
         () => false
       );
@@ -71,12 +71,12 @@ export class FileSystemDocumentStore implements IDocumentStore {
         throw new DocumentIdConflictError(toFilepath.toString());
       }
 
-      const newFileHandle = await directoryHandle.getFileHandle(toFilepath.toString(), { create: true });
+      const newFileHandle = await directoryHandle.getFileHandle(toFilepath.filename, { create: true });
       const writable = await newFileHandle.createWritable();
       await writable.write(content);
       await writable.close();
 
-      await directoryHandle.removeEntry(fromFilepath.toString());
+      await directoryHandle.removeEntry(fromFilepath.filename);
 
       return;
     } catch (err) {
@@ -90,7 +90,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
 
   async rm(filepath: DocumentPath): Promise<void> {
     const directoryHandle = await this._getDirectoryHandle();
-    await directoryHandle.removeEntry(filepath.toString());
+    await directoryHandle.removeEntry(filepath.filename);
   }
 
   async ls(): Promise<FileEntry[]> {
