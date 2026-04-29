@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/zapthedingbat/proseaic/compare/v1.0.1...v1.0.2) (2026-04-29)
+
+
+### Bug Fixes
+
+* change FileSystemDocumentStore namespace to match store regex ([#31](https://github.com/zapthedingbat/proseaic/issues/31)) ([d52cc1c](https://github.com/zapthedingbat/proseaic/commit/d52cc1c983a43e12f641fd02d5182046cddb5586))
+
 ## [1.0.1](https://github.com/zapthedingbat/proseaic/compare/v1.0.0...v1.0.1) (2026-04-29)
 
 
