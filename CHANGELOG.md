@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/zapthedingbat/proseaic/compare/v1.0.2...v1.0.3) (2026-04-29)
+
+
+### Bug Fixes
+
+* correct asset paths for GitHub Pages deployment ([#33](https://github.com/zapthedingbat/proseaic/issues/33)) ([ecb5a64](https://github.com/zapthedingbat/proseaic/commit/ecb5a64191ccc214064cfddafc2e6ccea2bf7b22))
+
 ## [1.0.2](https://github.com/zapthedingbat/proseaic/compare/v1.0.1...v1.0.2) (2026-04-29)
 
 
