@@ -42,7 +42,7 @@ describe("FileSystemDocumentStore", () => {
     const version = await store.write(path("/hello.md"), "");
 
     expect(version).toBeDefined();
-    expect(writable.write).toHaveBeenCalledWith("");
+    expect(writable.write).toHaveBeenCalledWith({ type: "write", data: "" });
     expect(writable.close).toHaveBeenCalled();
   });
 
@@ -91,7 +91,7 @@ describe("FileSystemDocumentStore", () => {
 
     await store.mv(path("/notes.md"), path("/new-title.md"));
 
-    expect(writable.write).toHaveBeenCalledWith("# Notes");
+    expect(writable.write).toHaveBeenCalledWith({ type: "write", data: "# Notes" });
     expect(directoryHandle.removeEntry).toHaveBeenCalledWith("notes.md");
   });
 
