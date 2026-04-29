@@ -1,0 +1,20 @@
+# Changelog
+
+## 1.0.0 (2026-04-29)
+
+
+### Features
+
+* add docs/ site for GitHub Pages and update-docs skill ([#17](https://github.com/zapthedingbat/proseaic/issues/17)) ([ba52997](https://github.com/zapthedingbat/proseaic/commit/ba52997d5b7704b2d255f087e6a1242b5238fe08))
+* add setting to disable AI autocomplete ([#18](https://github.com/zapthedingbat/proseaic/issues/18)) ([f59ca0d](https://github.com/zapthedingbat/proseaic/commit/f59ca0de19d51f15c52d14f6319720fb2984594b))
+* demo mode for GitHub Pages and tag-based releases ([#22](https://github.com/zapthedingbat/proseaic/issues/22)) ([2bbd151](https://github.com/zapthedingbat/proseaic/commit/2bbd15196feb21018322c9d14cdcd5b028dbf8bd))
+* Implement core UI components for Markdown AI Editor ([f4ac073](https://github.com/zapthedingbat/proseaic/commit/f4ac073c873aaa7b3f3ddfb1bc133f5bbab4077c))
+* Implement inline completion service and related components ([#6](https://github.com/zapthedingbat/proseaic/issues/6)) ([9cdb778](https://github.com/zapthedingbat/proseaic/commit/9cdb7782c0cece88bee360cf4cbccc4a80fcc1e7))
+* open source prep, all platforms with BYOK key-gating ([#15](https://github.com/zapthedingbat/proseaic/issues/15)) ([0dbe8cf](https://github.com/zapthedingbat/proseaic/commit/0dbe8cf444ec4095ce2978882b66d6efeb053ad1))
+* replace textarea editor with CodeMirror 6 ([#19](https://github.com/zapthedingbat/proseaic/issues/19)) ([bf49934](https://github.com/zapthedingbat/proseaic/commit/bf49934370fac74f8d5e6d89960df9cba5005f23))
+
+
+### Bug Fixes
+
+* emit change event after structured-document mutations in CodeMirrorEditor ([#21](https://github.com/zapthedingbat/proseaic/issues/21)) ([67d6519](https://github.com/zapthedingbat/proseaic/commit/67d65195afe3e7465bded89fa53f819ddd0956eb))
+* FileSystemDocumentStore invalid filename error ([#24](https://github.com/zapthedingbat/proseaic/issues/24)) ([b57b1bc](https://github.com/zapthedingbat/proseaic/commit/b57b1bcfa292a314392d96db13ec817e3ff0d3ae))
