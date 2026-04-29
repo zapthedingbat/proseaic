@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/zapthedingbat/proseaic/compare/v1.0.0...v1.0.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* move Pages deploy into release-please workflow ([#29](https://github.com/zapthedingbat/proseaic/issues/29)) ([c2479d5](https://github.com/zapthedingbat/proseaic/commit/c2479d54a99054bd63e2dcac4cdc2078f44ac20c))
+
 ## 1.0.0 (2026-04-29)
 
 
