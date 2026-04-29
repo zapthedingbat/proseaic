@@ -22,6 +22,8 @@ export interface Configuration {
   "ai.platform.gemini.api_key": string;
   "ai.platform.mistral.endpoint": string;
   "ai.platform.mistral.api_key": string;
+  "monitoring.sentry.enabled": string;
+  "monitoring.sentry.dsn": string;
 }
 
 export interface IConfigurationService {
