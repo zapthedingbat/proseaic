@@ -19,7 +19,7 @@ describe("FileSystemDocumentStore", () => {
       version: "123"
     });
 
-    expect(getFileHandle).toHaveBeenCalledWith("/notes.md");
+    expect(getFileHandle).toHaveBeenCalledWith("notes.md");
   });
 
   it("writes document content", async () => {
@@ -28,7 +28,7 @@ describe("FileSystemDocumentStore", () => {
       close: vi.fn().mockResolvedValue(undefined)
     };
     const getFileHandle = vi.fn(async (name: string, options?: { create?: boolean }) => {
-      if (name === "/hello.md" && options?.create) {
+      if (name === "hello.md" && options?.create) {
         return {
           createWritable: vi.fn().mockResolvedValue(writable),
           getFile: vi.fn().mockResolvedValue({ text: vi.fn().mockResolvedValue(""), lastModified: 123 })
@@ -72,13 +72,13 @@ describe("FileSystemDocumentStore", () => {
     };
     const directoryHandle = {
       getFileHandle: vi.fn(async (name: string, options?: { create?: boolean }) => {
-        if (name === "/notes.md") {
+        if (name === "notes.md") {
           return {
             getFile: vi.fn().mockResolvedValue({ text: vi.fn().mockResolvedValue("# Notes"), lastModified: 456 })
           };
         }
-        if (name === "/new-title.md" && !options) throw new Error("not found");
-        if (name === "/new-title.md" && options?.create) {
+        if (name === "new-title.md" && !options) throw new Error("not found");
+        if (name === "new-title.md" && options?.create) {
           return { createWritable: vi.fn().mockResolvedValue(writable) };
         }
         throw new Error(`Not found: ${name}`);
@@ -91,7 +91,7 @@ describe("FileSystemDocumentStore", () => {
     await store.mv(path("/notes.md"), path("/new-title.md"));
 
     expect(writable.write).toHaveBeenCalledWith("# Notes");
-    expect(directoryHandle.removeEntry).toHaveBeenCalledWith("/notes.md");
+    expect(directoryHandle.removeEntry).toHaveBeenCalledWith("notes.md");
   });
 
   it("rejects update when expected version is stale", async () => {
@@ -109,10 +109,10 @@ describe("FileSystemDocumentStore", () => {
   it("rejects move when target filepath already exists", async () => {
     const directoryHandle = {
       getFileHandle: vi.fn(async (name: string, options?: { create?: boolean }) => {
-        if (name === "/source.md" && !options) {
+        if (name === "source.md" && !options) {
           return { getFile: vi.fn().mockResolvedValue({ text: vi.fn().mockResolvedValue("source"), lastModified: 200 }) };
         }
-        if (name === "/target.md" && !options) {
+        if (name === "target.md" && !options) {
           return { getFile: vi.fn().mockResolvedValue({ text: vi.fn().mockResolvedValue("target"), lastModified: 201 }) };
         }
         throw new Error("missing");
