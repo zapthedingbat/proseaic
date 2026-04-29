@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/zapthedingbat/proseaic/compare/v1.0.3...v1.1.0) (2026-04-29)
+
+
+### Features
+
+* add content hashing, SRI, and cache headers for browser assets ([#35](https://github.com/zapthedingbat/proseaic/issues/35)) ([eff043f](https://github.com/zapthedingbat/proseaic/commit/eff043fa353f722b0cda727dd9b4c268fbb9e14b))
+
 ## [1.0.3](https://github.com/zapthedingbat/proseaic/compare/v1.0.2...v1.0.3) (2026-04-29)
 
 
