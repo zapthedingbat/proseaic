@@ -5,7 +5,7 @@ import { DocumentConcurrencyError, DocumentIdConflictError } from "../errors";
 type FileSystemDirectoryHandleFactory = () => Promise<FileSystemDirectoryHandle>;
 
 export class FileSystemDocumentStore implements IDocumentStore {
-  namespace: string = "fileSystem";
+  namespace: string = "file-system";
   private _directoryHandleFactory: FileSystemDirectoryHandleFactory;
   
   constructor(directoryHandleFactory: FileSystemDirectoryHandleFactory) {
