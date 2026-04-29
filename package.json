@@ -29,6 +29,8 @@
     "@codemirror/language-data": "^6.5.2",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.1",
+    "@sentry/browser": "^10.51.0",
+    "@sentry/node": "^10.51.0",
     "@vscode/codicons": "^0.0.45",
     "cors": "^2.8.6",
     "express": "^5.2.1",

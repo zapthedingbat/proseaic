@@ -200,12 +200,19 @@ ui-settings-panel::backdrop {
   cursor: pointer;
   flex-shrink: 0;
 }
+
+.field-hint {
+  font-size: 0.75rem;
+  opacity: 0.5;
+  margin-top: -2px;
+}
 `;
 
 export class SettingsPanel extends BaseHtmlElement {
   private _models: Model[] = [];
   private _completionModel = "";
   private _completionEnabled = true;
+  private _sentryEnabled = false;
 
   constructor() {
     super();
@@ -226,6 +233,9 @@ export class SettingsPanel extends BaseHtmlElement {
     if (toggle) toggle.checked = this._completionEnabled;
     this._completionModel = config["ai.completion.model"] ?? "";
     this._renderCompletionModelSelect();
+    this._sentryEnabled = config["monitoring.sentry.enabled"] === "true";
+    const sentryToggle = this.querySelector<HTMLInputElement>("#sentry-enabled-toggle");
+    if (sentryToggle) sentryToggle.checked = this._sentryEnabled;
   }
 
   connectedCallback(): void {
@@ -278,6 +288,21 @@ export class SettingsPanel extends BaseHtmlElement {
             <option value="">— same as chat —</option>
           </select>
         </div>
+        <hr class="section-divider">
+        <div class="platform-section">
+          <span class="platform-label">Error monitoring</span>
+          <div class="toggle-row">
+            <input type="checkbox" id="sentry-enabled-toggle"${this._sentryEnabled ? " checked" : ""} />
+            <label for="sentry-enabled-toggle">Enable Sentry error reporting</label>
+          </div>
+          <div class="field">
+            <label>Sentry DSN</label>
+            <input type="text" autocomplete="off" spellcheck="false"
+                   placeholder="https://…@sentry.io/…"
+                   data-storage-key="monitoring.sentry.dsn" />
+          </div>
+          <div class="field-hint">Changes take effect after a page reload.</div>
+        </div>
       </div>
     `;
 
@@ -315,6 +340,17 @@ export class SettingsPanel extends BaseHtmlElement {
           bubbles: true,
           composed: true,
           detail: { key: "ai.completion.model", value },
+        }));
+      });
+
+    this.querySelector<HTMLInputElement>("#sentry-enabled-toggle")
+      ?.addEventListener("change", e => {
+        const checked = (e.target as HTMLInputElement).checked;
+        this._sentryEnabled = checked;
+        this.dispatchEvent(new CustomEvent("settings-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { key: "monitoring.sentry.enabled", value: checked ? "true" : "false" },
         }));
       });
   }

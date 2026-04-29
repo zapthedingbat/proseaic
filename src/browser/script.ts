@@ -1,5 +1,6 @@
-// DEMO_MODE is injected at build time by esbuild (true for the static demo build).
+// DEMO_MODE and BUILD_SENTRY_DSN are injected at build time by esbuild.
 declare const DEMO_MODE: boolean;
+declare const BUILD_SENTRY_DSN: string;
 
 import { App, AppOptions, WorkbenchFactory } from "./app.js";
 import { AiInlineCompletionService } from "./lib/completion/inline-completion-service.js";
@@ -30,6 +31,7 @@ import { MistralPlatform } from "./platform/mistral/mistral-platform.js";
 import { MistralStreamReader } from "./platform/mistral/mistral-stream-reader.js";
 import { UrlResolver } from "./lib/url-resolver.js";
 import { Configuration, ConfigurationManager } from "./lib/configuration/configuration-service.js";
+import { initSentry } from "./lib/monitoring/sentry.js";
 
 const WELCOME_DOCUMENT_PATH = DocumentPath.parse("/getting-started.md");
 
@@ -91,6 +93,11 @@ async function seedWelcomeDocument(documentManager: DocumentManager): Promise<vo
   // The configuration manager is responsible for managing user-configurable settings in the app.
   // It persists settings to local storage and provides an interface for getting and setting configuration values, as well as listening for changes to configuration.
   const configuration = new ConfigurationManager(localStorage);
+
+  initSentry(
+    DEMO_MODE ? BUILD_SENTRY_DSN : configuration.get("monitoring.sentry.dsn"),
+    DEMO_MODE ? !!BUILD_SENTRY_DSN : configuration.get("monitoring.sentry.enabled") === "true"
+  );
 
   // Injecting fetch from globalThis allows us to easily mock it in tests, and also makes it explicit that our platform implementations depend on fetch for making API calls.
   const fetchFunction = globalThis.fetch.bind(globalThis);

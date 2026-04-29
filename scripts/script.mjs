@@ -54,6 +54,7 @@ function getBuildOptions() {
     logLevel: "info",
     define: {
       "DEMO_MODE": demoMode ? "true" : "false",
+      "BUILD_SENTRY_DSN": JSON.stringify(process.env.SENTRY_DSN || ""),
     },
   };
 }

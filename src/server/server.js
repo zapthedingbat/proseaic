@@ -1,10 +1,15 @@
 import http from "http";
 import express from "express";
 import cors from "cors";
+import * as Sentry from "@sentry/node";
 
 import { staticRoutes } from "./routes/static.js";
 import { proxy } from "./routes/proxy.js";
 import { storeRoutes } from "./routes/store.js";
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN });
+}
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "https://ollama.com";
 const ANTHROPIC_HOST = process.env.ANTHROPIC_HOST || "https://api.anthropic.com";
@@ -31,6 +36,10 @@ export function startServer(){
 
   // Static file serving for the web UI
   app.use(staticRoutes(import.meta.url, "../../dist/browser"));
+
+  if (process.env.SENTRY_DSN) {
+    app.use(Sentry.expressErrorHandler());
+  }
 
   const server = http.createServer(app, { });
   server.listen(3001, () => {

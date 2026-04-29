@@ -48,6 +48,7 @@ jobs:
         run: npm run build
         env:
           DEMO_MODE: 'true'
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
       - uses: actions/configure-pages@v6
 
