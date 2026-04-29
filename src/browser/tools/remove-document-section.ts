@@ -6,7 +6,7 @@ import { JSONValue } from "../lib/JSONValue.js";
 
 export const schema: ToolSchema = {
   type: "function",
-  instructions: "Call after confirming the target section ID from read_document_outline.",
+  instructions: "Call after confirming the target section ID from read_document_outline. After the section is removed, call task_complete immediately to finish.",
   function: {
     name: "remove_document_section",
     description: "Remove a section from the current editor document after confirming the section title from read_document_outline.",

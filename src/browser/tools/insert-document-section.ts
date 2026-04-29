@@ -6,7 +6,7 @@ import { JSONValue } from "../lib/JSONValue.js";
 
 export const schema: ToolSchema = {
   type: "function",
-  instructions: "Call after read_document_outline. After the insertion succeeds, call task_complete immediately unless more sections still need to be inserted.",
+  instructions: "Use ONLY for sections that do NOT already exist. If the section already exists, use replace_document_section instead. Call after read_document_outline. After the insertion succeeds, call task_complete immediately unless more sections still need to be inserted.",
   function: {
     name: "insert_document_section",
     description: "Insert a new section into the current editor document after you have inspected structure with read_document_outline.",
@@ -53,6 +53,17 @@ export class InsertDocumentSectionTool {
 
     if (!sectionTitle) {
       throw new Error("section_title is required. Provide a heading text for the new section.");
+    }
+
+    // Redirect to replace if section already exists — prevents duplicate headings
+    const normalise = (s: string) => s.replace(/^#{1,6}\s+/, "").trim().toLowerCase();
+    const outline = doc.getOutline();
+    const existing = outline.find(s => normalise(s.sectionTitle) === normalise(sectionTitle));
+    if (existing) {
+      throw new Error(
+        `Section '${sectionTitle}' already exists (section_id: '${existing.sectionTitleId}'). ` +
+        `Use replace_document_section with section_id='${existing.sectionTitleId}' to update it instead.`
+      );
     }
 
     doc.insertSection(sectionTitle, sectionContent, insertBeforeSectionId);

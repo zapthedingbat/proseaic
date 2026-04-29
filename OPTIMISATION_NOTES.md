@@ -69,30 +69,32 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 | llama3.2:3b / default | 88-100% | Avg ~90%, fully correct ~1/3 runs |
 | gemma4:e2b / default | 75% | Stable; still broken on add-section |
 
-### After optimisations (5-scenario suite, includes remove-section)
+### After scorer fix + insert-redirect + context note (5-scenario suite, corrected scorer)
+
+**Corrected scorers**: `multi-section-fill` now uses `extractSection()` helper (was false-passing when Q2 empty). `answer-question` now rejects "4 total, 1 unchecked" pattern.
 
 | Model | Score | Notes |
 |-------|-------|-------|
-| llama3.2:3b / default | 20/20 (100%) | Avg 2.0 iterations — near-perfect |
-| gemma4:e2b / default | 17/20 (85%) | Avg 4.4 iterations; add-section still 1/4 |
+| llama3.2:3b / default | 19/20 (95%) | Stable; answer-question 3/4 (3B reasoning limit) |
+| gemma4:e2b / default | 17/20 (85%) | add-section 1/4 (stochastic task_complete after insert) |
 
-**llama3.2:3b per-scenario** (run `1777500207873`):
+**llama3.2:3b per-scenario** (typical run, e.g. `1777502116181`):
 | Scenario | Score | Iterations | Notes |
 |----------|-------|------------|-------|
-| add-section | 4/4 | 2 | Inserted before Goals (not at end) — scored OK |
-| edit-section | 4/4 | 2 | Replaced heading-1 directly from context |
-| answer-question | 4/4 | 3 | Said "4 total, 1 unchecked" — regex matched "4" |
-| multi-section-fill | 4/4 | 1 | Replaced Q1, but created Q3 instead of Q2; scorer passed |
-| remove-section | 4/4 | 2 | Directly removed heading-2 without read_document_outline |
+| add-section | 4/4 | 2 | Inserts Summary + task_complete in same batch |
+| edit-section | 4/4 | 2–3 | Replaces heading-1 directly from context |
+| answer-question | 3/4 | 3 | Reads section but counts wrong ("1 unchecked") |
+| multi-section-fill | 4/4 | 2 | Replaces heading-1 and heading-2 directly |
+| remove-section | 4/4 | 2 | Removes heading-2 directly from context |
 
-**gemma4:e2b per-scenario** (run `1777500324504`):
+**gemma4:e2b per-scenario** (typical run, e.g. `1777502032749`):
 | Scenario | Score | Iterations | Notes |
 |----------|-------|------------|-------|
-| add-section | 1/4 | 10 | Inserted correctly, never called task_complete |
-| edit-section | 4/4 | 2 | Replaced heading-1, called task_complete |
-| answer-question | 4/4 | 3 | Read section, answered "4 unchecked" correctly |
-| multi-section-fill | 4/4 | 3 | Replaced Q1, inserted duplicate Q2 instead of replacing |
-| remove-section | 4/4 | 4 | Directly removed heading-2; needed 4 iters total |
+| add-section | 1/4 | 10 | Inserts correctly, never calls task_complete |
+| edit-section | 4/4 | 2–3 | Replaces heading-1, calls task_complete |
+| answer-question | 4/4 | 2–3 | Reads section, answers "4 unchecked" correctly |
+| multi-section-fill | 4/4 | 3 | Replaces heading-1 and heading-2 directly (after context note) |
+| remove-section | 4/4 | 2–3 | Removes heading-2, calls task_complete |
 
 ### gemma4:e2b prompt variant sweep (pre-optimisation)
 
@@ -148,9 +150,10 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 - **Not fixed by**: IMPORTANT rules in prompt, `next_step` hint in tool response, continuation prompt.
 - **Root cause**: Appears to be model-level behavior. gemma4 reliably calls `task_complete` after `replace_document_section` but not after `insert_document_section`.
 
-### gemma4:e2b -- multi-section-fill uses insert instead of replace
-- **Symptom**: Even with explicit prompt guidance to use `replace` for existing sections, gemma4 uses `insert`.
-- **Effect on score**: 3/4 (required tool `replace_document_section` not used).
+### gemma4:e2b -- multi-section-fill uses insert instead of replace (resolved with context note)
+- **Original symptom**: Even with explicit prompt guidance, gemma4 used `insert` for existing sections (creating duplicates).
+- **Fix**: Added a `note` field to the `focused_document` context that explicitly says "Use replace_document_section to edit or fill any of them. Use insert_document_section ONLY to add a brand-new section not listed here."
+- **Result**: gemma4 now uses replace directly for both Q1 and Q2, scoring 4/4 in 3 iterations.
 
 ### llama3.2:3b -- stochastic behavior
 - **Symptom**: Score varies between 88-100% across runs. Failures are:
@@ -158,11 +161,14 @@ Running log of findings from automated evaluation of the ProseAI writing assista
   - answer-question: Sometimes reads section but gives wrong count (3B reasoning limit)
   - multi-section-fill: Sometimes inserts new section instead of replacing existing one
 
-### Scorer leniency — false passes
-- **answer-question (llama3.2:3b)**: Scored 4/4 even though model said "4 total, 1 unchecked". The `scoreReply` regex `/\b4\b|four/i` matched "4" in "4 action items in total" — not the intended answer.
-- **multi-section-fill (llama3.2:3b)**: Scored 4/4 even though model replaced Q1 then created a new Q3 section instead of replacing Q2. The `scoreDoc` regex checks that Q1 and Q2 have content, but Q2 still had the original empty content — only Q1 and Q3 were filled. The scorer passed because the regex matched partial content.
-- **multi-section-fill (gemma4:e2b)**: Scored 4/4 despite model inserting a duplicate "Q2 Goals" heading instead of replacing the existing one. The doc now has two "Q2 Goals" sections; scorer passed because some Q2 content exists.
-- **Implication**: Real accuracy may be lower than scored. The 100% llama3.2:3b result includes at least one scenario (multi-section-fill) that produced an imperfect document.
+### Scorer leniency — false passes (fixed)
+
+These were identified and fixed in `scripts/scenarios.mjs`:
+
+- **answer-question regex too loose**: `/\b4\b|four/i` matched "4" in "4 action items in total, but only 1 unchecked". Fixed to require 4/four not be contradicted by a different unchecked count in the same sentence.
+- **multi-section-fill regex overshoot**: `/## Q2 Goals\n+([\s\S]*?)(?=\n##|$)/` — the greedy `\n+` consumed all blank lines between Q2 and Q3, leaving `[\s\S]*?` to expand to `$` (end of string) and capture Q3's content. Fixed by replacing with `extractSection()` helper (indexOf + slice to next heading).
+- **Root cause of regex overshoot**: When `\n+` (greedy) consumes all blank lines, the lazy `[\s\S]*?` must satisfy `(?=\n##|$)`. Since `\n##` is now behind the cursor and `$` is ahead, the lazy term expands all the way to end-of-string.
+- **Implication**: Before these fixes, gemma4:e2b appeared to score 85% but actually scored 60% (multi-section-fill was a false pass every time).
 
 ### slug-based section IDs (reverted)
 - **Attempted**: Changed section IDs from `heading-N` to title slugs (`introduction`, `q1-goals`)
@@ -222,6 +228,21 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 ### src/browser/tools/remove-document-section.ts
 - Section ID validation: throws with valid IDs if section not found
 - Response hint: `next_step: "Section removed. Call task_complete now to finish."`
+- Updated instructions: "After the section is removed, call task_complete immediately to finish."
+
+### src/browser/tools/replace-document-section.ts
+- Updated description: "Replace or fill in an existing section (even if currently empty). Use this whenever a section already exists."
+- Updated instructions: "Use for sections that ALREADY EXIST — whether the section is empty or has content."
+
+### src/browser/tools/insert-document-section.ts
+- Added existence check: if a section with the same title already exists, throws an error with the section_id and directs to use replace_document_section instead (prevents duplicate headings)
+- Updated instructions: "Use ONLY for sections that do NOT already exist. If the section already exists, use replace_document_section instead."
+
+### src/browser/tools/read-document-outline.ts
+- Restructured `focused_document` context to include a `note` field at the top level instructing models to use replace for existing sections and insert only for new ones
 
 ### scripts/scenarios.mjs
 - Added `remove-section` scenario: removes "Draft Notes" section, verifies Timeline still present
+- Added `extractSection()` helper for accurate section content extraction (avoids regex overshoot bug)
+- Fixed `multi-section-fill` scorer to use `extractSection()`
+- Fixed `answer-question` scorer to require "4" not contradicted by a different unchecked count

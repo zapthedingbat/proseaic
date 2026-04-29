@@ -13,6 +13,21 @@
  *   scoreReply      - optional fn(replyText) => boolean for verifying text answers
  */
 
+/**
+ * Extracts the body content of a section from markdown.
+ * Finds the first occurrence of `## heading`, slices from after the heading line
+ * to the next heading line (`# ` or `## `), and trims whitespace.
+ */
+function extractSection(doc, heading) {
+  const marker = `## ${heading}\n`;
+  const idx = doc.indexOf(marker);
+  if (idx === -1) return "";
+  const start = idx + marker.length;
+  const rest = doc.slice(start);
+  const nextHeading = rest.search(/\n##? /);
+  return (nextHeading === -1 ? rest : rest.slice(0, nextHeading)).trim();
+}
+
 export const SCENARIOS = [
   {
     id: "add-section",
@@ -53,8 +68,10 @@ export const SCENARIOS = [
     requiredTools: ["task_complete"],
     expectDocChange: false,
     scoreReply: (text) => {
-      // Accept "4", "four", "4 unchecked", "there are 4" etc.
-      return /\b4\b|four/i.test(text);
+      // Must say 4/four AND not contradict it with a different unchecked count
+      const hasFour = /\b(4|four)\b/i.test(text);
+      const wrongCount = /\b(0|1|2|3|zero|one|two|three)\b[^.]*(?:unchecked|not checked)|(?:unchecked|not checked)[^.]*\b(0|1|2|3|zero|one|two|three)\b/i.test(text);
+      return hasFour && !wrongCount;
     },
   },
 
@@ -67,8 +84,8 @@ export const SCENARIOS = [
     requiredTools: ["replace_document_section", "task_complete"],
     expectDocChange: true,
     scoreDoc: (before, after) => {
-      const q1After = after.match(/## Q1 Goals\n+([\s\S]*?)(?=\n##|$)/)?.[1]?.trim() ?? "";
-      const q2After = after.match(/## Q2 Goals\n+([\s\S]*?)(?=\n##|$)/)?.[1]?.trim() ?? "";
+      const q1After = extractSection(after, "Q1 Goals");
+      const q2After = extractSection(after, "Q2 Goals");
       return q1After.length > 10 && q2After.length > 10;
     },
   },

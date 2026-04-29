@@ -6,10 +6,10 @@ import { JSONValue } from "../lib/JSONValue.js";
 
 export const schema: ToolSchema = {
   type: "function",
-  instructions: "Use for sections that ALREADY EXIST. Call after read_document_outline. After replacing, call task_complete unless more sections still need editing.",
+  instructions: "Use for sections that ALREADY EXIST — whether the section is empty or has content. Call after read_document_outline. After replacing, call task_complete unless more sections still need editing.",
   function: {
     name: "replace_document_section",
-    description: "Replace an existing section in the current editor document after you have inspected structure with read_document_outline.",
+    description: "Replace or fill in an existing section (even if currently empty) in the current editor document. Use this whenever a section already exists. Use insert_document_section only for brand-new sections.",
     parameters: {
       type: "object",
       properties: {

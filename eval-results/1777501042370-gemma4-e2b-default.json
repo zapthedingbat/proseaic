@@ -1,0 +1,124 @@
+{
+  "runId": "1777501042370-gemma4-e2b-default",
+  "model": "gemma4:e2b",
+  "variant": "default",
+  "timestamp": "2026-04-29T22:18:48.197Z",
+  "totalScore": 12,
+  "maxTotal": 20,
+  "pct": 60,
+  "completionRate": 60,
+  "avgIterations": 5.6,
+  "docAccuracy": 75,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_outline({})",
+        "insert_document_section({\"section_content\":\"This project aims to build a better markdown editor.\",\"section_title\":\"Summary\"})"
+      ],
+      "iterations": 10,
+      "taskCompleted": false,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis project aims to build a better markdown editor.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 17244,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "replace_document_section({\"section_id\":\"heading-1\",\"section_content\":\"This document serves as the technical specification for the markdown editor. It details the architecture and requirements for the system.\"})",
+        "task_complete({\"summary\":\"Rewrote the Introduction section to be a proper two-sentence technical specification.\"})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n## Introduction\nThis document serves as the technical specification for the markdown editor. It details the architecture and requirements for the system.\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 4904,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "task_complete({\"summary\":\"Counted the number of unchecked action items in the document.\"})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "There are 4 unchecked action items listed in the document.",
+      "errors": [],
+      "elapsedMs": 8456,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": true
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"* Improve system latency by 20%\\n* Optimize database queries for faster response times\\n* Refactor critical code paths for better execution efficiency\",\"section_title\":\"Q1 Goals\"})",
+        "insert_document_section({\"insert_before_section_id\":\"heading-2\",\"section_content\":\"* Implement real-time analytics dashboard\\n* Develop user profile management module\\n* Integrate new payment gateway option\",\"section_title\":\"Q2 Goals\"})",
+        "task_complete({\"summary\":\"Filled Q1 Goals with performance improvements and Q2 Goals with new feature implementations.\"})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n\n\n\n## Q2 Goals\n* Implement real-time analytics dashboard\n* Develop user profile management module\n* Integrate new payment gateway option\n## Q2 Goals\n\n\n\n## Q1 Goals\n* Improve system latency by 20%\n* Optimize database queries for faster response times\n* Refactor critical code paths for better execution efficiency",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 9247,
+      "timedOut": false,
+      "score": 2,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": false
+    },
+    {
+      "scenarioId": "remove-section",
+      "scenarioName": "Remove a section from the document",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "remove_document_section({\"section_id\":\"heading-2\"})"
+      ],
+      "iterations": 10,
+      "taskCompleted": false,
+      "docBefore": "# Project Plan\n\n## Overview\n\nThis is a project about building a tool.\n\n## Draft Notes\n\nThese are rough draft notes that should be deleted.\n\n## Timeline\n\n- Week 1: Research\n- Week 2: Design\n",
+      "docAfter": "# Project Plan\n## Overview\n\nThis is a project about building a tool.\n\n## Timeline\n\n- Week 1: Research\n- Week 2: Design\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 13490,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    }
+  ]
+}
