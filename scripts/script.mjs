@@ -8,7 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
 const sourceStaticAssetsDir = path.join(root, "src", "browser");
 const destStaticAssetsDir = path.join(root, "dist", "browser");
-const staticAssetsExtensions = new Set([".html", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg"]);
+const staticAssetsExtensions = new Set([".html", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webmanifest"]);
 const sourceFileExtensions = new Set([".ts", ".css"]);
 
 function isStaticAssetFile (fileName) {
