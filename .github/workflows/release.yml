@@ -1,3 +1,0 @@
-# Superseded by release-please.yml which handles both release creation and Pages deploy.
-# This file is kept to avoid breaking any branch protection rules referencing it.
-# It can be deleted once those rules are updated.
