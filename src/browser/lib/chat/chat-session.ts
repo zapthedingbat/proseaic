@@ -248,6 +248,9 @@ export class ChatSession implements IChatSession {
         }
 
         if (taskCompleted) {
+          for (const toolResult of toolResultsMessages) {
+            await this._history.addMessage(toolResult);
+          }
           continueAgentLoop = false;
         } else if (toolResultsMessages.length === 0) {
           // Model produced text-only without calling task_complete — prompt it to continue or finish.
