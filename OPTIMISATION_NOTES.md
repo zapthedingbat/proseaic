@@ -145,10 +145,17 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 
 ## Known failure patterns
 
-### gemma4:e2b -- add-section never calls task_complete
-- **Symptom**: After `insert_document_section` succeeds (doc changes), model makes 10 more iterations without calling `task_complete`. Always scores 1/4 on add-section.
-- **Not fixed by**: IMPORTANT rules in prompt, `next_step` hint in tool response, continuation prompt.
-- **Root cause**: Appears to be model-level behavior. gemma4 reliably calls `task_complete` after `replace_document_section` but not after `insert_document_section`.
+### gemma4:e2b -- add-section never calls task_complete (unresolved)
+- **Symptom**: After `insert_document_section` succeeds, model generates empty/whitespace responses for 10 iterations without calling `task_complete`. Stochastic (~2/3 failure rate). Scores 1/4 on add-section.
+- **Root cause**: When gemma4 includes task_complete in the SAME Ollama batch as insert, it works (score 4/4 in ~1/3 runs). When it doesn't include it in the batch, it never recovers — the continuation prompt fires 9 more times and is ignored.
+- **Attempted fixes** (none consistently worked):
+  - Various `next_step` phrasings in insert response
+  - `required_next_action: "task_complete"` field (caused remove-section to take 9 iters)
+  - Matching insert response format to replace response: `{ inserted: true, next_step: "Section updated successfully..." }`
+  - "Include task_complete in the SAME response" instruction in system prompt
+  - Short continuation prompt: "Call task_complete now." vs "task_complete()"
+  - Keeping text turn in context vs dropping it (keeping broke llama3.2 answer-question from 3→0/4)
+- **Pattern**: gemma4 reliably calls task_complete after `replace_document_section` but not consistently after `insert_document_section`. The difference appears to be at sampling time: replace+task_complete are batched together, insert+task_complete sometimes are not.
 
 ### gemma4:e2b -- multi-section-fill uses insert instead of replace (resolved with context note)
 - **Original symptom**: Even with explicit prompt guidance, gemma4 used `insert` for existing sections (creating duplicates).

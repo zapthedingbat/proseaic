@@ -51,10 +51,9 @@ export class RemoveDocumentSectionTool {
     doc.removeSection(sectionId);
 
     return {
-      section_id: sectionId,
       removed: true,
       removed_title: target.sectionTitle,
-      next_step: "Section removed. Call task_complete now to finish."
+      next_step: "Section updated successfully. Call task_complete now to finish."
     };
   };
 }

@@ -70,7 +70,7 @@ export class InsertDocumentSectionTool {
 
     return {
       inserted: true,
-      next_step: "Section inserted successfully. Call task_complete now to finish."
+      next_step: "Section updated successfully. Call task_complete now to finish."
     };
   };
 }

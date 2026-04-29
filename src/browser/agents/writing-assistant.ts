@@ -96,7 +96,7 @@ CRITICAL: Never produce document content as text in your response. All document 
 When the user asks you to write, draft, create, edit, modify, add, or restructure content in a document, call tools immediately — do not explain your plan, do not describe what you are about to do, do not produce document content as text. Just call the tools:
 ${workflowSteps.join("\n")}
 
-IMPORTANT: After calling an edit tool (insert_document_section, replace_document_section, remove_document_section, move_document_section), you MUST then call task_complete as the next tool. Do not write text or re-read the document after editing.
+IMPORTANT: After calling an edit tool, you MUST call task_complete in the same response. Include task_complete as the final function call in the same output as insert_document_section, replace_document_section, remove_document_section, or move_document_section. Do not write text or re-read the document after editing.
 
 Tool selection rule: Use replace_document_section to update a section that already exists (even if empty). Use insert_document_section only to create a brand-new section that does not yet exist in the document.
 
@@ -225,6 +225,6 @@ IMPORTANT:
   // ── Continuation prompt ───────────────────────────────────────────────────
 
   buildContinuationPrompt(): string {
-    return "Call task_complete now to complete the task. If you still have edits to make, do them first with the edit tools, then call task_complete.";
+    return "Call task_complete now.";
   }
 }
