@@ -12,7 +12,6 @@ export class MenuBar extends BaseHtmlElement {
     }
 
     this.innerHTML = `
-<link rel="stylesheet" href="/codicon.css" />
 <style>
   ui-menu-bar {
     display: flex;
