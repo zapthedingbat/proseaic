@@ -1,6 +1,6 @@
 {
   "name": "proseaic",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Self-hosted document editor with AI assistance. Model-agnostic and BYOK.",
   "main": "src/server/server.js",
   "type": "module",
