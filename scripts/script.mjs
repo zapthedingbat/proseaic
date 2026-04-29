@@ -6,7 +6,12 @@ import { fileURLToPath } from "url";
 import { startServer } from "../src/server/server.js";
 
 const verbose = process.env.VERBOSE === "true";
-const log = (...args) => { if (verbose) log(...args); };
+
+const log = (...args) => {
+  if (verbose) {
+    console.log(...args);
+  }
+};
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");

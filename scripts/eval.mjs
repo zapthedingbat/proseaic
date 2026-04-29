@@ -115,7 +115,14 @@ function scoreScenario(scenario, result) {
     points.total += docOk ? 1 : 0;
     result.docScoreOk = docOk;
   } else if (!scenario.expectDocChange && scenario.scoreReply) {
-    const replyOk = scenario.scoreReply(result.lastAssistantText);
+    // Check both assistant text AND task_complete summary — some models put the answer
+    // directly in the task_complete summary rather than in a text message.
+    const taskCompleteSummary = result.toolCalls
+      .filter(tc => tc.startsWith("task_complete("))
+      .map(tc => { try { return JSON.parse(tc.slice("task_complete(".length, -1))?.summary ?? ""; } catch { return ""; } })
+      .join(" ");
+    const combinedText = [result.lastAssistantText, taskCompleteSummary].filter(Boolean).join(" ");
+    const replyOk = scenario.scoreReply(combinedText);
     points.total += replyOk ? 1 : 0;
     result.replyScoreOk = replyOk;
   } else {

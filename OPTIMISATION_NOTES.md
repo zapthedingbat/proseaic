@@ -39,7 +39,7 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 **Models tested** (Ollama, local):
 | Model | Size | Notes |
 |-------|------|-------|
-| `qwen3.5:0.8b` | 1GB | Not yet tested |
+| `qwen3.5:0.8b` | 1GB | 90% — correct answers, too many iterations on multi-step |
 | `llama3.2:1b` | 1GB | Not yet tested |
 | `llama3.2:3b` | 2GB | Best overall performer |
 | `phi4-mini:3.8b` | 2GB | Never produces tool calls (0%) |
@@ -73,10 +73,13 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 
 **Corrected scorers**: `multi-section-fill` now uses `extractSection()` helper (was false-passing when Q2 empty). `answer-question` now rejects "4 total, 1 unchecked" pattern.
 
+**eval.mjs fix**: `scoreReply` now also checks the `task_complete` summary field, not just `lastAssistantText`. Models like qwen3.5:0.8b put answers directly in the task_complete summary; missing this caused false-fails.
+
 | Model | Score | Notes |
 |-------|-------|-------|
 | llama3.2:3b / default | 19/20 (95%) | Stable; answer-question 3/4 (3B reasoning limit) |
 | gemma4:e2b / default | 17/20 (85%) | add-section 1/4 (stochastic task_complete after insert) |
+| qwen3.5:0.8b / default | 18/20 (90%) | Surprising — 1/5th the size of llama3.2:3b, nearly same score |
 
 **llama3.2:3b per-scenario** (typical run, e.g. `1777502116181`):
 | Scenario | Score | Iterations | Notes |
@@ -86,6 +89,17 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 | answer-question | 3/4 | 3 | Reads section but counts wrong ("1 unchecked") |
 | multi-section-fill | 4/4 | 2 | Replaces heading-1 and heading-2 directly |
 | remove-section | 4/4 | 2 | Removes heading-2 directly from context |
+
+**qwen3.5:0.8b per-scenario** (stable across 2 runs, e.g. `1777503747557`):
+| Scenario | Score | Iterations | Notes |
+|----------|-------|------------|-------|
+| add-section | 4/4 | 2–3 | Inserts + task_complete in same batch |
+| edit-section | 4/4 | 3–4 | Replaces section correctly |
+| answer-question | 3/4 | 4–6 | Correct answer ("4 unchecked") but too many iterations for efficiency point |
+| multi-section-fill | 3/4 | 6 | Correct doc result but 6 iterations (uses insert errors to discover existing sections) |
+| remove-section | 4/4 | 2–4 | Removes correctly, calls task_complete |
+
+Note: qwen3.5:0.8b puts the answer in `task_complete({ summary: "..." })` rather than assistant text — fixed by checking both sources in scoreReply.
 
 **gemma4:e2b per-scenario** (typical run, e.g. `1777502032749`):
 | Scenario | Score | Iterations | Notes |
@@ -161,6 +175,11 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 - **Original symptom**: Even with explicit prompt guidance, gemma4 used `insert` for existing sections (creating duplicates).
 - **Fix**: Added a `note` field to the `focused_document` context that explicitly says "Use replace_document_section to edit or fill any of them. Use insert_document_section ONLY to add a brand-new section not listed here."
 - **Result**: gemma4 now uses replace directly for both Q1 and Q2, scoring 4/4 in 3 iterations.
+
+### qwen3.5:0.8b -- excess iterations on multi-step scenarios
+- **Symptom**: answer-question and multi-section-fill consistently take 5–6 iterations (>4 limit), losing the efficiency point. Simple scenarios (add/edit/remove) complete in 2–4 iters.
+- **Root cause**: On multi-section-fill, qwen3.5:0.8b tries `insert_document_section` first (despite the context note), hits the existence-check error, then retries with `replace_document_section`. This insert-error-recover cycle adds 2–3 iterations. On answer-question, the model makes 2 read calls (outline + section) plus 2 more tool interactions before answering.
+- **Status**: Unresolved. The insert-redirect error recovery works correctly (correct final answer), but the extra iterations prevent the efficiency point.
 
 ### llama3.2:3b -- stochastic behavior
 - **Symptom**: Score varies between 88-100% across runs. Failures are:
