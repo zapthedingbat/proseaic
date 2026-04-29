@@ -240,6 +240,18 @@ describe("submitUserPrompt — tool execution", () => {
     await session.submitUserPrompt("test-model", "finish");
     expect(platform.generate).toHaveBeenCalledTimes(1);
   });
+
+  it("persists task_complete tool result to history so subsequent turns have coherent message sequences", async () => {
+    const { session, history } = makeSession({
+      responses: [
+        streamFrom({ type: "tool_call", tool_call: { id: "tc1", name: "task_complete", arguments: {} } }, { type: "done" }),
+        streamFrom({ type: "done" }),
+      ],
+    });
+    await session.submitUserPrompt("test-model", "finish");
+    const toolMsg = history.stored.find(m => m.role === "tool");
+    expect(toolMsg).toMatchObject({ role: "tool", tool_call_id: "tc1" });
+  });
 });
 
 // ---------------------------------------------------------------------------
