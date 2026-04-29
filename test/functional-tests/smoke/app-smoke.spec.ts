@@ -109,19 +109,19 @@ test.describe("Document navigation", () => {
   const CONTENT_B = "# Smoke Nav Doc B\n\nThis is document B content.";
 
   test.beforeAll(async ({ request }) => {
-    await request.put(`/store/${DOC_A}`, {
+    await request.put(`/documents/${DOC_A}`, {
       data: CONTENT_A,
       headers: { "Content-Type": "text/markdown" },
     });
-    await request.put(`/store/${DOC_B}`, {
+    await request.put(`/documents/${DOC_B}`, {
       data: CONTENT_B,
       headers: { "Content-Type": "text/markdown" },
     });
   });
 
   test.afterAll(async ({ request }) => {
-    await request.delete(`/store/${DOC_A}`).catch(() => undefined);
-    await request.delete(`/store/${DOC_B}`).catch(() => undefined);
+    await request.delete(`/documents/${DOC_A}`).catch(() => undefined);
+    await request.delete(`/documents/${DOC_B}`).catch(() => undefined);
   });
 
   test("clicking a file in the documents panel loads its content into the editor", async ({ page }) => {
