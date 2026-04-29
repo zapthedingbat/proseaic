@@ -6,9 +6,10 @@ import { ITool } from "../lib/tools/tool.js";
 
 export const schema: ToolSchema = {
   type: "function",
+  instructions: "Call this as the LAST tool after all edits are done. Signals completion.",
   function: {
     name: "task_complete",
-    description: "Signal that all requested tool work is finished and the assistant is ready to provide the final user-facing response.",
+    description: "Call after completing all document edits to signal the task is done. This is the final step — call it only after insert/replace/remove/move tools have succeeded.",
     parameters: {
       type: "object",
       properties: {

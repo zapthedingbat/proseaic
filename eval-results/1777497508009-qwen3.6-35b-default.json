@@ -1,0 +1,103 @@
+{
+  "runId": "1777497508009-qwen3.6-35b-default",
+  "model": "qwen3.6:35b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:19:41.435Z",
+  "totalScore": 7,
+  "maxTotal": 16,
+  "pct": 44,
+  "completionRate": 25,
+  "avgIterations": 1,
+  "docAccuracy": 33,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "qwen3.6:35b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-0\"})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "read_document_section({\"section_id\":\"heading-2\"})",
+        "insert_document_section({\"section_content\":\"\\nThis project aims to build a better markdown editor, with goals of shipping version 1 by Q3, achieving 100 daily active users, and supporting three AI providers.\",\"section_title\":\"Summary\"})",
+        "task_complete({\"summary\":\"Added a new \\\"Summary\\\" section at the end of the document with a one-sentence summary of the project.\"})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\n\nThis project aims to build a better markdown editor, with goals of shipping version 1 by Q3, achieving 100 daily active users, and supporting three AI providers.",
+      "lastAssistantText": "Let me read the document content to understand what the project is about.",
+      "errors": [],
+      "elapsedMs": 24832,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "qwen3.6:35b",
+      "variant": "default",
+      "toolCalls": [],
+      "iterations": 0,
+      "taskCompleted": false,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": null,
+      "lastAssistantText": "",
+      "errors": [
+        "Harness error: page.selectOption: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#chat-model-select')\u001b[22m\n\u001b[2m    - locator resolved to <select class=\"action-item\" id=\"chat-model-select\"></select>\u001b[22m\n\u001b[2m  - attempting select option action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible and enabled\u001b[22m\n\u001b[2m      - did not find some options\u001b[22m\n\u001b[2m    - retrying select option action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible and enabled\u001b[22m\n\u001b[2m      - did not find some options\u001b[22m\n\u001b[2m    - retrying select option action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible and enabled\u001b[22m\n\u001b[2m       - did not find some options\u001b[22m\n\u001b[2m     - retrying select option action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+      ],
+      "elapsedMs": 0,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": false
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "qwen3.6:35b",
+      "variant": "default",
+      "toolCalls": [],
+      "iterations": 0,
+      "taskCompleted": false,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": null,
+      "lastAssistantText": "",
+      "errors": [
+        "Harness error: fetch failed"
+      ],
+      "elapsedMs": 0,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "replyScoreOk": false
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "qwen3.6:35b",
+      "variant": "default",
+      "toolCalls": [],
+      "iterations": 0,
+      "taskCompleted": false,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": null,
+      "lastAssistantText": "",
+      "errors": [
+        "Harness error: fetch failed"
+      ],
+      "elapsedMs": 0,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": false
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "runId": "1777497623875-llama3.2-3b-default",
+  "model": "llama3.2:3b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:21:11.569Z",
+  "totalScore": 13,
+  "maxTotal": 16,
+  "pct": 81,
+  "completionRate": 100,
+  "avgIterations": 3.3,
+  "docAccuracy": 67,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"This is a one-sentence summary of the project.\",\"section_title\":\"Summary\",\"insert_before_section_id\":\"\"})",
+        "task_complete({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis is a one-sentence summary of the project.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 8601,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"Introduction\"})",
+        "insert_document_section({\"new_text\":\"This document outlines the technical specifications for a markdown editor, providing detailed information on its features and functionality.\",\"section_id\":\"Introduction\"})",
+        "read_document_outline({})",
+        "insert_document_section({\"new_text\":\"This document outlines the technical specifications for a markdown editor, providing detailed information on its features and functionality.\",\"section_id\":\"Introduction\"})",
+        "replace_document_section({\"old_text\":\"\",\"new_text\":\"A markdown editor is a software application that allows users to create and edit Markdown content.\",\"section_id\":\"Introduction\"})",
+        "task_complete({})"
+      ],
+      "iterations": 6,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 4837,
+      "timedOut": false,
+      "score": 2,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": false
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_outline({})",
+        "task_complete({})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "There is 1 action item listed in the document.",
+      "errors": [],
+      "elapsedMs": 2737,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": false
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"Improving performance by optimizing data structures and algorithms.\",\"section_title\":\"Q1 Goals\",\"insert_before_section_id\":null})",
+        "replace_document_section({\"section_content\":\"Enhancing user experience through intuitive interface design.\",\"section_id\":\"Q2 Goals\"})",
+        "remove_document_section({\"section_id\":\"Q2 Goals\"})",
+        "task_complete({})",
+        "read_document_outline({})",
+        "read_document_outline({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n\n## Q1 Goals\nImproving performance by optimizing data structures and algorithms.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 2885,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    }
+  ]
+}

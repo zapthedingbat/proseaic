@@ -27,6 +27,22 @@ export class ReadDocumentOutlineTool {
     this._logger = loggerFactory("Read Document Outline Tool");
     this._getDoc = getDoc;
   }
+
+  // Inject document structure into every agent iteration so models can see section IDs
+  // and content without an extra round-trip before editing.
+  addContext = (): Record<string, unknown> => {
+    const doc = this._getDoc();
+    if (!doc) return {};
+    const outline = doc.getOutline();
+    return {
+      focused_document: outline.map(s => ({
+        section_id: s.sectionTitleId,
+        title: s.sectionTitle,
+        content: doc.getSectionContent(s.sectionTitleId),
+      }))
+    };
+  };
+
   execute = async (args: Record<string, unknown>): Promise<JSONValue> => {
     this._logger.debug("Executing with args:", args);
     const doc = this._getDoc();

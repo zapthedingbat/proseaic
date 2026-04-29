@@ -1,0 +1,109 @@
+{
+  "runId": "1777498606570-llama3.2-3b-default",
+  "model": "llama3.2:3b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:37:30.533Z",
+  "totalScore": 11,
+  "maxTotal": 16,
+  "pct": 69,
+  "completionRate": 75,
+  "avgIterations": 4.5,
+  "docAccuracy": 67,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"This is a summary of the project.\",\"insert_before_section_id\":null,\"section_title\":\"Summary\"})",
+        "task_complete({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis is a summary of the project.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 2330,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"/webdav/eval-test-1777498606570.md\"})",
+        "replace_selection({\"text\":\"**Technical Specification Document for Markdown Editor**\\n\\nThis document provides detailed technical information about the new markdown editor features.\"})",
+        "read_document_outline({})"
+      ],
+      "iterations": 10,
+      "taskCompleted": false,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "**Technical Specification Document for Markdown Editor**\n\nThis document provides detailed technical information about the new markdown editor features.# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "{\"name\": \"task_complete\", {}}{\"name\": \"replace_selection\", {\"parameters\": {\"text\": \"This document provides a detailed overview of the markdown editor features, including its syntax highlighting capabilities and support for multiple file formats.\"}}}",
+      "errors": [],
+      "elapsedMs": 6836,
+      "timedOut": false,
+      "score": 0,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": false
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"action_items\"})",
+        "read_document_outline({})",
+        "task_complete({})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "There is 1 section titled \"Action Items\". Since it's a subsection, there might be more than one action item. Let me check the content of that section to provide a more accurate answer.{\"name\": \"read_document_section\", \"parameters\": {\"section_id\": \"action-items\"}}",
+      "errors": [],
+      "elapsedMs": 3732,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": false
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_title\":\"Q1 Goals: Improving Performance\",\"section_content\":\"• Increase CPU speed by 30% • Optimize memory usage by 25% • Implement caching to reduce database queries\"})",
+        "replace_document_section({\"section_id\":\"/webdav/eval-test-1777498606570.md#Q1 Goals: Improving Performance\",\"section_content\":\"• Enhance algorithm for data compression by 20% • Introduce AI-powered predictive modeling to forecast performance bottlenecks\"})",
+        "move_document_section({\"section_id\":\"/webdav/eval-test-1777498606570.md#Q1 Goals: Improving Performance\",\"insert_before_section_id\":\"/webdav/eval-test-1777498606570.md#Q2 Goals: New Features\"})",
+        "replace_document_section({\"section_id\":\"/webdav/eval-test-1777498606570.md#Q2 Goals: New Features\",\"section_content\":\"• Introduce real-time monitoring and analytics for performance tracking • Implement automated testing framework to ensure new features are thoroughly tested\"})",
+        "insert_document_section({\"section_content\":\"• Develop a machine learning-powered recommendation engine to suggest new features based on user behavior\",\"section_title\":\"Q2 Goals: New Features\"})",
+        "task_complete({})",
+        "read_document_outline({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n\n## Q1 Goals: Improving Performance\n• Increase CPU speed by 30% • Optimize memory usage by 25% • Implement caching to reduce database queries\n## Q2 Goals: New Features\n• Develop a machine learning-powered recommendation engine to suggest new features based on user behavior",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 4064,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    }
+  ]
+}

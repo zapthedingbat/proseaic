@@ -1,0 +1,106 @@
+{
+  "runId": "1777498366063-llama3.2-3b-default",
+  "model": "llama3.2:3b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:33:26.748Z",
+  "totalScore": 14,
+  "maxTotal": 16,
+  "pct": 88,
+  "completionRate": 100,
+  "avgIterations": 3.5,
+  "docAccuracy": 100,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"This is a high-level overview of the project.\",\"insert_before_section_id\":null,\"section_title\":\"Summary\"})",
+        "task_complete({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis is a high-level overview of the project.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 2404,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "replace_document_section({\"section_content\":\"This is a technical specification document for a markdown editor. It outlines the features, functionality, and usage guidelines for our new markdown editor.\",\"section_id\":\"read_document_outline\"})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "replace_document_section({\"section_content\":\"This is a technical specification document for a markdown editor. It outlines the features, functionality, and usage guidelines for our new markdown editor. \\n\\nThe purpose of this document is to provide a detailed description of the markdown editor's architecture, including its core components and interfaces.\",\"section_id\":\"heading-1\"})",
+        "task_complete({})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n## Introduction\nThis is a technical specification document for a markdown editor. It outlines the features, functionality, and usage guidelines for our new markdown editor. \n\nThe purpose of this document is to provide a detailed description of the markdown editor's architecture, including its core components and interfaces.\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 4121,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"[\\\"unchecked\\\"]\"})",
+        "read_document_outline({})",
+        "task_complete({})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "call open_documentcall read_document_outline{\"name\": \"read_document_outline\", \"parameters\": {}}",
+      "errors": [],
+      "elapsedMs": 3471,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": false
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"• Improve caching to reduce query times by 30%.\\n• Enhance AI-powered summarization algorithm for more accurate results.\\n• Introduce a new filtering mechanism for faster document sorting.\",\"section_title\":\"[Q1 Goals](#q1-goals)\"})",
+        "read_document_outline({})",
+        "task_complete({})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n\n## [Q1 Goals](#q1-goals)\n• Improve caching to reduce query times by 30%.\n• Enhance AI-powered summarization algorithm for more accurate results.\n• Introduce a new filtering mechanism for faster document sorting.",
+      "lastAssistantText": "{\"name\": \"task_complete\", \"{}\"}}",
+      "errors": [],
+      "elapsedMs": 3570,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    }
+  ]
+}

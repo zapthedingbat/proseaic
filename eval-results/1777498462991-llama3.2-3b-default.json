@@ -1,0 +1,106 @@
+{
+  "runId": "1777498462991-llama3.2-3b-default",
+  "model": "llama3.2:3b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:35:03.433Z",
+  "totalScore": 13,
+  "maxTotal": 16,
+  "pct": 81,
+  "completionRate": 100,
+  "avgIterations": 3.5,
+  "docAccuracy": 100,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"This project aims to improve overall efficiency in project management.\",\"section_title\":\"Summary\",\"insert_before_section_id\":null})",
+        "task_complete({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis project aims to improve overall efficiency in project management.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 2631,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "replace_document_section({\"section_id\":\"Introduction\",\"section_content\":\"This is a technical specification document for a markdown editor, outlining its features and functionality. It is intended to serve as a reference guide for developers, editors, and anyone interested in learning more about the capabilities of this tool.\"})",
+        "read_document_outline({})",
+        "replace_document_section({\"section_id\":\"heading-1\",\"section_content\":\"This is a technical specification document for a markdown editor, outlining its features and functionality. It is intended to serve as a reference guide for developers, editors, and anyone interested in learning more about the capabilities of this tool.\"})",
+        "task_complete({})"
+      ],
+      "iterations": 7,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n## Introduction\nThis is a technical specification document for a markdown editor, outlining its features and functionality. It is intended to serve as a reference guide for developers, editors, and anyone interested in learning more about the capabilities of this tool.\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "{\"name\": \"task_complete\", {}}",
+      "errors": [],
+      "elapsedMs": 5221,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"[[]]\"})",
+        "read_document_outline({})",
+        "task_complete({})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "None of the action items have been marked as unchecked. There is 1 action item listed in total.",
+      "errors": [],
+      "elapsedMs": 3024,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": false
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_title\":\"Q1 Goals: Improving Performance\",\"section_content\":\"* Increase processing speed by 30% through caching.\\n* Optimize database queries to reduce latency by 25%.\\n* Implement parallel processing for concurrent tasks.\",\"section_id\":\"null\"})",
+        "insert_document_section({\"section_title\":\"Q2 Goals: New Features\",\"section_content\":\"* Develop real-time analytics and reporting.\\n* Integrate AI-powered content suggestions.\\n* Enhance user authentication with biometric recognition.\",\"section_id\":\"null\"})",
+        "task_complete({})"
+      ],
+      "iterations": 1,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n\n## Q1 Goals: Improving Performance\n* Increase processing speed by 30% through caching.\n* Optimize database queries to reduce latency by 25%.\n* Implement parallel processing for concurrent tasks.\n## Q2 Goals: New Features\n* Develop real-time analytics and reporting.\n* Integrate AI-powered content suggestions.\n* Enhance user authentication with biometric recognition.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 2539,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    }
+  ]
+}

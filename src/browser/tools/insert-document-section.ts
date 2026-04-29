@@ -6,7 +6,7 @@ import { JSONValue } from "../lib/JSONValue.js";
 
 export const schema: ToolSchema = {
   type: "function",
-  instructions: "Call after read_document_outline to understand document structure, or directly for a new empty document.",
+  instructions: "Call after read_document_outline. After the insertion succeeds, call task_complete immediately unless more sections still need to be inserted.",
   function: {
     name: "insert_document_section",
     description: "Insert a new section into the current editor document after you have inspected structure with read_document_outline.",
@@ -46,13 +46,20 @@ export class InsertDocumentSectionTool {
     if (!doc) {
       throw new Error("No focused editor is available.");
     }
-    const sectionTitle = args.section_title as string;
-    const sectionContent = args.section_content as string;
-    const insertBeforeSectionId = args.insert_before_section_id as string | undefined;
+    // Accept common aliases models use instead of the canonical param names
+    const sectionTitle = (args.section_title ?? args.title ?? args.heading ?? args.name) as string;
+    const sectionContent = (args.section_content ?? args.new_text ?? args.content ?? args.text) as string;
+    const insertBeforeSectionId = (args.insert_before_section_id ?? args.before_section_id) as string | undefined;
+
+    if (!sectionTitle) {
+      throw new Error("section_title is required. Provide a heading text for the new section.");
+    }
 
     doc.insertSection(sectionTitle, sectionContent, insertBeforeSectionId);
 
     return {
+      inserted: true,
+      next_step: "Call task_complete now unless you still have more sections to add."
     };
   };
 }

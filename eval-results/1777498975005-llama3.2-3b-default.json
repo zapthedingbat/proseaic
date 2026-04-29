@@ -1,0 +1,103 @@
+{
+  "runId": "1777498975005-llama3.2-3b-default",
+  "model": "llama3.2:3b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:43:33.669Z",
+  "totalScore": 12,
+  "maxTotal": 16,
+  "pct": 75,
+  "completionRate": 100,
+  "avgIterations": 2.5,
+  "docAccuracy": 33,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"This project aims to build a better markdown editor.\",\"section_title\":\"Summary\"})",
+        "task_complete({})"
+      ],
+      "iterations": 1,
+      "taskCompleted": true,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis project aims to build a better markdown editor.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 2071,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "replace_selection({\"text\":\"This is a two-sentence introduction to the Technical Spec, serving as an overview for this technical specification document in a markdown editor.\"})",
+        "task_complete({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "This is a two-sentence introduction to the Technical Spec, serving as an overview for this technical specification document in a markdown editor.# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 2366,
+      "timedOut": false,
+      "score": 2,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": false
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "task_complete({})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "There are 3 action items in total, and only 1 of them is unchecked. The unchecked action item is \"Send the proposal to the client\".",
+      "errors": [],
+      "elapsedMs": 2760,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": false
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "replace_document_section({\"section_id\":\"heading-1\",\"section_content\":\"<ul><li>Optimize database queries for better performance.</li><li>Implement caching mechanisms to reduce server load.</li><li>Use efficient data structures to minimize computation time.</li></ul>\"})",
+        "task_complete({})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n<ul><li>Optimize database queries for better performance.</li><li>Implement caching mechanisms to reduce server load.</li><li>Use efficient data structures to minimize computation time.</li></ul>\n## Q2 Goals\n\n\n",
+      "lastAssistantText": "{\"name\": \"task_complete\", \"{}\"}",
+      "errors": [],
+      "elapsedMs": 3388,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": false
+    }
+  ]
+}

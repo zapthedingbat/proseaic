@@ -1,0 +1,100 @@
+{
+  "runId": "1777499116709-gemma4-e2b-default",
+  "model": "gemma4:e2b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:46:46.662Z",
+  "totalScore": 9,
+  "maxTotal": 16,
+  "pct": 56,
+  "completionRate": 50,
+  "avgIterations": 6.5,
+  "docAccuracy": 100,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"This project aims to build a better markdown editor.\",\"section_title\":\"Summary\"})"
+      ],
+      "iterations": 10,
+      "taskCompleted": false,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis project aims to build a better markdown editor.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 16568,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "replace_document_section({\"section_id\":\"heading-1\",\"section_content\":\"This document is the technical specification for the markdown editor. It details the architecture and technical requirements for the system.\"})",
+        "task_complete({\"summary\":\"Rewrote the Introduction section to be a proper two-sentence introduction explaining it is a technical specification document for a markdown editor.\"})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n## Introduction\nThis document is the technical specification for the markdown editor. It details the architecture and technical requirements for the system.\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 6619,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [],
+      "iterations": 10,
+      "taskCompleted": false,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "There are 4 unchecked action items listed in the document.",
+      "errors": [],
+      "elapsedMs": 29945,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "replyScoreOk": true
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"* Improve system latency by 15%.\\n* Optimize database queries for faster response times.\\n* Implement new performance monitoring tools.\",\"section_title\":\"Q1 Goals\"})",
+        "insert_document_section({\"insert_before_section_id\":\"heading-2\",\"section_content\":\"* Implement new feature X.\\n* Develop feature Y.\\n* Integrate feature Z.\",\"section_title\":\"Q2 Goals\"})",
+        "task_complete({\"summary\":\"Filled Q1 Goals with performance improvements and Q2 Goals with new features.\"})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n\n\n\n## Q2 Goals\n* Implement new feature X.\n* Develop feature Y.\n* Integrate feature Z.\n## Q2 Goals\n\n\n\n## Q1 Goals\n* Improve system latency by 15%.\n* Optimize database queries for faster response times.\n* Implement new performance monitoring tools.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 8072,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    }
+  ]
+}
