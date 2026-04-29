@@ -7,10 +7,20 @@ export function staticRoutes(moduleUrl, dir){
   const router = Router();
   router.use(expressStatic(path.join(_dirname, dir), {
     index: "index.html",
-    fallthrough: true
+    fallthrough: true,
+    setHeaders(res, filePath) {
+      if (path.extname(filePath) === ".html") {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    }
   }));
   router.use(expressStatic(path.join(_dirname, dir, "assets"), {
-    fallthrough: true
+    fallthrough: true,
+    setHeaders(res, filePath) {
+      if (/^script-.+\.js(\.map)?$/.test(path.basename(filePath))) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    }
   }));
   return router;
 }

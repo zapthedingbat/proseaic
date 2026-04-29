@@ -1,4 +1,5 @@
 import { build, context } from "esbuild";
+import { createHash } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -6,8 +7,8 @@ import { startServer } from "../src/server/server.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..");
-const sourceStaticAssetsDir = path.join(root, "src", "browser");
-const destStaticAssetsDir = path.join(root, "dist", "browser");
+const sourceStaticAssetsDir = path.join(root, "src", "browser", "assets");
+const destStaticAssetsDir = path.join(root, "dist", "browser", "assets");
 const staticAssetsExtensions = new Set([".html", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webmanifest"]);
 const sourceFileExtensions = new Set([".ts", ".css"]);
 
@@ -46,8 +47,10 @@ function getBuildOptions() {
     format: "esm",
     platform: "browser",
     target: ["es2022"],
-    outfile: "dist/browser/script.js",
+    outdir: "dist/browser/assets",
+    entryNames: "[name]-[hash]",
     sourcemap: true,
+    metafile: true,
     logLevel: "info",
     define: {
       "DEMO_MODE": demoMode ? "true" : "false",
@@ -71,20 +74,34 @@ async function processBuildResult(result) {
     }
   }
 
-  if(result.outputFiles) {
-    for(const outputFile of result.outputFiles) {
-      const outputPath = path.join(root, outputFile.path);
-      console.log(`Output written to: ${outputPath}`);
-    }
-  }
+  const scriptOutput = Object.keys(result.metafile.outputs).find(k => !k.endsWith('.map') && k.endsWith('.js'));
+  const scriptName = path.basename(scriptOutput);
+
+  // Remove stale hashed script files from previous builds
+  const assetsDir = path.join(root, "dist", "browser", "assets");
+  const existing = await fs.readdir(assetsDir).catch(() => []);
+  await Promise.all(
+    existing
+      .filter(f => /^script-.+\.js(\.map)?$/.test(f) && f !== scriptName && f !== `${scriptName}.map`)
+      .map(f => fs.unlink(path.join(assetsDir, f)))
+  );
+
+  // Write index.html with the hashed script filename and SRI integrity attribute
+  const scriptContent = await fs.readFile(path.join(assetsDir, scriptName));
+  const sri = `sha384-${createHash("sha384").update(scriptContent).digest("base64")}`;
+  const html = await fs.readFile(path.join(root, "src", "browser", "index.html"), "utf8");
+  let updated = html.replace(/(<script\b[^>]+\bsrc=")[^"]*\.js(")/, `$1assets/${scriptName}$2`);
+  updated = updated.replace(/(<script\b[^>]*\bsrc="[^"]*")([^>]*>)/, `$1 integrity="${sri}" crossorigin="anonymous"$2`);
+  await fs.mkdir(path.join(root, "dist", "browser"), { recursive: true });
+  await fs.writeFile(path.join(root, "dist", "browser", "index.html"), updated);
 }
 
-async function copyCodiconAssets(signal) {
+async function copyCodiconAssets(signal, destPath) {
   signal.throwIfAborted();
   const codiconSrc = path.join(root, "node_modules", "@vscode", "codicons", "dist");
-  await fs.mkdir(destStaticAssetsDir, { recursive: true });
+  await fs.mkdir(destPath, { recursive: true });
   for (const file of ["codicon.css", "codicon.ttf"]) {
-    await fs.copyFile(path.join(codiconSrc, file), path.join(destStaticAssetsDir, file));
+    await fs.copyFile(path.join(codiconSrc, file), path.join(destPath, file));
   }
 }
 
@@ -92,22 +109,24 @@ async function runBuild(signal) {
   signal.throwIfAborted();
 
   // Build the project and copy static assets, ensuring that we have the latest build output and assets in place.
-  await Promise.all([
+  const [,,result] = await Promise.all([
     copyAllFiles(signal, sourceStaticAssetsDir, destStaticAssetsDir, isStaticAssetFile),
-    copyCodiconAssets(signal),
+    copyCodiconAssets(signal, destStaticAssetsDir),
     build(getBuildOptions())
   ]);
+  await processBuildResult(result);
 }
 
 async function runStart(signal) {
   signal.throwIfAborted();
 
   // Build the project and copy static assets before starting the server, so that we have everything in place before we start serving requests.
-  await Promise.all([
+  const [,,result] = await Promise.all([
     copyAllFiles(signal, sourceStaticAssetsDir, destStaticAssetsDir, isStaticAssetFile),
-    copyCodiconAssets(signal),
+    copyCodiconAssets(signal, destStaticAssetsDir),
     build(getBuildOptions())
   ]);
+  await processBuildResult(result);
 
   // Start the server after the initial build and asset copying is complete, so that we can serve the latest build immediately.
   const server = startServer();
@@ -142,7 +161,7 @@ async function runWatch(signal) {
     // Copy all static assets initially, so that we have them in place before the first build completes.
     // We can be selective about which files to copy based on their extensions, since we only want to copy static assets and not source files or other non-asset files.
     await copyAllFiles(signal, sourceStaticAssetsDir, destStaticAssetsDir, isStaticAssetFile);
-    await copyCodiconAssets(signal);
+    await copyCodiconAssets(signal, destStaticAssetsDir);
 
     // Perform the initial build after copying static assets, so that we have the first build output ready to serve.
     await rebuildContext(ctx);
