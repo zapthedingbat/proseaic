@@ -10,6 +10,7 @@ permissions:
   pull-requests: write
   pages: write
   id-token: write
+  actions: write
 
 concurrency:
   group: pages
@@ -25,6 +26,14 @@ jobs:
         id: release
         with:
           release-type: node
+
+      - name: Trigger CI on release PR branch
+        if: steps.release.outputs.pr
+        run: |
+          branch=$(echo '${{ steps.release.outputs.pr }}' | jq -r '.headBranchName')
+          gh workflow run ci.yml --ref "$branch"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-pages:
     name: Deploy to GitHub Pages
