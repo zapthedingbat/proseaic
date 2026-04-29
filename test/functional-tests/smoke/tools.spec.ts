@@ -26,6 +26,9 @@ async function selectGemma4Model(page: Page): Promise<void> {
 }
 
 test("model calls edit tools after create_document succeeds", async ({ page }) => {
+  // TODO: Mock the model responses to reliably trigger the desired tool call sequence, rather than relying on the real model.
+  // TODO: Use the Page Object Model for all interactions in this test, rather than directly using page.locator here and there.
+
   const app = new AppPage(page);
   await app.goto();
 
