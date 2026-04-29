@@ -1,10 +1,15 @@
+// DEMO_MODE is injected at build time by esbuild (true for the static demo build).
+declare const DEMO_MODE: boolean;
+
 import { App, AppOptions, WorkbenchFactory } from "./app.js";
 import { AiInlineCompletionService } from "./lib/completion/inline-completion-service.js";
 import { CodeMirrorEditor } from "./components/codemirror-editor.js";
 import { WritingAssistant } from "./agents/writing-assistant.js";
 import { ChatSession } from "./lib/chat/chat-session.js";
 import { DocumentManager } from "./lib/document/document-manager.js";
+import { DocumentPath } from "./lib/document/document-service.js";
 import { WebDavDocumentStore } from "./lib/document/stores/webdav-document-store.js";
+import { FileSystemDocumentStore } from "./lib/document/stores/file-system-document-store.js";
 import { BrowserChatHistory } from "./lib/history/browser-chat-history.js";
 import { ConsoleLogger } from "./lib/logging/console-logger.js";
 import { LoggerFactory } from "./lib/logging/logger-factory.js";
@@ -24,6 +29,49 @@ import { GeminiStreamReader } from "./platform/gemini/gemini-stream-reader.js";
 import { MistralPlatform } from "./platform/mistral/mistral-platform.js";
 import { MistralStreamReader } from "./platform/mistral/mistral-stream-reader.js";
 import { Configuration, ConfigurationManager } from "./lib/configuration/configuration-service.js";
+
+const WELCOME_DOCUMENT_PATH = DocumentPath.parse("/getting-started.md");
+
+const WELCOME_CONTENT = `# Welcome to Proseaic
+
+ProseAiC is a markdown editor with AI writing assistance. This demo runs entirely in your browser. Documents and API Keys are only stored in your browser's private storage.
+
+## Setting Up AI
+
+Open **Settings** (gear icon, top right) and add your API key for one or more providers:
+
+| Provider | Notes |
+|---|---|
+| Anthropic | Claude models — recommended for writing |
+| OpenAI | GPT models |
+| Google Gemini | Gemini models |
+| Mistral | Mistral models |
+| Ollama | Local models — must be running at \`http://localhost:11434\` |
+
+Once a key is entered, the AI chat panel becomes available.
+
+## Using the Editor
+
+- Write markdown directly — headings, lists, bold, italic, and code blocks all render with syntax highlighting
+- **AI chat** (speech bubble icon): ask the AI to edit, rewrite, summarise, or generate content in your document
+- **AI autocomplete**: inline suggestions appear as you type; press Tab to accept
+
+## Document Storage
+
+In this demo, documents are saved to your browser's [Origin Private File System](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system).
+They persist across sessions but are private to this browser and origin.
+
+---
+
+For the full self-hosted version with server-side storage, see the project README.
+`;
+
+async function seedWelcomeDocument(documentManager: DocumentManager): Promise<void> {
+  const docs = await documentManager.listDocuments();
+  if (docs.length === 0) {
+    await documentManager.createDocument(WELCOME_DOCUMENT_PATH, WELCOME_CONTENT);
+  }
+}
 
 // This is the composition root of the application, where the dependencies are configured.
 (async function initialize(): Promise<void> {
@@ -52,8 +100,11 @@ import { Configuration, ConfigurationManager } from "./lib/configuration/configu
   // Endpoints are read once at startup; changing an endpoint requires a page reload.
   const getApiKey = (key: keyof Configuration) => () => configuration.get(key) ?? "";
   const getEndpoint = (key: keyof Configuration, defaultUrl: string) => configuration.get(key) || defaultUrl;
+  
+  // In demo mode Ollama is accessed directly; in server mode it is proxied through the Express server.
+  const ollamaDefaultEndpoint = DEMO_MODE ? "http://localhost:11434" : "/ollama";
   platformRegistry.registerMany([
-    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.ollama.api_key"),    () => new OllamaStreamReader(),    getEndpoint("ai.platform.ollama.endpoint", "/ollama")),
+    new OllamaPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.ollama.api_key"),    () => new OllamaStreamReader(),    getEndpoint("ai.platform.ollama.endpoint", ollamaDefaultEndpoint)),
     new AnthropicPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.anthropic.api_key"), () => new AnthropicStreamReader(), getEndpoint("ai.platform.anthropic.endpoint", "https://api.anthropic.com")),
     new OpenAIPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.openai.api_key"),    () => new OpenAIStreamReader(),    getEndpoint("ai.platform.openai.endpoint",    "https://api.openai.com")),
     new GeminiPlatform(loggerFactory, fetchFunction, getApiKey("ai.platform.gemini.api_key"),    () => new GeminiStreamReader(),    getEndpoint("ai.platform.gemini.endpoint",    "https://generativelanguage.googleapis.com")),
@@ -79,11 +130,16 @@ import { Configuration, ConfigurationManager } from "./lib/configuration/configu
   // The document manager is responsible for managing documents in the app.
   // It provides an interface for creating, reading, updating, renaming, and deleting documents, as well as tracking which documents are dirty (i.e. have unsaved changes).
   const documentManager = new DocumentManager([], localStorage);
-  documentManager.registerMany([
-    new WebDavDocumentStore(window.location.origin),
-    //new FileSystemDocumentStore(() => navigator.storage.getDirectory()),
-    //new LocalStorageDocumentStore("localStorage"),
-  ]);
+  if (DEMO_MODE) {
+    documentManager.registerMany([
+      new FileSystemDocumentStore(() => navigator.storage.getDirectory()),
+    ]);
+    await seedWelcomeDocument(documentManager);
+  } else {
+    documentManager.registerMany([
+      new WebDavDocumentStore(window.location.origin),
+    ]);
+  }
 
   // The inline completion service provides AI-powered completions for the editor.
   // It is injected with the configuration and platform registry so that it can determine which model to use and how to call the platform's API to get completions.

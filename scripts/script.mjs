@@ -35,6 +35,7 @@ async function copyAllFiles(signal, srcDir, destDir, filter = () => true) {
 }
 
 function getBuildOptions() {
+  const demoMode = process.env["DEMO_MODE"] === "true";
   return {
     absWorkingDir: root,
     entryPoints: ["src/browser/script.ts"],
@@ -47,7 +48,10 @@ function getBuildOptions() {
     target: ["es2022"],
     outfile: "dist/browser/script.js",
     sourcemap: true,
-    logLevel: "info"
+    logLevel: "info",
+    define: {
+      "DEMO_MODE": demoMode ? "true" : "false",
+    },
   };
 }
 
