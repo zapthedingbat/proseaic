@@ -177,6 +177,12 @@ function scoreScenario(scenario, result) {
   page.on("console", msg => {
     if (msg.type() === "error") {
       log(`[browser error] ${msg.text()}`);
+    } else if (msg.type() === "debug") {
+      const text = msg.text();
+      // Capture diagnostic logs about empty/no-tool-call responses
+      if (text.includes("done chunk with no") || text.includes("Serializing assistant") || text.includes("placeholder") || text.includes("Thinking-only turn")) {
+        log(`[browser debug] ${text}`);
+      }
     }
   });
   page.on("pageerror", err => log(`[page error] ${err.message}`));

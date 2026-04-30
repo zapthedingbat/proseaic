@@ -216,7 +216,7 @@ export class OllamaPlatform implements IPlatform {
     });
   }
 
-  private _formatAssistantMessage(message: AssistantChatMessage, _index: number, _array: ChatMessage[]): OllamaAssistantRequestMessage {
+  private _formatAssistantMessage(message: AssistantChatMessage, _index: number, _array: ChatMessage[]): OllamaAssistantRequestMessage | null {
     /* 
     In Ollama’s chat API an assistant message is expected to be either:
     - a tool call message (tool_calls), where content is typically empty or null
@@ -255,10 +255,18 @@ export class OllamaPlatform implements IPlatform {
       }
     });
    
+    if (!contentString) {
+      // Model produced no text and no tool calls (e.g. a thinking-only response).
+      // Returning null causes this message to be filtered out of the Ollama request,
+      // preventing the " " placeholder from poisoning the context and causing the
+      // model to collapse to 1-token responses on subsequent turns.
+      this._logger.debug("Skipping empty assistant message (no content, no tool_calls) from Ollama request. thinking present:", !!message.thinking);
+      return null;
+    }
     return ({
       role: "assistant",
       images: images.length > 0 ? images : undefined,
-      content: contentString || " ",
+      content: contentString,
     });
   }
 
@@ -314,6 +322,10 @@ export class OllamaPlatform implements IPlatform {
     }
 
     if (chunk.done) {
+      const hasActionableContent = events.some(e => e.type === "text_delta" || e.type === "tool_call");
+      if (!hasActionableContent) {
+        this._logger.debug("Received done chunk with no text or tool calls. Raw chunk:", JSON.stringify(chunk));
+      }
       events.push({ type: "done" });
     }
 

@@ -229,8 +229,17 @@ export class ChatSession implements IChatSession {
             }
             case "done":
               this._logger.debug("Assistant finished generating response", assistantMessage);
+              if (isThinking && !assistantMessageTextContent.trim() && !assistantMessage.tool_calls?.length) {
+                this._logger.debug("Thinking-only turn: model generated thinking but no text or tool calls. thinking length:", assistantMessage.thinking?.length ?? 0);
+              }
               await this._history.addMessage(assistantMessage);
-              contextMessages.push(assistantMessage);
+              // Only add to context if the turn produced actionable output. Empty turns
+              // (thinking-only, no text and no tool calls) are filtered from the Ollama
+              // request by the platform adapter anyway — keeping them in contextMessages
+              // would create consecutive user messages when the continuation is injected.
+              if (assistantMessageTextContent.trim() || assistantMessage.tool_calls?.length) {
+                contextMessages.push(assistantMessage);
+              }
               stream._notify(assistantMessage);
               assistantMessage = null;
               this._activeAssistantChatMessage = null;
@@ -257,6 +266,14 @@ export class ChatSession implements IChatSession {
           // task_complete if it has finished, or continue with the next tool if not.
           const continuation = this._agent.buildContinuationPrompt?.();
           if (continuation) {
+            // If the previous context message is already a continuation (user message with no
+            // context parts), replace it rather than stacking another one. This prevents
+            // consecutive user messages in the Ollama request when the model keeps producing
+            // empty turns.
+            const lastCtx = contextMessages[contextMessages.length - 1];
+            if (lastCtx?.role === "user" && (lastCtx as UserChatMessage).content.every(p => p.type === "text")) {
+              contextMessages.pop();
+            }
             const continuationMsg: UserChatMessage = {
               role: "user",
               model: modelIdentifier,

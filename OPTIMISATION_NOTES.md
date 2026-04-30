@@ -320,16 +320,40 @@ These were identified and fixed in `scripts/scenarios.mjs`:
 ### scripts/eval.mjs
 - Fixed argument parsing to support both positional args and `--model`/`--variant` flags via null-sentinel tracking. Previously `--model gemma4:e2b` set `MODEL = "--model"`, causing 500 errors from Ollama (model not found).
 
-### src/browser/lib/chat/chat-session.ts
-- Added auto-complete detection: if model produces an empty response (no text, no tool calls) after a successful edit operation is in the tool result context, the agent loop exits cleanly instead of spinning 10 more continuation turns.
-- Detects edit results by checking `tool_results` messages for `{ ok: true, tool: <edit-tool-name> }` shape.
+### src/browser/lib/chat/chat-session.ts (session 3)
+- Removed auto-complete detection heuristic (per user: simplify — all models with tool capability should inject continuation if no tool call)
+- Continuation prompt now fires whenever no tool calls produced (regardless of what's in tool results context)
+- `done` handler: only push assistant message to `contextMessages` if it has actionable output (text or tool calls). Empty/thinking-only turns go to history but not context — prevents consecutive user messages when a continuation is later injected.
+- Continuation replacement: when the previous context message is already a pure-text user message (a prior continuation), pop it before adding the new one. Prevents continuation stacking that creates malformed consecutive-user-message sequences.
+- Added "thinking-only turn" diagnostic log: when `isThinking` is true but no text/tool_calls produced, logs thinking content length at the `done` event.
 
-### src/browser/agents/writing-assistant.ts (default prompt, this session)
+### src/browser/agents/writing-assistant.ts (session 3)
 - Changed task_complete workflow step to: "Call task_complete after the edit is done. If multiple edits are needed, call task_complete once all are complete."
 - Changed CRITICAL footer to: "After calling an edit tool (insert/replace/remove/move), call task_complete immediately. Do not write text or re-read the document after editing."
 
-### src/browser/tools/insert-document-section.ts (this session)
+### src/browser/tools/insert-document-section.ts (session 3)
 - Updated `instructions`: "After inserting, call task_complete to finish." (sequential style, consistent with replace_document_section's proven pattern)
 
-### src/browser/tools/remove-document-section.ts (this session)
+### src/browser/tools/remove-document-section.ts (session 3)
 - Updated `instructions`: "After removing, call task_complete to finish." (sequential style, consistent with replace_document_section's proven pattern)
+
+### src/browser/platform/ollama/ollama-platform.ts (session 3)
+- `_formatAssistantMessage` now returns `OllamaAssistantRequestMessage | null` — returns `null` for empty messages (no text, no tool calls). Previously returned `content: " "` (a space placeholder), which poisoned the Ollama context and caused subsequent turns to collapse to `eval_count: 1`.
+- Added diagnostic log when done chunk has no actionable content (text or tool calls).
+
+### scripts/eval.mjs (session 3)
+- Widened browser debug log filter to capture "Thinking-only turn" diagnostic messages in addition to existing patterns.
+
+---
+
+## Context poisoning bug (session 3 investigation)
+
+**Symptom**: After fixing the `" "` placeholder, diagnostic logs showed gemma4 producing `eval_count: 424` but `content: ""` with `done_reason: "stop"`. 424 tokens were evaluated but zero content produced.
+
+**Diagnosis**: The model is generating thinking tokens (in intermediate streaming chunks as `message.thinking`) and then deciding not to produce any output — a valid model behavior. Those tokens count toward `eval_count` but produce no `content`. This is NOT a bug in our streaming reader; we correctly capture thinking tokens as `reasoning_delta` events and populate `assistantMessage.thinking`.
+
+**Root cause of the original problem**: When `_formatAssistantMessage` returned `content: " "` for empty messages, those messages were sent back to Ollama in subsequent turn context. Ollama's context window grew with each empty turn (prompt_eval_count increased by ~16 per turn), and the space-prefixed context caused the model to collapse its output to 1 token. This is the "context poisoning" pattern.
+
+**Fix**: Return `null` from `_formatAssistantMessage` for empty messages. The `filter(Boolean)` call in `buildModelInput` removes them from the request. Additionally, the `done` handler in `chat-session.ts` now skips pushing empty turns to `contextMessages`, preventing the consecutive-user-messages problem that would arise when a continuation is later injected.
+
+**Result after fix**: `prompt_eval_count` stays stable at 2312 between turns (instead of growing by 16 per turn). gemma4 evaluates 28–110 tokens per empty turn instead of collapsing to 1. Model still cannot call `task_complete` after `insert_document_section` — that's a model-training limitation, not a context issue.
