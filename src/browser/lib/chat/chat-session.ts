@@ -136,19 +136,32 @@ export class ChatSession implements IChatSession {
         if (modelSchemas.length === 0) {
           promptBuilder.withInstruction("contentBoundary", BOUNDARY_PROMPT_ADDENDUM);
         }
-        // Append a fresh context snapshot to the system prompt so the model always sees current
-        // state (e.g. which document is focused) on every iteration. Putting context in a
-        // separate user message created two consecutive user messages at the start of each turn,
-        // which confused models into commenting on the "strange conversation structure."
-        const toolsContext = this._toolsService.addContext();
-        let systemPrompt = promptBuilder.build();
-        for (const [key, value] of Object.entries(toolsContext)) {
-          systemPrompt += `\n\n<${key}>\n${JSON.stringify(value, null, 2)}\n</${key}>`;
-        }
+        const systemPrompt = promptBuilder.build();
         const systemMessage: SystemChatMessage = { role: "system", model: modelIdentifier, content: [{ type: "text", text: systemPrompt }] };
 
-        // The final message list: system prompt (with context) followed by conversation history.
-        const messagesWithSystem: ChatMessage[] = [systemMessage, ...contextMessages];
+        // Inject a fresh context snapshot as the first user message every iteration so the model
+        // always sees current state (e.g. which document is focused) regardless of what was true
+        // when the original user message was written.
+        const contextContent: ChatMessageContentPart[] = [];
+        const toolsContext = this._toolsService.addContext();
+
+        for (const [key, value] of Object.entries(toolsContext)) {
+          contextContent.push({
+            type: "context",
+            name: key,
+            data: value
+          });
+        }
+
+        const freshContextMessage: UserChatMessage = {
+          role: "user",
+          model: modelIdentifier,
+          content: contextContent
+        };
+
+        // The final message list we feed into the model includes the system prompt with instructions, followed by a fresh context snapshot,
+        // followed by the recent conversation history (including the user's new message).
+        const messagesWithSystem: ChatMessage[] = [systemMessage, freshContextMessage, ...contextMessages];
 
         // Select the relevant platform based on the model details, and use it to convert from our internal message format and user message context into the format expected by the model endpoint.
         // Then send the request to the model endpoint and stream the response, collecting any tool calls that are emitted along the way.
