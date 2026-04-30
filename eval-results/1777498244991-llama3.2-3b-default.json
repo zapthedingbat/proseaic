@@ -1,0 +1,103 @@
+{
+  "runId": "1777498244991-llama3.2-3b-default",
+  "model": "llama3.2:3b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:31:26.199Z",
+  "totalScore": 14,
+  "maxTotal": 16,
+  "pct": 88,
+  "completionRate": 100,
+  "avgIterations": 3,
+  "docAccuracy": 67,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"This is a one-sentence summary of the project.\",\"section_title\":\"Summary\",\"insert_before_section_id\":\"\"})",
+        "task_complete({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis is a one-sentence summary of the project.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 4852,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "replace_document_section({\"section_id\":\"read_document_outline\",\"section_content\":\"This is a technical specification document for a markdown editor. It outlines the features and functionalities of our new markdown editor, including syntax highlighting, formatting options, and collaboration tools.\"})",
+        "task_complete({})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "{\"name\": \"task_complete\", \"{}\"}",
+      "errors": [],
+      "elapsedMs": 3338,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": false
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"action_items\"})",
+        "task_complete({})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "task_complete",
+      "errors": [],
+      "elapsedMs": 2638,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": false
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"- Improve rendering performance by 20%\\\\n- Reduce page load time by 15%\\\\n- Enhance user experience through AI-powered suggestions\",\"section_title\":\"Q1 Goals\"})",
+        "replace_document_section({\"section_id\":\"Q2 Goals\",\"section_content\":\"- Introduce real-time collaboration feature\\\\n- Implement machine learning-based content recommendations\\\\n- Expand mobile app functionality to support offline mode\"})",
+        "task_complete({})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n\n## Q1 Goals\n- Improve rendering performance by 20%\\n- Reduce page load time by 15%\\n- Enhance user experience through AI-powered suggestions",
+      "lastAssistantText": "{\"name\": \"task_complete\",}",
+      "errors": [],
+      "elapsedMs": 3340,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    }
+  ]
+}

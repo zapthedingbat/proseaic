@@ -1,0 +1,105 @@
+{
+  "runId": "1777499116780-llama3.2-3b-default",
+  "model": "llama3.2:3b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:45:57.025Z",
+  "totalScore": 14,
+  "maxTotal": 16,
+  "pct": 88,
+  "completionRate": 100,
+  "avgIterations": 3,
+  "docAccuracy": 100,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_content\":\"This project aims to build a better markdown editor.\",\"section_title\":\"Summary\"})",
+        "task_complete({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis project aims to build a better markdown editor.",
+      "lastAssistantText": "}{\"name\": \"task_complete\", {}}",
+      "errors": [],
+      "elapsedMs": 2287,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "replace_document_section({\"section_id\":\"heading-1\",\"section_content\":\"This is a technical specification document outlining the functionality and features of our markdown editor.\"})",
+        "task_complete({})"
+      ],
+      "iterations": 2,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n## Introduction\nThis is a technical specification document outlining the functionality and features of our markdown editor.\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 2371,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "task_complete({})"
+      ],
+      "iterations": 3,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "There are 4 action items listed in the document, and none of them have been checked off.",
+      "errors": [],
+      "elapsedMs": 2419,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": true
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "llama3.2:3b",
+      "variant": "default",
+      "toolCalls": [
+        "insert_document_section({\"section_title\":\"Q1 Goals Improvements\",\"section_content\":\"* Improve caching mechanisms to reduce database queries\\n* Enhance error handling for better user experience\\n* Optimize API latency by 30%\"})",
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "insert_document_section({\"section_content\":\"* Introduce new feature for real-time collaboration\\n* Enhance user interface with a new dashboard\\n* Implement AI-powered content suggestions\"})",
+        "task_complete({})"
+      ],
+      "iterations": 5,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n\n## Q1 Goals Improvements\n* Improve caching mechanisms to reduce database queries\n* Enhance error handling for better user experience\n* Optimize API latency by 30%",
+      "lastAssistantText": "}{\"name\": \"read_document_outline\", \"}{\"name\": \"replace_document_section\", \"parameters\": {\"section_id\": \"heading-1\", \"section_content\": \"* Introduce new feature to track user engagement metrics\\n* Implement AI-powered chatbot for customer support\\n* Enhance security measures by 25%\"}}{\"name\": \"task_complete\", \"}",
+      "errors": [],
+      "elapsedMs": 4635,
+      "timedOut": false,
+      "score": 2,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    }
+  ]
+}

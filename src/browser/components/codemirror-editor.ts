@@ -432,8 +432,8 @@ export class CodeMirrorEditor extends HTMLElement implements IEditorComponent {
     const sections = splitIntoSections(this.getContent());
     return sections
       .filter(s => s.level > 0)
-      .map((s, i) => ({
-        sectionTitleId: `heading-${i}`,
+      .map(s => ({
+        sectionTitleId: s.id,
         sectionLevel: s.level,
         sectionTitle: s.heading.replace(/^#{1,6}\s+/, "").trim(),
       }));

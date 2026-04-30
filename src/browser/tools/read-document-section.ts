@@ -39,6 +39,14 @@ export class ReadDocumentSectionTool {
       throw new Error("No focused editor is available.");
     }
     const sectionId = args.section_id as string;
+
+    const outline = doc.getOutline();
+    const exists = outline.some(s => s.sectionTitleId === sectionId);
+    if (!exists) {
+      const validIds = outline.map(s => `${s.sectionTitleId} ("${s.sectionTitle}")`).join(", ");
+      throw new Error(`Section '${sectionId}' not found. Call read_document_outline first. Valid IDs: ${validIds}`);
+    }
+
     const sectionContent = doc.getSectionContent(sectionId);
     return {
         section: sectionContent

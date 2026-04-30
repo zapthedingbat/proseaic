@@ -165,7 +165,7 @@ export class ChatSession implements IChatSession {
 
         // Select the relevant platform based on the model details, and use it to convert from our internal message format and user message context into the format expected by the model endpoint.
         // Then send the request to the model endpoint and stream the response, collecting any tool calls that are emitted along the way.
-        const streamEvents = this._platformService.generate(model, messagesWithSystem, modelSchemas);
+        const streamEvents = this._platformService.generate(model, messagesWithSystem, modelSchemas, this._agent.getGenerateOptions?.());
 
         // Normally this should always be null at this point since the assistant should emit a 'done' event when it finishes its response, setting the active message to null.
         // This likely means that the model emitted a new response before emitting a 'done'event for the previous response.
@@ -229,8 +229,17 @@ export class ChatSession implements IChatSession {
             }
             case "done":
               this._logger.debug("Assistant finished generating response", assistantMessage);
+              if (isThinking && !assistantMessageTextContent.trim() && !assistantMessage.tool_calls?.length) {
+                this._logger.debug("Thinking-only turn: model generated thinking but no text or tool calls. thinking length:", assistantMessage.thinking?.length ?? 0);
+              }
               await this._history.addMessage(assistantMessage);
-              contextMessages.push(assistantMessage);
+              // Only add to context if the turn produced actionable output. Empty turns
+              // (thinking-only, no text and no tool calls) are filtered from the Ollama
+              // request by the platform adapter anyway — keeping them in contextMessages
+              // would create consecutive user messages when the continuation is injected.
+              if (assistantMessageTextContent.trim() || assistantMessage.tool_calls?.length) {
+                contextMessages.push(assistantMessage);
+              }
               stream._notify(assistantMessage);
               assistantMessage = null;
               this._activeAssistantChatMessage = null;
@@ -253,15 +262,16 @@ export class ChatSession implements IChatSession {
           }
           continueAgentLoop = false;
         } else if (toolResultsMessages.length === 0) {
-          // Model produced text-only without calling task_complete — prompt it to continue or finish.
+          // Model produced no tool calls. Inject a continuation prompt so it knows to call
+          // task_complete if it has finished, or continue with the next tool if not.
           const continuation = this._agent.buildContinuationPrompt?.();
           if (continuation) {
-            // Drop the text-only assistant turn from the context window. Keeping it causes the model
-            // to treat its prose as "already done" and immediately call task_complete. By removing it
-            // the model sees the last tool result + the continuation prompt and is more likely to
-            // call the intended tools. The message is still in history for the user to see.
-            const lastMsg = contextMessages[contextMessages.length - 1];
-            if (lastMsg?.role === "assistant" && !("tool_calls" in lastMsg && (lastMsg as AssistantChatMessage).tool_calls?.length)) {
+            // If the previous context message is already a continuation (user message with no
+            // context parts), replace it rather than stacking another one. This prevents
+            // consecutive user messages in the Ollama request when the model keeps producing
+            // empty turns.
+            const lastCtx = contextMessages[contextMessages.length - 1];
+            if (lastCtx?.role === "user" && (lastCtx as UserChatMessage).content.every(p => p.type === "text")) {
               contextMessages.pop();
             }
             const continuationMsg: UserChatMessage = {

@@ -6,7 +6,7 @@ import { JSONValue } from "../lib/JSONValue.js";
 
 export const schema: ToolSchema = {
   type: "function",
-  instructions: "Call after confirming the target section ID from read_document_outline.",
+  instructions: "Call after confirming the target section ID from read_document_outline. After removing, call task_complete to finish.",
   function: {
     name: "remove_document_section",
     description: "Remove a section from the current editor document after confirming the section title from read_document_outline.",
@@ -41,11 +41,19 @@ export class RemoveDocumentSectionTool {
     }
     const sectionId = args.section_id as string;
 
+    const outline = doc.getOutline();
+    const target = outline.find(s => s.sectionTitleId === sectionId);
+    if (!target) {
+      const validIds = outline.map(s => `${s.sectionTitleId} ("${s.sectionTitle}")`).join(", ");
+      throw new Error(`Section '${sectionId}' not found. Valid IDs: ${validIds}`);
+    }
+
     doc.removeSection(sectionId);
 
     return {
-      section_id: sectionId,
-      removed: true
+      removed: true,
+      removed_title: target.sectionTitle,
+      next_step: "Section updated successfully. Call task_complete now to finish."
     };
   };
 }

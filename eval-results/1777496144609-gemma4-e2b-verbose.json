@@ -1,0 +1,109 @@
+{
+  "runId": "1777496144609-gemma4-e2b-verbose",
+  "model": "gemma4:e2b",
+  "variant": "verbose",
+  "timestamp": "2026-04-29T20:57:04.356Z",
+  "totalScore": 11,
+  "maxTotal": 16,
+  "pct": 69,
+  "completionRate": 75,
+  "avgIterations": 6.5,
+  "docAccuracy": 100,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "gemma4:e2b",
+      "variant": "verbose",
+      "toolCalls": [
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-0\"})",
+        "insert_document_section({\"section_content\":\"This document outlines the overview, introduction, and goals for the project.\",\"section_title\":\"Summary\"})"
+      ],
+      "iterations": 10,
+      "taskCompleted": false,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis document outlines the overview, introduction, and goals for the project.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 19348,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "gemma4:e2b",
+      "variant": "verbose",
+      "toolCalls": [
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "replace_document_section({\"section_id\":\"heading-1\",\"section_content\":\"This document serves as the technical specification for the markdown editor. It details the requirements, architecture, and design for the system.\"})",
+        "task_complete({\"summary\":\"Rewrote the Introduction section to be a two-sentence introduction explaining the document's purpose.\"})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n## Introduction\nThis document serves as the technical specification for the markdown editor. It details the requirements, architecture, and design for the system.\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 8536,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "gemma4:e2b",
+      "variant": "verbose",
+      "toolCalls": [
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "task_complete({\"summary\":\"Counted unchecked action items in the document.\"})"
+      ],
+      "iterations": 8,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "There are 4 unchecked action items listed in the document.",
+      "errors": [],
+      "elapsedMs": 17037,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": true
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "gemma4:e2b",
+      "variant": "verbose",
+      "toolCalls": [
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "insert_document_section({\"insert_before_section_id\":\"heading-1\",\"section_content\":\"* Improve API response time by 20%\\n* Optimize database queries for faster data retrieval\\n* Reduce latency in the user interface by 15%\",\"section_title\":\"Q1 Goals\"})",
+        "insert_document_section({\"insert_before_section_id\":\"heading-2\",\"section_content\":\"* Implement real-time analytics dashboard\\n* Introduce user profile customization options\\n* Develop a new notification system\",\"section_title\":\"Q2 Goals\"})",
+        "task_complete({\"summary\":\"Filled the Q1 Goals section with three performance improvement bullet points and the Q2 Goals section with three new feature bullet points.\"})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n* Improve API response time by 20%\n* Optimize database queries for faster data retrieval\n* Reduce latency in the user interface by 15%\n## Q2 Goals\n* Implement real-time analytics dashboard\n* Introduce user profile customization options\n* Develop a new notification system\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 10407,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "runId": "1777496769164-gemma4-e2b-default",
+  "model": "gemma4:e2b",
+  "variant": "default",
+  "timestamp": "2026-04-29T21:07:33.420Z",
+  "totalScore": 11,
+  "maxTotal": 16,
+  "pct": 69,
+  "completionRate": 75,
+  "avgIterations": 7.5,
+  "docAccuracy": 100,
+  "scenarios": [
+    {
+      "scenarioId": "add-section",
+      "scenarioName": "Add a new section",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "open_document({\"id\":\"/webdav/eval-test-1777496769164.md\"})",
+        "read_document_outline({})",
+        "insert_document_section({\"insert_before_section_id\":null,\"section_content\":\"This project is an evaluation test for a specific set of criteria.\",\"section_title\":\"Summary\"})"
+      ],
+      "iterations": 10,
+      "taskCompleted": false,
+      "docBefore": "# Project Overview\n\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n",
+      "docAfter": "# Project Overview\n## Introduction\n\nThis project aims to build a better markdown editor.\n\n## Goals\n\n- Ship version 1 by Q3\n- Achieve 100 daily active users\n- Support three AI providers\n\n## Summary\nThis project is an evaluation test for a specific set of criteria.",
+      "lastAssistantText": "Please provide the one-sentence summary you would like to add to the \"Summary\" section.",
+      "errors": [],
+      "elapsedMs": 21227,
+      "timedOut": false,
+      "score": 1,
+      "maxScore": 4,
+      "requiredToolsUsed": false,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "edit-section",
+      "scenarioName": "Rewrite an existing section",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "replace_document_section({\"section_content\":\"This document serves as the technical specification for the markdown editor. It details the design, architecture, and implementation details of the system.\",\"section_id\":\"heading-1\"})",
+        "task_complete({\"summary\":\"Rewrote the Introduction section to be a two-sentence technical specification introduction.\"})"
+      ],
+      "iterations": 4,
+      "taskCompleted": true,
+      "docBefore": "# Technical Spec\n\n## Introduction\n\nBad.\n\n## Architecture\n\nThe system uses three layers.\n",
+      "docAfter": "# Technical Spec\n## Introduction\nThis document serves as the technical specification for the markdown editor. It details the design, architecture, and implementation details of the system.\n## Architecture\n\nThe system uses three layers.\n",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 8384,
+      "timedOut": false,
+      "score": 4,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    },
+    {
+      "scenarioId": "answer-question",
+      "scenarioName": "Answer a question about the document",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "open_document({\"id\":\"/webdav/eval-test-1777496769164.md\"})",
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "task_complete({\"summary\":\"Counted the number of unchecked action items in the document. There are 4 unchecked action items listed.\"})"
+      ],
+      "iterations": 9,
+      "taskCompleted": true,
+      "docBefore": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "docAfter": "# Meeting Notes\n\n## Action Items\n\n- [ ] Send the proposal to the client\n- [ ] Schedule a follow-up call\n- [ ] Update the project timeline\n- [ ] Review the design mockups\n",
+      "lastAssistantText": "There are 4 unchecked action items listed in the document.",
+      "errors": [],
+      "elapsedMs": 14570,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "replyScoreOk": true
+    },
+    {
+      "scenarioId": "multi-section-fill",
+      "scenarioName": "Fill multiple empty sections",
+      "model": "gemma4:e2b",
+      "variant": "default",
+      "toolCalls": [
+        "open_document({\"id\":\"/webdav/eval-test-1777496769164.md\"})",
+        "read_document_outline({})",
+        "read_document_section({\"section_id\":\"heading-1\"})",
+        "replace_document_section({\"section_content\":\"* Improve system response time by 20%.\\n* Optimize database queries for faster data retrieval.\\n* Refactor critical code paths for better efficiency.\",\"section_id\":\"heading-1\"})",
+        "read_document_section({\"section_id\":\"heading-2\"})",
+        "replace_document_section({\"section_content\":\"* Implement real-time analytics dashboard.\\n* Introduce user profile customization options.\\n* Develop and integrate a new notification system.\",\"section_id\":\"heading-2\"})",
+        "task_complete({\"summary\":\"Filled in the Q1 Goals and Q2 Goals sections with the requested bullet points.\"})"
+      ],
+      "iterations": 7,
+      "taskCompleted": true,
+      "docBefore": "# Product Roadmap\n\n## Q1 Goals\n\n\n\n## Q2 Goals\n\n\n",
+      "docAfter": "# Product Roadmap\n## Q1 Goals\n* Improve system response time by 20%.\n* Optimize database queries for faster data retrieval.\n* Refactor critical code paths for better efficiency.\n## Q2 Goals\n* Implement real-time analytics dashboard.\n* Introduce user profile customization options.\n* Develop and integrate a new notification system.",
+      "lastAssistantText": "",
+      "errors": [],
+      "elapsedMs": 14224,
+      "timedOut": false,
+      "score": 3,
+      "maxScore": 4,
+      "requiredToolsUsed": true,
+      "docScoreOk": true
+    }
+  ]
+}
