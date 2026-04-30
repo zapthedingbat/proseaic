@@ -157,6 +157,7 @@ function scoreScenario(scenario, result) {
   await context.addInitScript(`window.__promptVariant = ${JSON.stringify(VARIANT)};`);
 
   const page = await context.newPage();
+  page.setDefaultTimeout(CHAT_TIMEOUT);
 
   page.on("console", msg => {
     if (msg.type() === "error") {

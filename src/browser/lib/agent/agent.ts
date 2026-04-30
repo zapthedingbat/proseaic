@@ -1,4 +1,5 @@
 import { ToolSchema } from "../tools/tool-schema.js";
+import { PlatformGenerateOptions } from "../platform/platform-registry.js";
 
 export interface Agent {
   readonly id: string;
@@ -8,4 +9,6 @@ export interface Agent {
   // Optional: when the model produces a text-only response (no tool calls), the loop
   // injects this prompt and continues. If absent or null, a text-only turn ends the loop.
   buildContinuationPrompt?(): string | null;
+  // Optional: extra options forwarded to each generate() call.
+  getGenerateOptions?(): PlatformGenerateOptions;
 }

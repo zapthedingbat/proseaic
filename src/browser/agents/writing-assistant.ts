@@ -227,4 +227,5 @@ IMPORTANT:
   buildContinuationPrompt(): string {
     return "Call task_complete now.";
   }
+
 }

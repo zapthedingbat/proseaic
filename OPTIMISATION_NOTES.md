@@ -79,7 +79,8 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 |-------|-------|-------|
 | llama3.2:3b / default | 19/20 (95%) | Stable; answer-question 3/4 (3B reasoning limit) |
 | gemma4:e2b / default | 17/20 (85%) | add-section 1/4 (stochastic task_complete after insert) |
-| qwen3.5:0.8b / default | 18/20 (90%) | Surprising — 1/5th the size of llama3.2:3b, nearly same score |
+| qwen3.5:0.8b / default | 16–18/20 (80–90%) | High variance — answer-question sometimes modifies doc instead; multi-section-fill fails stochastically |
+| llama3.2:1b / default | 5/20 (25%) | Not viable — generates 280k tokens per response (infinite generation) |
 
 **llama3.2:3b per-scenario** (typical run, e.g. `1777502116181`):
 | Scenario | Score | Iterations | Notes |
@@ -179,7 +180,20 @@ Note: qwen3.5:0.8b puts the answer in `task_complete({ summary: "..." })` rather
 ### qwen3.5:0.8b -- excess iterations on multi-step scenarios
 - **Symptom**: answer-question and multi-section-fill consistently take 5–6 iterations (>4 limit), losing the efficiency point. Simple scenarios (add/edit/remove) complete in 2–4 iters.
 - **Root cause**: On multi-section-fill, qwen3.5:0.8b tries `insert_document_section` first (despite the context note), hits the existence-check error, then retries with `replace_document_section`. This insert-error-recover cycle adds 2–3 iterations. On answer-question, the model makes 2 read calls (outline + section) plus 2 more tool interactions before answering.
-- **Status**: Unresolved. The insert-redirect error recovery works correctly (correct final answer), but the extra iterations prevent the efficiency point.
+- **Status**: Partially resolved via `think: false` (see below). With thinking enabled, the model enters empty-response loops. With `think: false`, multi-section-fill drops to 3 iterations. However, `think: false` also introduces stochastic answer-question failures where the model modifies the document instead of just answering. Net effect: ~17-19/20 either way.
+
+### Thinking mode (think: true vs think: false) — mixed results across models
+- **Discovery**: Both qwen3.5:0.8b and gemma4:e2b report 'thinking' in their Ollama capabilities, so they receive `think: true` by default.
+- **Effect on qwen3.5:0.8b with think: false**: Eliminates empty-response loops. Multi-section-fill drops from 6 to 3 iterations. Average score ~19/20. However, answer-question sometimes fails by modifying the document instead of answering (new failure mode).
+- **Effect on gemma4:e2b with think: false**: Breaks `task_complete` batching for remove-section (same pattern as add-section failure). Score drops from 17/20 to 14/20 consistently. Thinking was helping the model include task_complete in the same batch for remove-section.
+- **Conclusion**: `think: false` is not a net improvement — it helps qwen3.5:0.8b (~17→19/20) but hurts gemma4:e2b (~17→14/20). Reverted.
+- **Infrastructure kept**: Added `getGenerateOptions()` to Agent interface and wired it through ChatSession for future per-model-or-per-agent configuration.
+
+### llama3.2:1b -- not viable (infinite generation)
+- **Symptom**: All scenarios timeout. 1 iteration, no tool calls, no text.
+- **Root cause**: With 1B parameters and the full writing assistant system prompt (~200+ tokens of tools + context), the model generates 280,000+ tokens of hallucinated text in a single response. The generation never completes within the 2-minute eval timeout.
+- **Note**: This is NOT a timeout configuration issue — the problem was confirmed at 30s AND 120s timeouts. The model simply cannot handle structured tool call schemas at this parameter count.
+- **eval.mjs fix**: Fixed `waitForFunction` ignoring explicit timeout — Playwright 1.59.1 uses the page's default timeout (30s) instead of the `{ timeout }` option. Fixed with `page.setDefaultTimeout(CHAT_TIMEOUT)` after page creation.
 
 ### llama3.2:3b -- stochastic behavior
 - **Symptom**: Score varies between 88-100% across runs. Failures are:

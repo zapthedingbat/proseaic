@@ -165,7 +165,7 @@ export class ChatSession implements IChatSession {
 
         // Select the relevant platform based on the model details, and use it to convert from our internal message format and user message context into the format expected by the model endpoint.
         // Then send the request to the model endpoint and stream the response, collecting any tool calls that are emitted along the way.
-        const streamEvents = this._platformService.generate(model, messagesWithSystem, modelSchemas);
+        const streamEvents = this._platformService.generate(model, messagesWithSystem, modelSchemas, this._agent.getGenerateOptions?.());
 
         // Normally this should always be null at this point since the assistant should emit a 'done' event when it finishes its response, setting the active message to null.
         // This likely means that the model emitted a new response before emitting a 'done'event for the previous response.
