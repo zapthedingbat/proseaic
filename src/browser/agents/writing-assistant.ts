@@ -227,7 +227,7 @@ IMPORTANT:
   // ── Continuation prompt ───────────────────────────────────────────────────
 
   buildContinuationPrompt(): string {
-    return "Call task_complete now.";
+    return "If you have finished, call the task_complete tool. Otherwise, please continue.";
   }
 
 }
