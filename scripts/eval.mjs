@@ -19,8 +19,23 @@ import { writeFileSync, mkdirSync } from "fs";
 import { SCENARIOS } from "./scenarios.mjs";
 
 const BASE_URL = "http://localhost:3001";
-const MODEL = process.argv[2] || "gemma4:e2b";
-const VARIANT = process.argv[3] || "default";
+
+// Support both positional args and --model / --variant flags
+let _model = null;
+let _variant = null;
+{
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--model" && args[i + 1]) { _model = args[++i]; }
+    else if (args[i] === "--variant" && args[i + 1]) { _variant = args[++i]; }
+    else if (!args[i].startsWith("--")) {
+      if (_model === null) _model = args[i];
+      else if (_variant === null) _variant = args[i];
+    }
+  }
+}
+const MODEL = _model ?? "gemma4:e2b";
+const VARIANT = _variant ?? "default";
 const CHAT_TIMEOUT = 120_000;
 const DOC_NAME = `eval-test-${Date.now()}.md`;
 const DOC_URL = `${BASE_URL}/documents/${DOC_NAME}`;

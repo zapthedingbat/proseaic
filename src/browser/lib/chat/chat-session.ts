@@ -253,26 +253,50 @@ export class ChatSession implements IChatSession {
           }
           continueAgentLoop = false;
         } else if (toolResultsMessages.length === 0) {
-          // Model produced text-only without calling task_complete — prompt it to continue or finish.
-          const continuation = this._agent.buildContinuationPrompt?.();
-          if (continuation) {
-            // Drop the text-only assistant turn from the context window. Keeping it causes the model
-            // to treat its prose as "already done" and immediately call task_complete. By removing it
-            // the model sees the last tool result + the continuation prompt and is more likely to
-            // call the intended tools. The message is still in history for the user to see.
-            const lastMsg = contextMessages[contextMessages.length - 1];
-            if (lastMsg?.role === "assistant" && !("tool_calls" in lastMsg && (lastMsg as AssistantChatMessage).tool_calls?.length)) {
-              contextMessages.pop();
-            }
-            const continuationMsg: UserChatMessage = {
-              role: "user",
-              model: modelIdentifier,
-              content: [{ type: "text", text: continuation }]
-            };
-            await this._history.addMessage(continuationMsg);
-            contextMessages.push(continuationMsg);
-          } else {
+          // Model produced no tool calls. Check if this is the empty-response-after-edit pattern:
+          // some models (e.g. gemma4:e2b) correctly call the edit tool but then produce an empty
+          // response when they should call task_complete — their thinking says "call task_complete"
+          // but the structured tool call never materialises. Injecting more continuation prompts
+          // doesn't help because the model repeats the empty response. Instead, auto-complete.
+          const EDIT_TOOL_NAMES = new Set(["insert_document_section", "replace_document_section", "remove_document_section", "move_document_section"]);
+          const hasRecentEditResult = contextMessages.some(msg => {
+            if (msg.role !== "tool") return false;
+            try {
+              const part = (msg as ToolChatMessage).content[0];
+              const text = part.type === "text" ? part.text : null;
+              if (!text) return false;
+              const parsed = JSON.parse(text);
+              return parsed.ok && EDIT_TOOL_NAMES.has(parsed.tool);
+            } catch { return false; }
+          });
+          const isEmptyResponse = assistantMessageTextContent.trim() === "";
+
+          if (isEmptyResponse && hasRecentEditResult) {
+            // Model already performed the edit but cannot emit task_complete. Treat as complete.
+            this._logger.debug("Auto-completing: empty response after edit tool, assuming task is done.");
             continueAgentLoop = false;
+          } else {
+            // Model produced text-only without calling task_complete — prompt it to continue or finish.
+            const continuation = this._agent.buildContinuationPrompt?.();
+            if (continuation) {
+              // Drop the text-only assistant turn from the context window. Keeping it causes the model
+              // to treat its prose as "already done" and immediately call task_complete. By removing it
+              // the model sees the last tool result + the continuation prompt and is more likely to
+              // call the intended tools. The message is still in history for the user to see.
+              const lastMsg = contextMessages[contextMessages.length - 1];
+              if (lastMsg?.role === "assistant" && !("tool_calls" in lastMsg && (lastMsg as AssistantChatMessage).tool_calls?.length)) {
+                contextMessages.pop();
+              }
+              const continuationMsg: UserChatMessage = {
+                role: "user",
+                model: modelIdentifier,
+                content: [{ type: "text", text: continuation }]
+              };
+              await this._history.addMessage(continuationMsg);
+              contextMessages.push(continuationMsg);
+            } else {
+              continueAgentLoop = false;
+            }
           }
         } else {
           // Feed tool results back for the next turn. If task_complete was not called, the model

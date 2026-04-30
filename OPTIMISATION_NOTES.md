@@ -42,7 +42,7 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 | `qwen3.5:0.8b` | 1GB | 90% — correct answers, too many iterations on multi-step |
 | `llama3.2:1b` | 1GB | Not yet tested |
 | `llama3.2:3b` | 2GB | Best overall performer |
-| `phi4-mini:3.8b` | 2GB | Never produces tool calls (0%) |
+| `phi4-mini:3.8b` | 2GB | 0% — outputs tool calls as raw text, not structured tool_calls |
 | `gemma4:e2b` | 7GB | Medium, reliable for replace/Q&A, broken for add-section |
 | `gpt-oss:20b` | 14GB | Medium-large, tested once |
 | `qwen3.6:35b` | 24GB | Crashes server after 1st scenario (OOM) |
@@ -81,6 +81,24 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 | gemma4:e2b / default | 17/20 (85%) | add-section 1/4 (stochastic task_complete after insert) |
 | qwen3.5:0.8b / default | 16–18/20 (80–90%) | High variance — answer-question sometimes modifies doc instead; multi-section-fill fails stochastically |
 | llama3.2:1b / default | 5/20 (25%) | Not viable — generates 280k tokens per response (infinite generation) |
+
+### After "same batch" prompt + auto-complete fix
+
+**Changes**: (a) System prompt updated to say task_complete must be called "IN THE SAME function call batch as the edit tool — not in a later turn"; (b) Tool `instructions` in insert/remove changed from "call immediately after" to "call both simultaneously, not sequentially"; (c) Added auto-complete detection to `chat-session.ts` — if model produces empty response after a successful edit, the loop exits cleanly without looping 10 times.
+
+| Model | Score | Notes |
+|-------|-------|-------|
+| gemma4:e2b / default | 18/20 (90%) | Up from 17%. remove-section fixed (now batches task_complete). add-section still 2/4 |
+| qwen3.5:0.8b / default | 18/20 (90%) | Stable |
+
+**gemma4:e2b per-scenario** (representative run `1777509475965`):
+| Scenario | Score | Iterations | Notes |
+|----------|-------|------------|-------|
+| add-section | 2/4 | 2 | Doc correct, auto-complete fires, no task_complete scored |
+| edit-section | 4/4 | 2 | replace + task_complete in same batch |
+| answer-question | 4/4 | 3 | Reads section, answers correctly |
+| multi-section-fill | 4/4 | 1 | All 3 tools in single batch (excellent) |
+| remove-section | 4/4 | 2 | remove + task_complete in same batch (fixed) |
 
 **llama3.2:3b per-scenario** (typical run, e.g. `1777502116181`):
 | Scenario | Score | Iterations | Notes |
@@ -160,17 +178,19 @@ Note: qwen3.5:0.8b puts the answer in `task_complete({ summary: "..." })` rather
 
 ## Known failure patterns
 
-### gemma4:e2b -- add-section never calls task_complete (unresolved)
-- **Symptom**: After `insert_document_section` succeeds, model generates empty/whitespace responses for 10 iterations without calling `task_complete`. Stochastic (~2/3 failure rate). Scores 1/4 on add-section.
-- **Root cause**: When gemma4 includes task_complete in the SAME Ollama batch as insert, it works (score 4/4 in ~1/3 runs). When it doesn't include it in the batch, it never recovers — the continuation prompt fires 9 more times and is ignored.
-- **Attempted fixes** (none consistently worked):
+### gemma4:e2b -- add-section never calls task_complete (partially resolved)
+- **Symptom**: After `insert_document_section` succeeds, model generates empty responses (96+ tokens, `eval_count > 0`, but `content=''`, `tool_calls=[]`, `thinking=''`). Previously this caused 10-iteration loops. Stochastic (~2/3 failure rate). Scores 2/4 (doc correct, auto-complete exits, but no task_complete).
+- **Root cause**: When gemma4 includes task_complete in the SAME Ollama batch as insert, it works (score 4/4). When it doesn't batch them together, the model produces empty responses on the continuation turn — reasoning says "call task_complete" but generates nothing. The insert result updates the `focused_document` context to show the newly-inserted section as existing, which appears to confuse the model's follow-up generation.
+- **Attempted fixes** (none fully resolved):
   - Various `next_step` phrasings in insert response
   - `required_next_action: "task_complete"` field (caused remove-section to take 9 iters)
   - Matching insert response format to replace response: `{ inserted: true, next_step: "Section updated successfully..." }`
-  - "Include task_complete in the SAME response" instruction in system prompt
+  - "Include task_complete in the SAME response" instruction in system prompt (→ fixed remove-section, not add-section)
   - Short continuation prompt: "Call task_complete now." vs "task_complete()"
   - Keeping text turn in context vs dropping it (keeping broke llama3.2 answer-question from 3→0/4)
-- **Pattern**: gemma4 reliably calls task_complete after `replace_document_section` but not consistently after `insert_document_section`. The difference appears to be at sampling time: replace+task_complete are batched together, insert+task_complete sometimes are not.
+- **Mitigation**: Auto-complete in `chat-session.ts` now detects empty response after edit result and exits cleanly (loop doesn't spin 10 times). Score improved from 1/4 to 2/4.
+- **Why remove-section works but insert doesn't**: After remove, the focused_document context shrinks (section gone). After insert, context expands with a new section marked as existing. The "replace vs insert" selection rule in the prompt may be confusing the model when it sees the new section in context on the follow-up turn.
+- **Pattern**: gemma4 reliably batches task_complete with replace/remove but not consistently with insert. Hypothesis: insert response updates context in a way that consumes the model's "reply slot", leaving nothing for task_complete.
 
 ### gemma4:e2b -- multi-section-fill uses insert instead of replace (resolved with context note)
 - **Original symptom**: Even with explicit prompt guidance, gemma4 used `insert` for existing sections (creating duplicates).
@@ -188,6 +208,12 @@ Note: qwen3.5:0.8b puts the answer in `task_complete({ summary: "..." })` rather
 - **Effect on gemma4:e2b with think: false**: Breaks `task_complete` batching for remove-section (same pattern as add-section failure). Score drops from 17/20 to 14/20 consistently. Thinking was helping the model include task_complete in the same batch for remove-section.
 - **Conclusion**: `think: false` is not a net improvement — it helps qwen3.5:0.8b (~17→19/20) but hurts gemma4:e2b (~17→14/20). Reverted.
 - **Infrastructure kept**: Added `getGenerateOptions()` to Agent interface and wired it through ChatSession for future per-model-or-per-agent configuration.
+
+### phi4-mini:3.8b -- text-format tool calls (not viable)
+- **Symptom**: All scenarios fail with 0 structured tool calls. Score 0%.
+- **Root cause**: Model outputs tool calls as raw text content instead of structured `tool_calls` array. Example response content: `remove_document_section({"section_id":"heading-2"})\ntask_complete()` as plain text. Ollama's chat API may not be correctly formatting the tool-calling prompt template for this model family.
+- **Tested variants**: default, ultra-minimal. Neither produced structured `tool_calls`.
+- **Not viable** without a text-to-structured-tool-call parser. Current architecture requires `response.message.tool_calls` to be populated.
 
 ### llama3.2:1b -- not viable (infinite generation)
 - **Symptom**: All scenarios timeout. 1 iteration, no tool calls, no text.
@@ -286,3 +312,20 @@ These were identified and fixed in `scripts/scenarios.mjs`:
 - Added `extractSection()` helper for accurate section content extraction (avoids regex overshoot bug)
 - Fixed `multi-section-fill` scorer to use `extractSection()`
 - Fixed `answer-question` scorer to require "4" not contradicted by a different unchecked count
+
+### scripts/eval.mjs
+- Fixed argument parsing to support both positional args and `--model`/`--variant` flags via null-sentinel tracking. Previously `--model gemma4:e2b` set `MODEL = "--model"`, causing 500 errors from Ollama (model not found).
+
+### src/browser/lib/chat/chat-session.ts
+- Added auto-complete detection: if model produces an empty response (no text, no tool calls) after a successful edit operation is in the tool result context, the agent loop exits cleanly instead of spinning 10 more continuation turns.
+- Detects edit results by checking `tool_results` messages for `{ ok: true, tool: <edit-tool-name> }` shape.
+
+### src/browser/agents/writing-assistant.ts (default prompt, this session)
+- Changed task_complete workflow step to: "Call task_complete IN THE SAME function call batch as the edit tool — not in a later turn."
+- Changed CRITICAL footer to emphasize simultaneous batching: "Include task_complete as a simultaneous function call alongside insert/replace/remove/move. Never make an edit call without also including task_complete in that same call list."
+
+### src/browser/tools/insert-document-section.ts (this session)
+- Updated `instructions`: "ALWAYS include task_complete in the SAME function call list as this tool — call both simultaneously, not sequentially."
+
+### src/browser/tools/remove-document-section.ts (this session)
+- Updated `instructions`: "ALWAYS include task_complete in the SAME function call list as this tool — call both simultaneously, not sequentially."
