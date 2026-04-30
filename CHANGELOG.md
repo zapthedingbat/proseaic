@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/zapthedingbat/proseaic/compare/v1.2.0...v1.2.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* create document crash and add smoke tests to CI ([#45](https://github.com/zapthedingbat/proseaic/issues/45)) ([1777c27](https://github.com/zapthedingbat/proseaic/commit/1777c27f598be11105898dba48d8b8b653afda52))
+
 ## [1.2.0](https://github.com/zapthedingbat/proseaic/compare/v1.1.0...v1.2.0) (2026-04-29)
 
 
