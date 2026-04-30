@@ -82,23 +82,26 @@ Running log of findings from automated evaluation of the ProseAI writing assista
 | qwen3.5:0.8b / default | 16–18/20 (80–90%) | High variance — answer-question sometimes modifies doc instead; multi-section-fill fails stochastically |
 | llama3.2:1b / default | 5/20 (25%) | Not viable — generates 280k tokens per response (infinite generation) |
 
-### After "same batch" prompt + auto-complete fix
+### After auto-complete fix + balanced focused_document note
 
-**Changes**: (a) System prompt updated to say task_complete must be called "IN THE SAME function call batch as the edit tool — not in a later turn"; (b) Tool `instructions` in insert/remove changed from "call immediately after" to "call both simultaneously, not sequentially"; (c) Added auto-complete detection to `chat-session.ts` — if model produces empty response after a successful edit, the loop exits cleanly without looping 10 times.
+**Changes**: (a) Auto-complete detection added to `chat-session.ts` — if model produces empty response after a successful edit, loop exits cleanly instead of spinning 10 times; (b) `focused_document` note reworded to mention update/delete/insert equally (previously "use replace to edit or fill any of them" was causing qwen3.5 to replace instead of remove in remove-section tasks); (c) System prompt task_complete step softened to "After calling an edit tool, call task_complete immediately" (sequential language consistent with replace tool's proven pattern).
 
-| Model | Score | Notes |
-|-------|-------|-------|
-| gemma4:e2b / default | 18/20 (90%) | Up from 17%. remove-section fixed (now batches task_complete). add-section still 2/4 |
-| qwen3.5:0.8b / default | 18/20 (90%) | Stable |
+**Instruction wording experiment**: Changed insert/remove instructions to "simultaneously, not sequentially" (vs replace's "after replacing…"), then reverted back. No consistent improvement — gemma4's batching behavior is training-determined, not prompt-controlled.
 
-**gemma4:e2b per-scenario** (representative run `1777509475965`):
+| Model | Score (avg) | Range | Notes |
+|-------|------------|-------|-------|
+| gemma4:e2b / default | ~17/20 | 16–18 | Stochastic: remove-section sometimes 4/4, sometimes 2/4. add-section consistently 2/4 |
+| qwen3.5:0.8b / default | 18/20 | 17–18 | Stable; multi-section-fill 3/4 (excess iters), answer-question stochastic 2–3/4 |
+| llama3.2:3b / default | ~18/20 | 17–19 | Stable; answer-question 2–3/4 (reasoning limit), stochastic multi-section-fill |
+
+**gemma4:e2b per-scenario** (stable pattern, e.g. `1777509475965`):
 | Scenario | Score | Iterations | Notes |
 |----------|-------|------------|-------|
 | add-section | 2/4 | 2 | Doc correct, auto-complete fires, no task_complete scored |
-| edit-section | 4/4 | 2 | replace + task_complete in same batch |
+| edit-section | 4/4 | 2 | replace + task_complete in same batch — always reliable |
 | answer-question | 4/4 | 3 | Reads section, answers correctly |
 | multi-section-fill | 4/4 | 1 | All 3 tools in single batch (excellent) |
-| remove-section | 4/4 | 2 | remove + task_complete in same batch (fixed) |
+| remove-section | 2–4/4 | 2 | Stochastic: sometimes batches task_complete, sometimes not |
 
 **llama3.2:3b per-scenario** (typical run, e.g. `1777502116181`):
 | Scenario | Score | Iterations | Notes |
@@ -189,8 +192,8 @@ Note: qwen3.5:0.8b puts the answer in `task_complete({ summary: "..." })` rather
   - Short continuation prompt: "Call task_complete now." vs "task_complete()"
   - Keeping text turn in context vs dropping it (keeping broke llama3.2 answer-question from 3→0/4)
 - **Mitigation**: Auto-complete in `chat-session.ts` now detects empty response after edit result and exits cleanly (loop doesn't spin 10 times). Score improved from 1/4 to 2/4.
-- **Why remove-section works but insert doesn't**: After remove, the focused_document context shrinks (section gone). After insert, context expands with a new section marked as existing. The "replace vs insert" selection rule in the prompt may be confusing the model when it sees the new section in context on the follow-up turn.
-- **Pattern**: gemma4 reliably batches task_complete with replace/remove but not consistently with insert. Hypothesis: insert response updates context in a way that consumes the model's "reply slot", leaving nothing for task_complete.
+- **Pattern**: gemma4 reliably batches task_complete with `replace_document_section` (always 4/4) but not with `insert_document_section` or `remove_document_section`. Likely model training bias — training data had more "replace + complete" examples than "remove + complete" or "insert + complete" patterns.
+- **Instruction wording is not the cause**: Tried both "simultaneously" and "after X, call task_complete immediately" — no consistent difference. The batching decision is made at sampling time, not guided by prompt language.
 
 ### gemma4:e2b -- multi-section-fill uses insert instead of replace (resolved with context note)
 - **Original symptom**: Even with explicit prompt guidance, gemma4 used `insert` for existing sections (creating duplicates).
@@ -306,6 +309,7 @@ These were identified and fixed in `scripts/scenarios.mjs`:
 
 ### src/browser/tools/read-document-outline.ts
 - Restructured `focused_document` context to include a `note` field at the top level instructing models to use replace for existing sections and insert only for new ones
+- Updated note to be operation-balanced: "To update or fill a section, use replace_document_section. To delete a section, use remove_document_section. To add a brand-new section NOT listed here, use insert_document_section." (Fixes qwen3.5:0.8b using replace instead of remove in remove-section tasks)
 
 ### scripts/scenarios.mjs
 - Added `remove-section` scenario: removes "Draft Notes" section, verifies Timeline still present
@@ -321,11 +325,11 @@ These were identified and fixed in `scripts/scenarios.mjs`:
 - Detects edit results by checking `tool_results` messages for `{ ok: true, tool: <edit-tool-name> }` shape.
 
 ### src/browser/agents/writing-assistant.ts (default prompt, this session)
-- Changed task_complete workflow step to: "Call task_complete IN THE SAME function call batch as the edit tool — not in a later turn."
-- Changed CRITICAL footer to emphasize simultaneous batching: "Include task_complete as a simultaneous function call alongside insert/replace/remove/move. Never make an edit call without also including task_complete in that same call list."
+- Changed task_complete workflow step to: "Call task_complete after the edit is done. If multiple edits are needed, call task_complete once all are complete."
+- Changed CRITICAL footer to: "After calling an edit tool (insert/replace/remove/move), call task_complete immediately. Do not write text or re-read the document after editing."
 
 ### src/browser/tools/insert-document-section.ts (this session)
-- Updated `instructions`: "ALWAYS include task_complete in the SAME function call list as this tool — call both simultaneously, not sequentially."
+- Updated `instructions`: "After inserting, call task_complete to finish." (sequential style, consistent with replace_document_section's proven pattern)
 
 ### src/browser/tools/remove-document-section.ts (this session)
-- Updated `instructions`: "ALWAYS include task_complete in the SAME function call list as this tool — call both simultaneously, not sequentially."
+- Updated `instructions`: "After removing, call task_complete to finish." (sequential style, consistent with replace_document_section's proven pattern)

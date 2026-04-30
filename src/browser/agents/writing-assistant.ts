@@ -80,7 +80,7 @@ export class WritingAssistant implements Agent {
       workflowSteps.push(`- Call the appropriate edit tool (${editTools.join(", ")}) to make the change.`);
     }
     if (has("task_complete") && editTools.length > 0) {
-      workflowSteps.push(`- Call task_complete IN THE SAME function call batch as the edit tool — not in a later turn.`);
+      workflowSteps.push(`- Call task_complete after the edit is done. If multiple edits are needed, call task_complete once all are complete.`);
     } else if (has("task_complete")) {
       workflowSteps.push(`- Call task_complete when all changes are done.`);
     }
@@ -98,7 +98,7 @@ CRITICAL: Never produce document content as text in your response. All document 
 When the user asks you to write, draft, create, edit, modify, add, or restructure content in a document, call tools immediately — do not explain your plan, do not describe what you are about to do, do not produce document content as text. Just call the tools:
 ${workflowSteps.join("\n")}
 
-CRITICAL: You MUST call task_complete in the SAME function call batch as the edit tool. Include task_complete as a simultaneous function call alongside insert_document_section, replace_document_section, remove_document_section, or move_document_section. Never make an edit call without also including task_complete in that same call list. Do not write text or re-read the document after editing.
+CRITICAL: After calling an edit tool (insert_document_section, replace_document_section, remove_document_section, move_document_section), call task_complete immediately. Do not write text or re-read the document after editing.
 
 Tool selection rule: Use replace_document_section to update a section that already exists (even if empty). Use insert_document_section only to create a brand-new section that does not yet exist in the document.
 

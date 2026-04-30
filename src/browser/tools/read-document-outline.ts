@@ -36,7 +36,7 @@ export class ReadDocumentOutlineTool {
     const outline = doc.getOutline();
     return {
       focused_document: {
-        note: "These sections already exist. Use replace_document_section to edit or fill any of them. Use insert_document_section ONLY to add a brand-new section that is NOT listed here.",
+        note: "These sections exist in the document. To update or fill a section, use replace_document_section. To delete a section, use remove_document_section. To add a brand-new section NOT listed here, use insert_document_section.",
         sections: outline.map(s => ({
           section_id: s.sectionTitleId,
           title: s.sectionTitle,

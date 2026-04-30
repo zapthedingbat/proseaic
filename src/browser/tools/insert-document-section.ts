@@ -6,7 +6,7 @@ import { JSONValue } from "../lib/JSONValue.js";
 
 export const schema: ToolSchema = {
   type: "function",
-  instructions: "Use ONLY for sections that do NOT already exist. If the section already exists, use replace_document_section instead. ALWAYS include task_complete in the SAME function call list as this tool — call both simultaneously, not sequentially.",
+  instructions: "Use ONLY for sections that do NOT already exist. If the section already exists, use replace_document_section instead. After inserting, call task_complete to finish.",
   function: {
     name: "insert_document_section",
     description: "Insert a new section into the current editor document after you have inspected structure with read_document_outline.",
