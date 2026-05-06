@@ -574,6 +574,52 @@ select.action-item option {
   position: relative;
 }
 
+/* Activity indicator — shimmering text via background-clip */
+.chat-activity {
+  margin: 0 var(--gap) var(--chat-vertical-gap);
+  padding: 4px 0;
+  font-size: 0.9rem;
+}
+
+.chat-activity[hidden] {
+  display: none;
+}
+
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--chat-thinking-text-color) 0%,
+    var(--chat-thinking-text-color) 40%,
+    var(--text-color) 50%,
+    var(--chat-thinking-text-color) 60%,
+    var(--chat-thinking-text-color) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: chat-activity-shimmer 2s linear infinite;
+}
+
+.chat-activity-label::after {
+  content: "";
+  animation: chat-activity-dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes chat-activity-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes chat-activity-dots {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%  { content: "..."; }
+  100% { content: ""; }
+}
+
 /* Markdown */
 .markdown code,
 .markdown pre {

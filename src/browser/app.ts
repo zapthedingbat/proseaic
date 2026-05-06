@@ -243,19 +243,25 @@ export class App implements IUserInteraction {
     }
 
     try {
+      this._chatPanel?.setActivity({ kind: "sending" });
       const stream = this._chatSession.submitUserPrompt(modelIdentifier, promptText);
       stream.addEventListener("message", this._updateChatPanel);
       stream.addEventListener("token", (e: Event) => {
         const event = (e as StreamTokenEvent).detail;
         if (event.type === "text_delta") {
           this._chatPanel?.appendResponseToActiveMessage(event.text);
+          this._chatPanel?.setActivity(null);
         } else if (event.type === "reasoning_delta") {
           this._chatPanel?.appendThinkingToActiveMessage(event.text);
+          this._chatPanel?.setActivity({ kind: "thinking" });
+        } else if (event.type === "tool_call") {
+          this._chatPanel?.setActivity({ kind: "tool", label: event.tool_call.name });
         }
       });
       await stream.completed;
     } finally {
       this._chatPanel?.setSendEnabled(true);
+      this._chatPanel?.setActivity(null);
     }
   }
 

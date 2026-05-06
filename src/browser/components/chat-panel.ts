@@ -8,6 +8,9 @@ import { PaneAction } from "./pane.js";
 const html = `
 <div class="panel">
   <div id="chat-history" class="chat-history scroll-box bottom-up"></div>
+  <div id="chat-activity" class="chat-activity" hidden>
+    <span class="chat-activity-label text-shimmer"></span>
+  </div>
   <div id="chat-input" class="textarea-input">
     <textarea id="chat-textarea"></textarea>
     <div class="actions-container">
@@ -17,6 +20,19 @@ const html = `
   </div>
 </div>
 `;
+
+export type ChatActivityKind = "sending" | "thinking" | "tool";
+
+export type ChatActivityState = {
+  kind: ChatActivityKind;
+  label?: string;
+};
+
+const ACTIVITY_LABELS: Record<ChatActivityKind, string> = {
+  sending: "Sending request",
+  thinking: "Thinking",
+  tool: "Calling tool"
+};
 
 type MessageElementFactory = (message: ChatMessage) => HTMLElement | null;
 type MessageElementFactoryMap = {
@@ -41,6 +57,9 @@ export class ChatPanel extends BaseHtmlElement {
   private textarea!: HTMLTextAreaElement;
   private sendButton!: HTMLButtonElement;
   private historyDiv!: HTMLDivElement;
+  private activityDiv!: HTMLDivElement;
+  private activityLabel!: HTMLSpanElement;
+  private _activity: ChatActivityState | null = null;
   private _models: Array<Model>;
   private _state: {
     history: ChatMessage[];
@@ -79,6 +98,9 @@ export class ChatPanel extends BaseHtmlElement {
       this.textarea = this.querySelector("#chat-textarea") as HTMLTextAreaElement;
       this.sendButton = this.querySelector("#chat-send") as HTMLButtonElement;
       this.historyDiv = this.querySelector("#chat-history") as HTMLDivElement;
+      this.activityDiv = this.querySelector("#chat-activity") as HTMLDivElement;
+      this.activityLabel = this.activityDiv.querySelector(".chat-activity-label") as HTMLSpanElement;
+      this._renderActivity();
       this._renderModels();
       if (this._state.history.length > 0) {
         this.setHistory(this._state.history);
@@ -303,6 +325,27 @@ export class ChatPanel extends BaseHtmlElement {
     if (this.sendButton) {
       this.sendButton.disabled = !enabled;
     }
+  }
+
+  setActivity(state: ChatActivityState | null): void {
+    this._activity = state;
+    this._renderActivity();
+  }
+
+  private _renderActivity(): void {
+    if (!this.activityDiv) {
+      return;
+    }
+    if (!this._activity) {
+      this.activityDiv.hidden = true;
+      this.activityLabel.textContent = "";
+      return;
+    }
+    const base = ACTIVITY_LABELS[this._activity.kind];
+    const text = this._activity.label ? `${base}: ${this._activity.label}` : base;
+    this.activityLabel.textContent = text;
+    this.activityDiv.dataset.kind = this._activity.kind;
+    this.activityDiv.hidden = false;
   }
 
   private _submit(): void {
