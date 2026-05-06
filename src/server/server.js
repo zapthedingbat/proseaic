@@ -43,12 +43,10 @@ export function startServer(){
 
   const server = http.createServer(app, { });
   server.listen(3001, () => {
-    if (process.env.VERBOSE === "true") {
-      const address = server.address();
-      const port = typeof address === "string" ? address : address.port;
-      const host = typeof address === "string" ? "localhost" : address.address;
-      console.log(`Server running on http://${host}:${port}`);
-    }
+    const address = server.address();
+    const port = typeof address === "string" ? address : address.port;
+    const host = typeof address === "string" ? "localhost" : address.address;
+    console.log(`Server running on http://${host}:${port}`);
   });
 
   return server;
