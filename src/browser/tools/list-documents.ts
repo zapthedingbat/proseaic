@@ -34,10 +34,17 @@ export class ListDocumentsTool {
   addContext = (): Record<string, unknown> => {
     const openDocuments = this._workspace.listOpenDocuments();
     const activeId = this._workspace.getFocusedDocumentId();
-    return ({document_management: {
-      focused_document_id: activeId?.toString() ?? null,
-      open_documents: openDocuments.map(doc => ({id: doc.id.toString(), has_unsaved_changes: doc.isDirty}))
-    }});
+
+    const focusedPart = activeId
+      ? `The focused document is ${activeId.toString()}.`
+      : "There is no focused document.";
+    const openPart = openDocuments.length === 0
+      ? "No documents are open."
+      : `Open documents:\n${openDocuments.map(doc => doc.id.toString() + (doc.isDirty ? " (unsaved changes)" : "")).reduce((p, c) => `${p}- ${c}\n`, "")}`;
+
+    const openDocInstructionPart = `Use open_document with a document ID to open and switch the focused document if needed.`; 
+
+    return { document_management: `\n${focusedPart}\n${openPart}\n${openDocInstructionPart}\n` };
   };
 
   execute = async (_args: Record<string, unknown>): Promise<JSONValue> => {

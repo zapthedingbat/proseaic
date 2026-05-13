@@ -52,7 +52,7 @@ export class WritingAssistant implements Agent {
       workflowSteps.push(`- Call the appropriate edit tool (${editTools.join(", ")}) to make the change.`);
     }
     if (has("task_complete")) {
-      workflowSteps.push(`- Call task_complete when all changes are done.`);
+      workflowSteps.push(`- Call task_complete when there is nothing left to do.`);
     }
 
     const base = `You are a writing assistant with expertise in copywriting, technical writing, proofreading, grammar correction, and general writing assistance. Help the user write, edit, and organise their documents.`;
@@ -74,6 +74,6 @@ Only reply with plain text (no tool calls) for questions or explanations. When a
   }
 
   buildContinuationPrompt(): string {
-    return "You have not yet called task_complete. If there is still work to do, continue using tools now. If you are finished, call task_complete.";
+    return "You have not yet called task_complete. If there is still work to do, continue now. If you are finished, call task_complete.";
   }
 }

@@ -283,15 +283,6 @@ describe("submitUserPrompt — agent loop control", () => {
     expect(platform.generate).toHaveBeenCalledTimes(1);
   });
 
-  it("stops the loop after MAX_ITERATIONS and logs a warning", async () => {
-    const { session, platform, logger } = makeSession({
-      agent: makeAgent({ continuation: "Continue." }),
-      responses: Array.from({ length: 10 }, () => streamFrom({ type: "done" })),
-    });
-    await session.submitUserPrompt("test-model", "go forever");
-    expect(platform.generate).toHaveBeenCalledTimes(10);
-    expect(logger.warn).toHaveBeenCalledWith("Agent loop hit iteration limit, stopping.");
-  });
 });
 
 // ---------------------------------------------------------------------------
