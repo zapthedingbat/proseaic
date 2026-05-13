@@ -160,6 +160,8 @@ export function storeRoutes(moduleUrl, storeDir){
       }
     }
 
+    await fs.mkdir(path.dirname(destinationPath), { recursive: true });
+
     try {
       await fs.rename(sourcePath, destinationPath);
       return res.status(204).send();
@@ -189,28 +191,38 @@ export function storeRoutes(moduleUrl, storeDir){
 
   const webDavPropfindHandler = async (req, res) => {
     const listPath = req.safePath ?? storeRoot;
+    const files = [];
+    await collectFiles(listPath, files);
+    res.status(200).json(files);
+  };
+
+  const collectFiles = async (dir, out) => {
     let entries;
     try {
-      entries = await fs.readdir(listPath, { withFileTypes: true });
+      entries = await fs.readdir(dir, { withFileTypes: true });
     } catch (err) {
       if (err.code === "ENOENT") {
-        return res.status(200).json([]);
+        return;
       }
       throw err;
     }
 
-    const files = await Promise.all(entries
-      .map(async entry => {
-        const absolutePath = path.join(listPath, entry.name);
-        const stats = await fs.stat(absolutePath);
-        const relativePath = path.relative(storeRoot, absolutePath).replace(/\\/g, "/");
-        return {
-          filename: relativePath,
-          version: `${stats.mtime.getTime()}`
-        };
-      }));
-
-    res.status(200).json(files);
+    for (const entry of entries) {
+      const absolutePath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await collectFiles(absolutePath, out);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      const stats = await fs.stat(absolutePath);
+      const relativePath = path.relative(storeRoot, absolutePath).replace(/\\/g, "/");
+      out.push({
+        filename: relativePath,
+        version: `${stats.mtime.getTime()}`
+      });
+    }
   };
 
   const webDavHandlers = {
