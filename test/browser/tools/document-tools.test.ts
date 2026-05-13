@@ -66,7 +66,7 @@ describe("document tools", () => {
     expect(calledPath.toString()).toBe("/Technical Architecture.md");
   });
 
-  it("lists documents with focused_document_id in context", async () => {
+  it("includes focused document and open documents in context", async () => {
     const focusedId = DocumentId.create("local", DocumentPath.parse("/beta"));
     const workspace = makeWorkbench({
       getFocusedDocumentId: vi.fn(() => focusedId),
@@ -98,10 +98,7 @@ describe("document tools", () => {
 
     const context = tool.addContext();
     expect(context).toEqual({
-      document_management: {
-        focused_document_id: focusedId.toString(),
-        open_documents: [{ id: focusedId.toString(), has_unsaved_changes: false }]
-      }
+      document_management: `\nThe focused document is ${focusedId.toString()}.\nOpen documents:\n- ${focusedId.toString()}\n\nUse open_document with a document ID to open and switch the focused document if needed.\n`
     });
   });
 

@@ -100,13 +100,7 @@ export class ChatSession implements IChatSession {
 
       let assistantMessage: AssistantChatMessage | null = null;
       let continueAgentLoop = true;
-      let iterationCount = 0;
-      const MAX_ITERATIONS = 10;
       while (continueAgentLoop) {
-        if (iterationCount++ >= MAX_ITERATIONS) {
-          this._logger.warn("Agent loop hit iteration limit, stopping.");
-          break;
-        }
 
         // Get the model details for the selected model identifier, which includes information about which platform to use for generating the response.
         // If the model identifier is invalid, we throw an error which will be caught and returned as part of the assistant's response, giving feedback to the user about the invalid model identifier.
@@ -256,14 +250,6 @@ export class ChatSession implements IChatSession {
           // Model produced text-only without calling task_complete — prompt it to continue or finish.
           const continuation = this._agent.buildContinuationPrompt?.();
           if (continuation) {
-            // Drop the text-only assistant turn from the context window. Keeping it causes the model
-            // to treat its prose as "already done" and immediately call task_complete. By removing it
-            // the model sees the last tool result + the continuation prompt and is more likely to
-            // call the intended tools. The message is still in history for the user to see.
-            const lastMsg = contextMessages[contextMessages.length - 1];
-            if (lastMsg?.role === "assistant" && !("tool_calls" in lastMsg && (lastMsg as AssistantChatMessage).tool_calls?.length)) {
-              contextMessages.pop();
-            }
             const continuationMsg: UserChatMessage = {
               role: "user",
               model: modelIdentifier,
