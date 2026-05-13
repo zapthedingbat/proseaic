@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/zapthedingbat/proseaic/compare/v1.2.0...v1.3.0) (2026-05-13)
+
+
+### Features
+
+* **chat:** add shimmer activity indicator to chat panel ([#62](https://github.com/zapthedingbat/proseaic/issues/62)) ([dd99b83](https://github.com/zapthedingbat/proseaic/commit/dd99b83ac93920f2c8d6af6f768a3efded158c52))
+
+
+### Bug Fixes
+
+* **chat:** remove iteration cap and improve continuation prompt ([#69](https://github.com/zapthedingbat/proseaic/issues/69)) ([a036ec8](https://github.com/zapthedingbat/proseaic/commit/a036ec8d294392c5e8b12f6afa48686f21ba9949))
+* create document crash and add smoke tests to CI ([#45](https://github.com/zapthedingbat/proseaic/issues/45)) ([1777c27](https://github.com/zapthedingbat/proseaic/commit/1777c27f598be11105898dba48d8b8b653afda52))
+
 ## [1.2.0](https://github.com/zapthedingbat/proseaic/compare/v1.1.0...v1.2.0) (2026-04-29)
 
 
