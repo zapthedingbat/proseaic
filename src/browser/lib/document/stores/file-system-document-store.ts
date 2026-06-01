@@ -7,7 +7,7 @@ type FileSystemDirectoryHandleFactory = () => Promise<FileSystemDirectoryHandle>
 export class FileSystemDocumentStore implements IDocumentStore {
   namespace: string = "file-system";
   private _directoryHandleFactory: FileSystemDirectoryHandleFactory;
-  
+
   constructor(directoryHandleFactory: FileSystemDirectoryHandleFactory) {
     this._directoryHandleFactory = directoryHandleFactory;
   }
@@ -17,13 +17,36 @@ export class FileSystemDocumentStore implements IDocumentStore {
     return lastModified as FileVersionToken;
   }
 
-  private async _getDirectoryHandle(): Promise<FileSystemDirectoryHandle> {
-    return this._directoryHandleFactory();
+  private _splitPath(filepath: DocumentPath): { dirSegments: string[]; filename: string } {
+    const segments = filepath.toString().split("/").filter(Boolean);
+    const filename = segments.pop() ?? "";
+    return { dirSegments: segments, filename };
+  }
+
+  private async _resolveDirectory(segments: string[], create: boolean): Promise<FileSystemDirectoryHandle | null> {
+    let dir = await this._directoryHandleFactory();
+    for (const segment of segments) {
+      try {
+        dir = await dir.getDirectoryHandle(segment, { create });
+      } catch {
+        if (!create) return null;
+        throw new Error(`Failed to access directory segment "${segment}"`);
+      }
+    }
+    return dir;
+  }
+
+  private async _getFileHandle(filepath: DocumentPath, options?: { create?: boolean }): Promise<FileSystemFileHandle> {
+    const { dirSegments, filename } = this._splitPath(filepath);
+    const dir = await this._resolveDirectory(dirSegments, options?.create === true);
+    if (!dir) {
+      throw new Error(`Directory not found for path "${filepath.toString()}"`);
+    }
+    return options ? dir.getFileHandle(filename, options) : dir.getFileHandle(filename);
   }
 
   async read(filepath: DocumentPath): Promise<FileContent> {
-    const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(filepath.filename);
+    const fileHandle = await this._getFileHandle(filepath);
     const file = await fileHandle.getFile();
     const content = await file.text();
     return {
@@ -33,8 +56,7 @@ export class FileSystemDocumentStore implements IDocumentStore {
   }
 
   async write(filepath: DocumentPath, content: string, expectedVersion?: FileVersionToken): Promise<FileVersionToken> {
-    const directoryHandle = await this._getDirectoryHandle();
-    const fileHandle = await directoryHandle.getFileHandle(filepath.filename, { create: true });
+    const fileHandle = await this._getFileHandle(filepath, { create: true });
 
     if (expectedVersion !== undefined) {
       const currentFile = await fileHandle.getFile();
@@ -58,13 +80,12 @@ export class FileSystemDocumentStore implements IDocumentStore {
       return;
     }
 
-    const directoryHandle = await this._getDirectoryHandle();
     try {
-      const fileHandle = await directoryHandle.getFileHandle(fromFilepath.filename);
-      const file = await fileHandle.getFile();
+      const fromHandle = await this._getFileHandle(fromFilepath);
+      const file = await fromHandle.getFile();
       const content = await file.text();
 
-      const existingTarget = await directoryHandle.getFileHandle(toFilepath.filename).then(
+      const existingTarget = await this._getFileHandle(toFilepath).then(
         () => true,
         () => false
       );
@@ -72,13 +93,17 @@ export class FileSystemDocumentStore implements IDocumentStore {
         throw new DocumentIdConflictError(toFilepath.toString());
       }
 
-      const newFileHandle = await directoryHandle.getFileHandle(toFilepath.filename, { create: true });
-      const writable = await newFileHandle.createWritable();
+      const toHandle = await this._getFileHandle(toFilepath, { create: true });
+      const writable = await toHandle.createWritable();
       const writeParams: WriteParams = { type: "write", data: content };
       await writable.write(writeParams);
       await writable.close();
 
-      await directoryHandle.removeEntry(fromFilepath.filename);
+      const { dirSegments: fromDirSegments, filename: fromFilename } = this._splitPath(fromFilepath);
+      const fromDir = await this._resolveDirectory(fromDirSegments, false);
+      if (fromDir) {
+        await fromDir.removeEntry(fromFilename);
+      }
 
       return;
     } catch (err) {
@@ -91,23 +116,39 @@ export class FileSystemDocumentStore implements IDocumentStore {
   }
 
   async rm(filepath: DocumentPath): Promise<void> {
-    const directoryHandle = await this._getDirectoryHandle();
-    await directoryHandle.removeEntry(filepath.filename);
+    const { dirSegments, filename } = this._splitPath(filepath);
+    const dir = await this._resolveDirectory(dirSegments, false);
+    if (!dir) {
+      throw new Error(`File not found: ${filepath.toString()}`);
+    }
+    await dir.removeEntry(filename);
   }
 
   async ls(): Promise<FileEntry[]> {
+    const root = await this._directoryHandleFactory();
     const files: FileEntry[] = [];
-    const directoryHandle = await this._getDirectoryHandle();
-    const handles = directoryHandle as unknown as AsyncIterable<[string, FileSystemHandle]>;
+    await this._collectMarkdownFiles(root, [], files);
+    return files;
+  }
+
+  private async _collectMarkdownFiles(
+    dir: FileSystemDirectoryHandle,
+    pathSegments: string[],
+    out: FileEntry[]
+  ): Promise<void> {
+    const handles = dir as unknown as AsyncIterable<[string, FileSystemHandle]>;
     for await (const [, entry] of handles) {
       if (entry.kind === "file" && entry.name.endsWith(".md")) {
         const file = await (entry as FileSystemFileHandle).getFile();
-        files.push({
-          filepath: DocumentPath.parse("/" + entry.name),
-          version: this._getVersionFromFile(file)
-        });
+        const filepath = DocumentPath.parse("/" + [...pathSegments, entry.name].join("/"));
+        out.push({ filepath, version: this._getVersionFromFile(file) });
+      } else if (entry.kind === "directory") {
+        await this._collectMarkdownFiles(
+          entry as FileSystemDirectoryHandle,
+          [...pathSegments, entry.name],
+          out
+        );
       }
     }
-    return files;
   }
 }

@@ -107,6 +107,91 @@ describe("FileSystemDocumentStore", () => {
     expect(createWritable).not.toHaveBeenCalled();
   });
 
+  it("reads nested file by walking subdirectories", async () => {
+    const getFile = vi.fn().mockResolvedValue({
+      text: vi.fn().mockResolvedValue("deep"),
+      lastModified: 999
+    });
+    const fileHandle = { getFile };
+    const subDir = {
+      getFileHandle: vi.fn().mockResolvedValue(fileHandle)
+    };
+    const workDir = {
+      getDirectoryHandle: vi.fn().mockResolvedValue(subDir)
+    };
+    const root = {
+      getDirectoryHandle: vi.fn().mockResolvedValue(workDir)
+    } as unknown as FileSystemDirectoryHandle;
+
+    const store = new FileSystemDocumentStore(async () => root);
+
+    await expect(store.read(path("/work/projects/notes.md"))).resolves.toEqual({
+      content: "deep",
+      version: "999"
+    });
+
+    expect((root as any).getDirectoryHandle).toHaveBeenCalledWith("work", { create: false });
+    expect(workDir.getDirectoryHandle).toHaveBeenCalledWith("projects", { create: false });
+    expect(subDir.getFileHandle).toHaveBeenCalledWith("notes.md");
+  });
+
+  it("writes nested file, creating intermediate directories", async () => {
+    const writable = {
+      write: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined)
+    };
+    const fileHandle = {
+      createWritable: vi.fn().mockResolvedValue(writable),
+      getFile: vi.fn().mockResolvedValue({ text: vi.fn().mockResolvedValue(""), lastModified: 42 })
+    };
+    const subDir = {
+      getFileHandle: vi.fn().mockResolvedValue(fileHandle)
+    };
+    const root = {
+      getDirectoryHandle: vi.fn().mockResolvedValue(subDir)
+    } as unknown as FileSystemDirectoryHandle;
+
+    const store = new FileSystemDocumentStore(async () => root);
+
+    await store.write(path("/work/notes.md"), "hello");
+
+    expect((root as any).getDirectoryHandle).toHaveBeenCalledWith("work", { create: true });
+    expect(subDir.getFileHandle).toHaveBeenCalledWith("notes.md", { create: true });
+    expect(writable.write).toHaveBeenCalledWith({ type: "write", data: "hello" });
+  });
+
+  it("lists markdown files recursively across subdirectories", async () => {
+    const nestedFileHandle = {
+      kind: "file" as const,
+      name: "deep.md",
+      getFile: vi.fn().mockResolvedValue({ text: vi.fn().mockResolvedValue(""), lastModified: 1 })
+    };
+    const subDir: any = {
+      kind: "directory" as const,
+      name: "work",
+      async *[Symbol.asyncIterator]() {
+        yield ["deep.md", nestedFileHandle];
+      }
+    };
+    const rootFileHandle = {
+      kind: "file" as const,
+      name: "top.md",
+      getFile: vi.fn().mockResolvedValue({ text: vi.fn().mockResolvedValue(""), lastModified: 2 })
+    };
+    const rootDir: any = {
+      async *[Symbol.asyncIterator]() {
+        yield ["top.md", rootFileHandle];
+        yield ["work", subDir];
+      }
+    };
+
+    const store = new FileSystemDocumentStore(async () => rootDir as FileSystemDirectoryHandle);
+
+    const entries = await store.ls();
+    const paths = entries.map(e => e.filepath.toString()).sort();
+    expect(paths).toEqual(["/top.md", "/work/deep.md"]);
+  });
+
   it("rejects move when target filepath already exists", async () => {
     const directoryHandle = {
       getFileHandle: vi.fn(async (name: string, options?: { create?: boolean }) => {

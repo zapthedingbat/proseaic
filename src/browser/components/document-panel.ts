@@ -2,25 +2,42 @@ import { DocumentId } from "../lib/document/document-service.js";
 import { BaseHtmlElement } from "./base-html-element";
 import { PaneAction } from "./pane.js";
 
+type TreeNode = FileNode | FolderNode;
+
+type FileNode = {
+  kind: "file";
+  id: DocumentId;
+  name: string;
+};
+
+type FolderNode = {
+  kind: "folder";
+  name: string;
+  path: string;
+  children: TreeNode[];
+};
+
 // <document-panel> WebComponent
 export class DocumentPanel extends BaseHtmlElement {
   private _listEl!: HTMLUListElement;
   private _documents: Array<DocumentId>;
   private _activeId: DocumentId | null;
   private _dirtyIds: Set<string>;
+  private _collapsedFolders: Set<string>;
 
   constructor() {
     super();
     this._documents = [];
     this._activeId = null;
     this._dirtyIds = new Set();
+    this._collapsedFolders = new Set();
   }
 
   connectedCallback(): void {
     if (!this._listEl) {
       this.innerHTML = `
 <div class="panel">
-  <ul class="document-list list" role="list"></ul>
+  <ul class="document-list list" role="tree"></ul>
   <div class="cover empty" aria-hidden="true">No documents yet.</div>
 </div>
 `;
@@ -70,9 +87,18 @@ export class DocumentPanel extends BaseHtmlElement {
     if (target?.tagName === "INPUT") return;
     const btn = target?.closest("[data-action]") as HTMLElement | null;
     if (!btn) return;
-    const docId = btn.dataset.docId;
     const action = btn.dataset.action;
-    if (!docId || !action) return;
+    if (!action) return;
+
+    if (action === "toggle-folder") {
+      const folderPath = btn.dataset.folderPath;
+      if (!folderPath) return;
+      this._toggleFolder(folderPath);
+      return;
+    }
+
+    const docId = btn.dataset.docId;
+    if (!docId) return;
 
     switch (action) {
       case "select":
@@ -118,15 +144,25 @@ export class DocumentPanel extends BaseHtmlElement {
     }));
   };
 
+  private _toggleFolder(folderPath: string): void {
+    if (this._collapsedFolders.has(folderPath)) {
+      this._collapsedFolders.delete(folderPath);
+    } else {
+      this._collapsedFolders.add(folderPath);
+    }
+    this._render();
+  }
+
   private _startRename(row: HTMLLIElement, errorMessage?: string): void {
     const docId = row.dataset.docId!;
     const titleBtn = row.querySelector(".list-item-title") as HTMLButtonElement;
     const actions = row.querySelector(".list-item-actions") as HTMLDivElement;
+    const initialValue = row.dataset.docPath ?? titleBtn.textContent?.trim() ?? "";
 
     const input = document.createElement("input");
     input.type = "text";
     input.className = "input";
-    input.value = titleBtn.textContent?.trim() ?? "";
+    input.value = initialValue;
 
     let wrapper: HTMLDivElement | null = null;
 
@@ -192,20 +228,82 @@ export class DocumentPanel extends BaseHtmlElement {
     input.select();
   }
 
-  private _makeItemRow(documentId: DocumentId): HTMLLIElement {
+  private _buildTree(documents: DocumentId[]): TreeNode[] {
+    const root: FolderNode = { kind: "folder", name: "", path: "", children: [] };
+
+    for (const doc of documents) {
+      const segments = doc.path.toString().split("/").filter(Boolean);
+      const filename = segments.pop() ?? doc.path.filename;
+      let current = root;
+      let accumulatedPath = "";
+      for (const segment of segments) {
+        accumulatedPath = `${accumulatedPath}/${segment}`;
+        let next = current.children.find(
+          child => child.kind === "folder" && child.name === segment
+        ) as FolderNode | undefined;
+        if (!next) {
+          next = { kind: "folder", name: segment, path: accumulatedPath, children: [] };
+          current.children.push(next);
+        }
+        current = next;
+      }
+      current.children.push({ kind: "file", id: doc, name: filename });
+    }
+
+    this._sortTree(root);
+    return root.children;
+  }
+
+  private _sortTree(folder: FolderNode): void {
+    folder.children.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    for (const child of folder.children) {
+      if (child.kind === "folder") this._sortTree(child);
+    }
+  }
+
+  private _makeFolderRow(folder: FolderNode, depth: number): HTMLLIElement {
+    const isCollapsed = this._collapsedFolders.has(folder.path);
+    const row = document.createElement("li");
+    row.className = "action-item list-item list-folder";
+    row.dataset.folderPath = folder.path;
+    row.style.setProperty("--depth", String(depth));
+    row.setAttribute("role", "treeitem");
+    row.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+
+    const titleBtn = document.createElement("div");
+    titleBtn.className = "list-item-title list-folder-title";
+    titleBtn.dataset.folderPath = folder.path;
+    titleBtn.dataset.action = "toggle-folder";
+    titleBtn.title = folder.name;
+    const chevronClass = isCollapsed ? "codicon-chevron-right" : "codicon-chevron-down";
+    titleBtn.innerHTML = `<i class="codicon ${chevronClass}"></i><span>${folder.name}</span>`;
+
+    row.append(titleBtn);
+    return row;
+  }
+
+  private _makeItemRow(node: FileNode, depth: number): HTMLLIElement {
+    const documentId = node.id;
     const row = document.createElement("li");
     const isActive = this._activeId ? documentId.equals(this._activeId) : false;
     const isDirty = this._dirtyIds.has(documentId.toString());
     row.className = `action-item list-item${isActive ? " active" : ""}${isDirty ? " dirty" : ""}`;
     row.dataset.docId = documentId.toString();
+    // Strip leading slash so users editing the rename input see a path they can simply edit.
+    row.dataset.docPath = documentId.path.toString().replace(/^\//, "");
+    row.style.setProperty("--depth", String(depth));
+    row.setAttribute("role", "treeitem");
 
     const titleBtn = document.createElement("div");
     titleBtn.className = "list-item-title";
     titleBtn.classList.toggle("highlight", isDirty);
     titleBtn.dataset.docId = documentId.toString();
     titleBtn.dataset.action = "select";
-    titleBtn.title = documentId.path.filename;
-    titleBtn.textContent = documentId.path.filename;
+    titleBtn.title = node.name;
+    titleBtn.textContent = node.name;
 
     const actions = document.createElement("div");
     actions.className = "list-item-actions";
@@ -229,6 +327,19 @@ export class DocumentPanel extends BaseHtmlElement {
     return row;
   }
 
+  private _appendNodes(nodes: TreeNode[], depth: number): void {
+    for (const node of nodes) {
+      if (node.kind === "folder") {
+        this._listEl.appendChild(this._makeFolderRow(node, depth));
+        if (!this._collapsedFolders.has(node.path)) {
+          this._appendNodes(node.children, depth + 1);
+        }
+      } else {
+        this._listEl.appendChild(this._makeItemRow(node, depth));
+      }
+    }
+  }
+
   private _render(): void {
     while (this._listEl.firstChild){
       this._listEl.removeChild(this._listEl.firstChild);
@@ -238,12 +349,12 @@ export class DocumentPanel extends BaseHtmlElement {
     if (this._documents.length === 0) {
       empty.style.display = "";
       this._listEl.style.display = "none";
-    } else {
-      empty.style.display = "none";
-      this._listEl.style.display = "";
-      for (const doc of this._documents) {
-        this._listEl.appendChild(this._makeItemRow(doc));
-      }
+      return;
     }
+
+    empty.style.display = "none";
+    this._listEl.style.display = "";
+    const tree = this._buildTree(this._documents);
+    this._appendNodes(tree, 0);
   }
 }
